@@ -1,12 +1,13 @@
 import os
-from typing import List, Optional
+import re
+from typing import List, Optional, cast
 
 import dropbox
 from dropbox.exceptions import ApiError, AuthError, RateLimitError
-from dropbox.files import FileMetadata
+from dropbox.files import FileMetadata, ListFolderResult
 
 from app.storage_exceptions import StorageProviderException
-from app.storage_provider import StorageProviderBase
+from app.storage_provider import MediaObject, StorageProviderBase
 
 
 class DropboxStorageProvider(StorageProviderBase):
@@ -31,11 +32,15 @@ class DropboxStorageProvider(StorageProviderBase):
             raise StorageProviderException(f"Dropbox authentication failed: {e}")
 
     async def list(
-        self, prefix: Optional[str] = None, limit: int = 100, offset: int = 0
-    ) -> list[str]:
+        self,
+        prefix: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+        regex: Optional[str] = None,
+    ) -> List[MediaObject]:
         """
-        List all files under the root path, optionally filtered by prefix.
-        Returns a list of object keys (relative paths starting with '/').
+        List all files under the root path, optionally filtered by prefix and regex.
+        Returns a list of MediaObject instances with Dropbox metadata.
         """
         try:
             # Compose the path to list
@@ -44,13 +49,14 @@ class DropboxStorageProvider(StorageProviderBase):
                 # Remove leading slash to avoid double-slash in Dropbox path
                 prefix_path = prefix.lstrip("/")
                 list_path = os.path.join(self.root_path, prefix_path)
+
+            # Compile regex pattern if provided
+            regex_pattern = re.compile(regex) if regex else None
+
             # Dropbox API returns up to 2,000 entries per call; handle pagination
-            results: List[str] = []
+            results: List[MediaObject] = []
             has_more = True
             cursor = None
-            from typing import cast
-
-            from dropbox.files import ListFolderResult
 
             while has_more and len(results) < (offset + limit):
                 if cursor:
@@ -62,15 +68,44 @@ class DropboxStorageProvider(StorageProviderBase):
                         ListFolderResult,
                         self.dbx.files_list_folder(list_path, recursive=True),
                     )
+
                 for entry in res.entries:
                     if isinstance(entry, FileMetadata):
                         rel_path = os.path.relpath(entry.path_display, self.root_path)
                         rel_path = "/" + rel_path.lstrip("/")
-                        results.append(rel_path)
+
+                        # Apply regex filter if provided
+                        if regex_pattern and not regex_pattern.search(rel_path):
+                            continue
+
+                        # Create MediaObject with Dropbox metadata
+                        results.append(
+                            MediaObject(
+                                object_key=rel_path,
+                                last_modified=(
+                                    entry.server_modified.isoformat()
+                                    if entry.server_modified
+                                    else None
+                                ),
+                                metadata={
+                                    "size": entry.size,
+                                    "content_hash": entry.content_hash,
+                                    "rev": entry.rev,
+                                    "client_modified": (
+                                        entry.client_modified.isoformat()
+                                        if entry.client_modified
+                                        else None
+                                    ),
+                                },
+                            )
+                        )
+
                 has_more = res.has_more
                 cursor = res.cursor
-            # Apply offset/limit after collecting
+
+            # Apply pagination
             return results[offset : offset + limit]
+
         except RateLimitError as e:
             raise StorageProviderException("Dropbox rate limit exceeded") from e
         except ApiError as e:
@@ -86,9 +121,7 @@ class DropboxStorageProvider(StorageProviderBase):
             # Remove leading slash and join with root for Dropbox path
             rel_path = object_key.lstrip("/")
             dropbox_path = os.path.join(self.root_path, rel_path)
-            from typing import Any, Tuple, cast
-
-            from dropbox.files import FileMetadata
+            from typing import Any, Tuple
 
             md_response = cast(
                 Tuple[FileMetadata, Any], self.dbx.files_download(dropbox_path)

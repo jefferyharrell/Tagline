@@ -7,7 +7,7 @@ import pytest
 
 from app.dropbox_storage_provider import DropboxStorageProvider
 from app.filesystem_storage_provider import FilesystemStorageProvider
-from app.storage_provider import StorageProviderBase
+from app.storage_provider import MediaObject, StorageProviderBase
 
 # --- Provider Fixtures ---
 
@@ -37,34 +37,40 @@ def dropbox_provider_with_files(monkeypatch, tmp_path: Path) -> StorageProviderB
     monkeypatch.setenv("DROPBOX_REFRESH_TOKEN", "dummy-refresh-token")
     monkeypatch.setenv("DROPBOX_ROOT_PATH", "/test-root")
 
+    from datetime import datetime, timezone
+
     from dropbox.files import FileMetadata, ListFolderResult
+
+    # Create valid 64-character content hashes (hex strings)
+    hash1 = "0" * 64  # Simple valid hash for testing
+    hash2 = "1" * 64  # Another simple valid hash for testing
 
     # Simulate Dropbox file metadata
     file1 = FileMetadata(
         name="foo.txt",
         id="id:1",
-        client_modified=None,
-        server_modified=None,
+        client_modified=datetime.now(timezone.utc),
+        server_modified=datetime.now(timezone.utc),
         rev="a1b2c3d4e",
         size=5,
         path_lower="/test-root/foo.txt",
         path_display="/test-root/foo.txt",
         sharing_info=None,
         is_downloadable=True,
-        content_hash=None,
+        content_hash=hash1,
     )
     file2 = FileMetadata(
         name="baz.txt",
         id="id:2",
-        client_modified=None,
-        server_modified=None,
+        client_modified=datetime.now(timezone.utc),
+        server_modified=datetime.now(timezone.utc),
         rev="f5e6d7c8b",
         size=5,
         path_lower="/test-root/bar/baz.txt",
         path_display="/test-root/bar/baz.txt",
         sharing_info=None,
         is_downloadable=True,
-        content_hash=None,
+        content_hash=hash2,
     )
     entries = [file1, file2]
     list_folder_result = ListFolderResult(
@@ -133,8 +139,17 @@ provider_fixtures = [
 @pytest.mark.parametrize("provider_fixture", provider_fixtures)
 async def test_list_and_retrieve(provider_fixture: str, request: Any):
     provider: StorageProviderBase = request.getfixturevalue(provider_fixture)
-    keys = await provider.list()
-    assert set(keys) == {"/foo.txt", "/bar/baz.txt"}
+    objects = await provider.list()
+    object_keys = {obj.object_key for obj in objects}
+    assert object_keys == {"/foo.txt", "/bar/baz.txt"}
+
+    # Verify metadata is present
+    for obj in objects:
+        assert isinstance(obj, MediaObject)
+        assert obj.last_modified is not None
+        assert obj.metadata is not None
+        assert "size" in obj.metadata
+
     data = await provider.retrieve("/foo.txt")
     assert data == b"hello"
     data2 = await provider.retrieve("/bar/baz.txt")
@@ -146,14 +161,31 @@ async def test_list_and_retrieve(provider_fixture: str, request: Any):
 async def test_list_prefix_and_pagination(provider_fixture: str, request: Any):
     provider: StorageProviderBase = request.getfixturevalue(provider_fixture)
     # Prefix
-    keys = await provider.list(prefix="/bar")
-    assert keys == ["/bar/baz.txt"]
+    objects = await provider.list(prefix="/bar")
+    assert len(objects) == 1
+    assert objects[0].object_key == "/bar/baz.txt"
+
     # Pagination
-    keys = await provider.list(limit=1)
-    assert len(keys) == 1
-    keys2 = await provider.list(offset=1)
-    assert len(keys2) == 1
-    assert set(keys + keys2) == {"/foo.txt", "/bar/baz.txt"}
+    objects = await provider.list(limit=1)
+    assert len(objects) == 1
+    objects2 = await provider.list(offset=1)
+    assert len(objects2) == 1
+    all_keys = {obj.object_key for obj in objects + objects2}
+    assert all_keys == {"/foo.txt", "/bar/baz.txt"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_fixture", provider_fixtures)
+async def test_list_with_regex(provider_fixture: str, request: Any):
+    provider: StorageProviderBase = request.getfixturevalue(provider_fixture)
+    # Test regex filtering
+    objects = await provider.list(regex=r"\.txt$")
+    assert len(objects) == 2
+    assert {obj.object_key for obj in objects} == {"/foo.txt", "/bar/baz.txt"}
+
+    objects = await provider.list(regex=r"foo")
+    assert len(objects) == 1
+    assert objects[0].object_key == "/foo.txt"
 
 
 @pytest.mark.asyncio
