@@ -1,9 +1,11 @@
 import os
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.dropbox_storage_provider import DropboxStorageProvider
 from app.filesystem_storage_provider import FilesystemStorageProvider
 from app.storage_provider import StorageProviderBase
 
@@ -24,11 +26,106 @@ def fs_provider_with_files(tmp_path: Path) -> StorageProviderBase:
     return FilesystemStorageProvider()
 
 
+@pytest.fixture
+def dropbox_provider_with_files(monkeypatch, tmp_path: Path) -> StorageProviderBase:
+    """
+    DropboxStorageProvider fixture with mocked Dropbox API.
+    Simulates two files: /foo.txt with b"hello" and /bar/baz.txt with b"world".
+    """
+    monkeypatch.setenv("DROPBOX_APP_KEY", "dummy-app-key")
+    monkeypatch.setenv("DROPBOX_APP_SECRET", "dummy-app-secret")
+    monkeypatch.setenv("DROPBOX_REFRESH_TOKEN", "dummy-refresh-token")
+    monkeypatch.setenv("DROPBOX_ROOT_PATH", "/test-root")
+
+    from dropbox.files import FileMetadata, ListFolderResult
+
+    # Simulate Dropbox file metadata
+    file1 = FileMetadata(
+        name="foo.txt",
+        id="id:1",
+        client_modified=None,
+        server_modified=None,
+        rev="a1b2c3d4e",
+        size=5,
+        path_lower="/test-root/foo.txt",
+        path_display="/test-root/foo.txt",
+        sharing_info=None,
+        is_downloadable=True,
+        content_hash=None,
+    )
+    file2 = FileMetadata(
+        name="baz.txt",
+        id="id:2",
+        client_modified=None,
+        server_modified=None,
+        rev="f5e6d7c8b",
+        size=5,
+        path_lower="/test-root/bar/baz.txt",
+        path_display="/test-root/bar/baz.txt",
+        sharing_info=None,
+        is_downloadable=True,
+        content_hash=None,
+    )
+    entries = [file1, file2]
+    list_folder_result = ListFolderResult(
+        entries=entries, cursor="cursor", has_more=False
+    )
+
+    # Patch Dropbox client methods
+    with patch("dropbox.Dropbox") as MockDropbox:
+        instance = MockDropbox.return_value
+
+        def files_list_folder_side_effect(path, recursive=True):
+            # Simulate Dropbox API prefix filtering
+            if path.endswith("/bar") or path.endswith("/bar/"):
+                filtered_entries = [file2]
+            else:
+                filtered_entries = [file1, file2]
+            return ListFolderResult(
+                entries=filtered_entries, cursor="cursor", has_more=False
+            )
+
+        instance.files_list_folder.side_effect = files_list_folder_side_effect
+        instance.files_list_folder_continue.return_value = list_folder_result
+
+        # files_download returns (metadata, response)
+        def files_download_side_effect(path):
+            if path.endswith("foo.txt"):
+                return (file1, MagicMock(content=b"hello"))
+            elif path.endswith("baz.txt"):
+                return (file2, MagicMock(content=b"world"))
+            else:
+                # Simulate missing file by raising ApiError with .error.get_path().is_not_found() True
+                from dropbox.exceptions import ApiError
+
+                class DummyError:
+                    def is_path(self):
+                        return True
+
+                    def get_path(self):
+                        class NotFound:
+                            def is_not_found(self):
+                                return True
+
+                        return NotFound()
+
+                raise ApiError(
+                    request_id="dummy",
+                    error=DummyError(),
+                    user_message_text=None,
+                    user_message_locale=None,
+                )
+
+        instance.files_download.side_effect = files_download_side_effect
+        provider = DropboxStorageProvider()
+        return provider
+
+
 # --- Matrix Parametrization ---
 
 provider_fixtures = [
     "fs_provider_with_files",
-    # Add more provider fixture names here as you implement them
+    "dropbox_provider_with_files",
 ]
 
 
