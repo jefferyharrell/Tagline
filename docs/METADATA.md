@@ -16,7 +16,6 @@ This document describes the structure, conventions, and recommended fields for t
 
 ```json
 {
-  "date_modified": "2025-04-30T12:34:56Z",
   "description": "A short description of the media object.",
   "keywords": ["keyword1", "keyword2"],
   // ...additional fields TBA...
@@ -30,7 +29,6 @@ This document describes the structure, conventions, and recommended fields for t
 
 | Field        | Type              | Description                                 | Constraints                |
 |--------------|-------------------|---------------------------------------------|----------------------------|
-| date_modified | DateTime          | Last modification timestamp                 | UTC, ISO 8601              |
 | description  | string            | Short, human-readable description           | Max length: 1024           |
 | keywords         | array of strings  | List of  keywords                    | Each tag max length: 64    |
 
@@ -50,7 +48,6 @@ This document describes the structure, conventions, and recommended fields for t
 ### With Description and Keywords
 ```json
 {
-  "date_modified": "2025-04-30T12:34:56Z",
   "description": "Vacation photo from 2024.",
   "keywords": ["vacation", "beach", "family"]
 }
@@ -71,9 +68,6 @@ from typing import List, Optional, Any, Dict
 from pydantic import BaseModel, Field, field_validator
 
 class MetadataModel(BaseModel):
-    date_modified: Optional[str] = Field(
-        default=None, max_length=1024, description="Date and time of last modification (UTC, ISO 8601)."
-    )
     description: Optional[str] = Field(
         default=None, max_length=1024, description="Short, human-readable description."
     )

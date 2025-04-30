@@ -1,0 +1,29 @@
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, String
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+
+class MediaObject(Base):
+    __tablename__ = "media_objects"
+
+    id = Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        unique=True,
+        nullable=False,
+    )
+    object_key = Column(String(255), unique=True, nullable=False)
+    object_metadata = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    def __repr__(self):
+        return f"<MediaObject(id={self.id}, object_key={self.object_key})>"

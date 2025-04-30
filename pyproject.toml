@@ -28,7 +28,7 @@ line-length = 88
 typeCheckingMode = "standard"
 pythonVersion = "3.12"
 reportIncompatibleVariableOverride = false
-include = ["tagline_backend_app", "tests"]
+include = ["app", "tests"]
 exclude = ["**/node_modules", "**/__pycache__", "venv"]
 reportMissingImports = true
 reportUnusedVariable = "warning"
@@ -38,7 +38,7 @@ executionEnvironments = [
 
 [tool.isort]
 profile = "black"
-known_first_party = "tagline_backend_app,tests"
+known_first_party = "app,tests"
 line_length = 88
 multi_line_output = 3
 include_trailing_comma = true

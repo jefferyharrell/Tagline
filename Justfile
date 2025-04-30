@@ -100,19 +100,15 @@ shell:
 # Alembic migrations (inside Docker)
 migrate:
     # Apply all migrations in the backend container
-    docker exec -it tagline-backend-dev alembic upgrade head
+    docker exec -it tagline-backend alembic upgrade head
 
 makemigration MESSAGE="Describe your migration":
     # Create a new Alembic migration (autogenerate) in Docker
-    docker exec -it tagline-backend-dev alembic revision --autogenerate -m "{{MESSAGE}}"
+    docker exec -it tagline-backend alembic revision --autogenerate -m "{{MESSAGE}}"
 
 dbshell:
     # Open a Postgres shell in the Postgres container for integration/dev DB
-    docker exec -it tagline-postgres-dev psql -U tagline -d tagline
-
-# Connect to the Redis shell in the dev container
-redis-shell:
-	docker exec -it tagline-redis-dev redis-cli
+    docker exec -it tagline-postgres psql -U tagline -d tagline
 
 # Clean up
 prune:
