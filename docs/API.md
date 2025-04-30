@@ -16,8 +16,9 @@ Represents a media item managed by the application.
 {
   "id": "<UUID>",
   "object_key": "<string>",
-  "last_modified": "<UTC timestamp>",
-  "metadata": { /* see METADATA.md */ }
+  "created_at": "<UTC timestamp>",
+  "updated_at": "<UTC timestamp>",
+  "object_metadata": { /* see METADATA.md */ }
 }
 ```
 
@@ -151,11 +152,12 @@ Standard error response for all endpoints.
 ### MediaObject
 - `id`: string, UUID, required, immutable
 - `object_key`: string, required, unique within provider, UTF-8, max length varies from 260 bytes up to 4000 bytes depending on the provider
-- `last_modified`: string, ISO 8601 UTC, required
-- `metadata`: object, optional, must be JSON-serializable
+- `created_at`: string, ISO 8601 UTC, required
+- `updated_at`: string, ISO 8601 UTC, required
+- `object_metadata`: object, optional, must be JSON-serializable
 
 ### UpdateMediaObjectRequest
-- `metadata`: object, optional, must be JSON-serializable
+- `object_metadata`: object, optional, must be JSON-serializable
   - `description`: string, optional, max length 1024
   - `keywords`: array of strings, optional, each tag max length 64
 

@@ -2,13 +2,13 @@
 
 **Last Updated:** 2025-04-30
 
-This document describes the structure, conventions, and recommended fields for the `metadata` property of a MediaObject in the Tagline application.
+This document describes the structure, conventions, and recommended fields for the `object_metadata` property of a MediaObject in the Tagline application.
 
 ---
 
 ## Overview
 
-- The `metadata` field is a flexible, JSON-serializable object attached to each MediaObject.
+- The `object_metadata` field is a flexible, JSON-serializable object attached to each MediaObject.
 - It is intended to store descriptive, searchable, or user-defined information about the media item.
 - The structure is designed for extensibility and forward compatibility.
 
@@ -61,13 +61,13 @@ This document describes the structure, conventions, and recommended fields for t
 
 ## Pydantic Metadata Model Example
 
-Below is an example of a Pydantic model for the `metadata` property, reflecting the structure and constraints described above:
+Below is an example of a Pydantic model for the `object_metadata` property, reflecting the structure and constraints described above:
 
 ```python
 from typing import List, Optional, Any, Dict
 from pydantic import BaseModel, Field, field_validator
 
-class MetadataModel(BaseModel):
+class ObjectMetadataModel(BaseModel):
     description: Optional[str] = Field(
         default=None, max_length=1024, description="Short, human-readable description."
     )
@@ -92,7 +92,7 @@ class MetadataModel(BaseModel):
 
 - This model enforces the constraints for `description` and `keywords`.
 - Additional custom fields are allowed for extensibility.
-- Use this model as the type for the `metadata` field in your MediaObject Pydantic model.
+- Use this model as the type for the `object_metadata` field in your MediaObject Pydantic model.
 
 ---
 

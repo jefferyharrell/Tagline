@@ -89,21 +89,25 @@ The main data model is called `MediaObject`.
 {
     "id": "<UUID>",
     "object_key": "<string>",
-    "last_modified": "<UTC timestamp>",
-    "metadata": {}
+    "created_at": "<UTC timestamp>",
+    "updated_at": "<UTC timestamp>",
+    "object_metadata": {}
 }
 ```
 
-- See [METADATA.md](./METADATA.md) for the structure, standard fields, and conventions for the `metadata` property.
+- `created_at`: The UTC timestamp when the MediaObject was first created in the database.
+- `updated_at`: The UTC timestamp when the MediaObject was last updated in the database.
+- `object_metadata`: Flexible metadata associated with the media object. See [METADATA.md](./METADATA.md) for the structure, standard fields, and conventions.
 
 ### Fields
 
 | Field         | Type           | Description                                                     | Constraints                     |
 |--------------|----------------|----------------------------------------------------------------|---------------------------------|
-| `id`         | UUID           | Unique identifier for the media object                          | Primary key, immutable          |
-| `object_key` | String         | Storage path or unique identifier in the storage provider       | Indexed, unique within provider |
-| `last_modified` | DateTime     | Timestamp of the last modification, stored in UTC               | Automatically updated           |
-| `metadata`   | JSON Object    | Flexible metadata associated with the media object              | See METADATA.md                 |
+| `id`              | UUID           | Unique identifier for the media object                          | Primary key, immutable          |
+| `object_key`      | String         | Storage path or unique identifier in the storage provider       | Indexed, unique within provider |
+| `created_at`      | DateTime       | UTC timestamp when the MediaObject was first created            | Automatically updated           |
+| `updated_at`      | DateTime       | UTC timestamp when the MediaObject was last updated             | Automatically updated           |
+| `object_metadata` | JSON Object    | Flexible metadata associated with the media object              | See METADATA.md                 |
 
 ### ORM and Migrations
 
@@ -123,38 +127,42 @@ The API is a RESTful API built on FastAPI. It is versioned using the URL prefix 
 
 The application uses a storage provider abstraction layer to manage media files. **The storage provider is a read-only interface to a back-end object store (e.g., filesystem, Dropbox, S3, etc.).** It is responsible only for:
 
-- Listing all media objects by their object keys (optionally paginated)
-- Retrieving the raw bytes of an object by its object key
-
-All other operations—including metadata management, thumbnail generation/storage, and any write/update/delete actions—are handled exclusively by the application and its database. The storage provider does not modify or manage metadata, thumbnails, or any other data beyond the raw object bytes.
-
-### `StorageProviderBase` Protocol
+- Listing available media objects (optionally filtered by regex on object key)
+- Retrieving the raw data for a given object key
 
 The `StorageProviderBase` defines a standardized, read-only interface for media storage operations. All storage providers MUST implement the following methods:
 
 #### Method Signatures
 
 ```python
-from typing import Optional, Protocol
+from typing import Optional, List, Protocol
+from pydantic import BaseModel
+
+class MediaObject(BaseModel):
+    object_key: str
+    last_modified: Optional[str] = None  # or datetime
+    metadata: Optional[dict] = None
 
 class StorageProviderBase(Protocol):
     async def list(
         self,
         prefix: Optional[str] = None,
         limit: int = 100,
-        offset: int = 0
-    ) -> list[str]:
+        offset: int = 0,
+        regex: Optional[str] = None
+    ) -> List[MediaObject]:
         """
-        List media objects in storage.
+        List media objects in storage, optionally filtered by regex on object key.
 
         Args:
-            prefix: Optional path/namespace prefix
-            limit: Maximum number of objects to return
-            offset: Number of objects to skip
+            prefix: Only return keys with this prefix.
+            limit: Max number of results.
+            offset: Start at this offset.
+            regex: If provided, only return keys matching this regex pattern.
+
         Returns:
-            A list of media object keys
+            List of MediaObject objects. If the provider can supply metadata (e.g., width, height, last_modified) as part of the listing, the MediaObject.metadata property SHOULD be set; otherwise, it MAY be empty or omitted.
         """
-        ...
 
     async def retrieve(self, object_key: str) -> bytes:
         """
