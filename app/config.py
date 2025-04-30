@@ -12,6 +12,16 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     UNIT_TEST_DATABASE_URL: str | None = None  # Optional, for unit tests
 
+    # Storage Provider Configuration
+    STORAGE_PROVIDER: str = "filesystem"
+    FILESYSTEM_ROOT_PATH: str | None = None
+
+    # Dropbox Storage Provider Configuration
+    DROPBOX_APP_KEY: str | None = None
+    DROPBOX_APP_SECRET: str | None = None
+    DROPBOX_REFRESH_TOKEN: str | None = None
+    DROPBOX_ROOT_PATH: str | None = None
+
     def get_active_database_url(self) -> str:
         """
         Returns the correct database URL for the current context.
