@@ -1,7 +1,7 @@
 """Create media_objects table
 
 Revision ID: a71ea87b311e
-Revises: 
+Revises:
 Create Date: 2025-04-30 19:27:53.532244
 
 """

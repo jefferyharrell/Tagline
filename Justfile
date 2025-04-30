@@ -26,17 +26,17 @@ lint:
 
 # Testing
 unit-tests:
-    source venv/bin/activate && PYTHONPATH=. pytest -s -v tests/unit -m unit -rs
+    source venv/bin/activate && PYTHONPATH=. pytest -s -v tests/unit -rs
 
 e2e-tests:
-    source venv/bin/activate && pytest -s -v tests/e2e -m e2e -rs
+    source venv/bin/activate && pytest -s -v tests/e2e -rs
 
 test:
     just unit-tests
     just e2e-tests
 
 coverage:
-    source venv/bin/activate && pytest tests/unit -m unit --cov=app --cov-report=term-missing
+    source venv/bin/activate && pytest tests/unit --cov=app --cov-report=term-missing
 
 all:
     just format

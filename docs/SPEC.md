@@ -121,86 +121,29 @@ The API is a RESTful API built on FastAPI. It is versioned using the URL prefix 
 
 ## Storage Provider Abstraction
 
-The application uses a storage provider abstraction layer to manage media files. The storage provider MUST support the following operations:
+The application uses a storage provider abstraction layer to manage media files. **The storage provider is a read-only interface to a back-end object store (e.g., filesystem, Dropbox, S3, etc.).** It is responsible only for:
 
-- List (in default order, optionally paginated)
-- Find (by metadata attributes)
-- Retrieve (by ID)
-- Create (new media object)
-- Update (existing media object)
-- Delete (media object)
+- Listing all media objects by their object keys (optionally paginated)
+- Retrieving the raw bytes of an object by its object key
 
-The storage provider MUST be configured via environment variables, never hardcoded in the source code. The application MUST support multiple storage providers, with the default being a local filesystem. Additional storage providers (e.g., Dropbox, S3) MAY be added as plugins, each with its own configuration and implementation. The application MUST be able to switch between storage providers dynamically, with the choice being configurable via environment variables.
+All other operations—including metadata management, thumbnail generation/storage, and any write/update/delete actions—are handled exclusively by the application and its database. The storage provider does not modify or manage metadata, thumbnails, or any other data beyond the raw object bytes.
 
-## Storage Provider Interface
+### `StorageProviderBase` Protocol
 
-### `StorageProviderBase` Abstract Base Class
-
-The `StorageProviderBase` defines a standardized interface for media storage operations. All storage providers MUST implement the following methods:
+The `StorageProviderBase` defines a standardized, read-only interface for media storage operations. All storage providers MUST implement the following methods:
 
 #### Method Signatures
 
 ```python
-class StorageProviderBase(ABC):
-    @abstractmethod
-    async def save(
-        self,
-        object_key: str,
-        data: bytes,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """
-        Save a media object to storage.
+from typing import Optional, Protocol
 
-        Args:
-            object_key: Unique identifier for the object
-            data: Raw file contents
-            metadata: Optional metadata associated with the object
-
-        Returns:
-            Confirmed storage location or object identifier
-        """
-        pass
-
-    @abstractmethod
-    async def retrieve(
-        self,
-        object_key: str
-    ) -> Tuple[bytes, Dict[str, Any]]:
-        """
-        Retrieve a media object from storage.
-
-        Args:
-            object_key: Unique identifier for the object
-
-        Returns:
-            Tuple of (raw_data, metadata)
-        """
-        pass
-
-    @abstractmethod
-    async def delete(
-        self,
-        object_key: str
-    ) -> bool:
-        """
-        Delete a media object from storage.
-
-        Args:
-            object_key: Unique identifier for the object
-
-        Returns:
-            True if deletion was successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
+class StorageProviderBase(Protocol):
     async def list(
         self,
         prefix: Optional[str] = None,
         limit: int = 100,
         offset: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[str]:
         """
         List media objects in storage.
 
@@ -208,37 +151,28 @@ class StorageProviderBase(ABC):
             prefix: Optional path/namespace prefix
             limit: Maximum number of objects to return
             offset: Number of objects to skip
-
         Returns:
-            List of object metadata
+            A list of media object keys
         """
-        pass
+        ...
 
-    @abstractmethod
-    async def generate_thumbnail(
-        self,
-        object_key: str,
-        size: Tuple[int, int] = (100, 100)
-    ) -> bytes:
+    async def retrieve(self, object_key: str) -> bytes:
         """
-        Generate a thumbnail for a media object.
+        Retrieve a media object's raw data from storage.
 
         Args:
             object_key: Unique identifier for the object
-            size: Desired thumbnail dimensions (width, height)
-
         Returns:
-            Thumbnail image bytes
+            The raw bytes of the object
         """
-        pass
+        ...
 ```
 
-### Provider-Specific Considerations
+#### Provider-Specific Considerations
 
 - Each storage provider implementation MUST handle its own authentication and connection management
 - Providers SHOULD implement robust error handling
 - Async methods are required to support concurrent operations
-- Providers MUST be configurable via environment variables
 
 ### Example Provider Implementation
 
@@ -247,18 +181,20 @@ class LocalFilesystemProvider(StorageProviderBase):
     def __init__(self, base_path: Path):
         self.base_path = base_path
 
-    async def save(self, object_key: str, data: bytes, metadata: Optional[Dict[str, Any]] = None):
-        # Local filesystem specific implementation
+    async def retrieve(self, object_key: str) -> bytes:
+        # Local filesystem-specific implementation
         pass
 
-    # ... other method implementations
+    async def list(self, prefix: Optional[str] = None, limit: int = 100, offset: int = 0) -> list[str]:
+        # Local filesystem-specific implementation
+        pass
 ```
 
 ### Performance Expectations
 
-- Save/Retrieve operations SHOULD complete within 500ms for objects under 10MB
-- Thumbnail generation SHOULD complete within 250ms
-- List operations MUST support pagination and return metadata efficiently
+- Retrieve operations SHOULD complete within 500ms for objects under 10MB
+- Thumbnail generation (handled by the application) SHOULD complete within 250ms
+- List operations MUST support pagination and return object keys efficiently
 
 ## Logging
 
