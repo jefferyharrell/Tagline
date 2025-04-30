@@ -94,4 +94,7 @@ yarn.lock
 # Ignore .windsurfrules
 .windsurfrules
 
+# Ignore .cursor
+.cursor/
+
 # End of file
