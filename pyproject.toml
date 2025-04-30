@@ -1,0 +1,59 @@
+[project]
+name = "tagline-backend"
+version = "0.1.0"
+description = "Tagline Backend"
+authors = [
+  { name = "Jeffery Harrell" },
+]
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end",
+]
+addopts = "-ra"
+pythonpath = "."
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.pyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.12"
+reportIncompatibleVariableOverride = false
+include = ["tagline_backend_app", "tests"]
+exclude = ["**/node_modules", "**/__pycache__", "venv"]
+reportMissingImports = true
+reportUnusedVariable = "warning"
+executionEnvironments = [
+  { root = "." }
+]
+
+[tool.isort]
+profile = "black"
+known_first_party = "tagline_backend_app,tests"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+combine_as_imports = true
+use_parentheses = true
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

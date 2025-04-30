@@ -1,0 +1,97 @@
+# .gitignore for Tagline-backend (FastAPI, Python 3.12+)
+# Covers Python, FastAPI, pre-commit, pytest, and common tooling
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Pyright, Ruff, Black, and other tool caches
+.pyright/
+.ruff_cache/
+.black/
+
+# Pre-commit, lint, and test artifacts
+.pre-commit/
+
+# Environments
+.env
+.env.*
+.envrc
+*.env
+!.env.example
+*.envrc
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Secrets and local override files
+secrets.env
+*.local
+*.bak
+*.swp
+*~
+
+# Log and temp files
+*.log
+*.tmp
+*.temp
+
+# Ignore node_modules just in case
+node_modules/
+
+# Ignore yarn lock just in case
+yarn.lock
+
+# Ignore .windsurfrules
+.windsurfrules
+
+# End of file

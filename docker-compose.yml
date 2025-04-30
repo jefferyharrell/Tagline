@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tagline-postgres
+    environment:
+      POSTGRES_DB: tagline
+      POSTGRES_USER: tagline
+      POSTGRES_PASSWORD: tagline
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  backend:
+    build: .
+    container_name: tagline-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    depends_on:
+      - postgres

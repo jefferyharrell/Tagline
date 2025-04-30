@@ -1,0 +1,20 @@
+# Production requirements for the backend (Tagline)
+fastapi>=0.110.0,<1.0.0
+sqlalchemy>=2.0.0,<3.0.0
+uvicorn[standard]>=0.29.0,<1.0.0
+pydantic-settings>=2.0.0,<3.0.0
+alembic>=1.13.0,<2.0.0
+python-jose[cryptography]>=3.3.0,<4.0.0
+
+psycopg2-binary>=2.9.0,<3.0.0
+dropbox>=11.36.2
+
+# Image processing (JPEG, PNG, WebP, HEIC/HEIF)
+pillow>=10.0.0
+pillow-heif>=0.13.0
+
+# Caching
+cachetools>=5.0.0
+
+# Task queue
+rq>=1.16.1
