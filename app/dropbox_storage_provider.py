@@ -18,6 +18,8 @@ class DropboxStorageProvider(StorageProviderBase):
     Object keys are relative paths from the root, starting with a slash.
     """
 
+    provider_name: str = "Dropbox"
+
     def __init__(
         self,
         root_path: str,
@@ -43,7 +45,7 @@ class DropboxStorageProvider(StorageProviderBase):
                 f"Dropbox API error during initialization: {e}"
             )
 
-    async def list(
+    def list_media_objects(
         self,
         prefix: Optional[str] = None,
         limit: int = 100,

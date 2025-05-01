@@ -15,6 +15,8 @@ class FilesystemStorageProvider(StorageProviderBase):
     Object keys are relative paths from the root, starting with a slash.
     """
 
+    provider_name: str = "Filesystem"
+
     def __init__(self, root_path: Optional[str] = None):
         self.root_path = Path(root_path or os.environ["FILESYSTEM_ROOT_PATH"]).resolve()
         if not self.root_path.is_dir():
@@ -22,7 +24,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                 f"Filesystem root path '{self.root_path}' does not exist or is not a directory."
             )
 
-    async def list(
+    def list_media_objects(
         self,
         prefix: Optional[str] = None,
         limit: int = 100,

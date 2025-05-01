@@ -144,7 +144,7 @@ provider_fixtures = [
 @pytest.mark.parametrize("provider_fixture", provider_fixtures)
 async def test_list_and_retrieve(provider_fixture: str, request: Any):
     provider: StorageProviderBase = request.getfixturevalue(provider_fixture)
-    objects = await provider.list()
+    objects = provider.list_media_objects()
     object_keys = {obj.object_key for obj in objects}
     assert object_keys == {"/foo.txt", "/bar/baz.txt"}
 
@@ -165,15 +165,13 @@ async def test_list_and_retrieve(provider_fixture: str, request: Any):
 @pytest.mark.parametrize("provider_fixture", provider_fixtures)
 async def test_list_prefix_and_pagination(provider_fixture: str, request: Any):
     provider: StorageProviderBase = request.getfixturevalue(provider_fixture)
-    # Prefix
-    objects = await provider.list(prefix="/bar")
+    objects = provider.list_media_objects(prefix="/bar")
     assert len(objects) == 1
     assert objects[0].object_key == "/bar/baz.txt"
 
-    # Pagination
-    objects = await provider.list(limit=1)
+    objects = provider.list_media_objects(limit=1)
     assert len(objects) == 1
-    objects2 = await provider.list(offset=1)
+    objects2 = provider.list_media_objects(offset=1)
     assert len(objects2) == 1
     all_keys = {obj.object_key for obj in objects + objects2}
     assert all_keys == {"/foo.txt", "/bar/baz.txt"}
@@ -183,12 +181,11 @@ async def test_list_prefix_and_pagination(provider_fixture: str, request: Any):
 @pytest.mark.parametrize("provider_fixture", provider_fixtures)
 async def test_list_with_regex(provider_fixture: str, request: Any):
     provider: StorageProviderBase = request.getfixturevalue(provider_fixture)
-    # Test regex filtering
-    objects = await provider.list(regex=r"\.txt$")
+    objects = provider.list_media_objects(regex=r"\.txt$")
     assert len(objects) == 2
     assert {obj.object_key for obj in objects} == {"/foo.txt", "/bar/baz.txt"}
 
-    objects = await provider.list(regex=r"foo")
+    objects = provider.list_media_objects(regex=r"foo")
     assert len(objects) == 1
     assert objects[0].object_key == "/foo.txt"
 

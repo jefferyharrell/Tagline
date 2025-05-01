@@ -10,7 +10,9 @@ class MediaObject(BaseModel):
 
 
 class StorageProviderBase(Protocol):
-    async def list(
+    provider_name: str
+
+    def list_media_objects(
         self,
         prefix: Optional[str] = None,
         limit: int = 100,
