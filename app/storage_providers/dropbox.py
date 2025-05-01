@@ -4,7 +4,7 @@ import re
 from typing import List, Optional, cast
 
 import dropbox
-from dropbox.exceptions import ApiError, AuthError, RateLimitError
+from dropbox.exceptions import ApiError, RateLimitError
 from dropbox.files import FileMetadata, ListFolderResult
 
 from app.storage_exceptions import StorageProviderException
@@ -29,21 +29,11 @@ class DropboxStorageProvider(StorageProviderBase):
     ):
         """Initialize Dropbox provider with necessary credentials and root path."""
         self.root_path = root_path
-        try:
-            self.dbx = dropbox.Dropbox(
-                app_key=app_key,
-                app_secret=app_secret,
-                oauth2_refresh_token=refresh_token,
-            )
-            # Test connection by getting account info
-            self.dbx.users_get_current_account()
-        except AuthError as e:
-            raise StorageProviderException(f"Dropbox authentication failed: {e}")
-        except ApiError as e:
-            # Handle potential connection errors during initialization
-            raise StorageProviderException(
-                f"Dropbox API error during initialization: {e}"
-            )
+        self.dbx = dropbox.Dropbox(
+            app_key=app_key,
+            app_secret=app_secret,
+            oauth2_refresh_token=refresh_token,
+        )
 
     def list_media_objects(
         self,
