@@ -10,6 +10,14 @@ services:
       - "5432:5432"
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: tagline-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   backend:
     build: .
     container_name: tagline-backend
@@ -24,3 +32,20 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+      - redis
+
+  worker:
+    build: .
+    container_name: tagline-worker
+    command: rq worker default
+    depends_on:
+      - redis
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    env_file:
+      - .env
