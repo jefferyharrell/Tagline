@@ -73,8 +73,23 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
                     logger.info(
                         f"Fetched {len(media_objects)} media objects from storage."
                     )
-                    # TODO: Further processing: enqueue tasks for each media object
-                    for obj in media_objects:
+
+                    from app.constants import SUPPORTED_MIMETYPES
+
+                    filtered_media_objects = [
+                        obj
+                        for obj in media_objects
+                        if (obj.metadata or {}).get("mimetype") in SUPPORTED_MIMETYPES
+                    ]
+                    num_filtered = len(media_objects) - len(filtered_media_objects)
+                    if num_filtered:
+                        logger.info(
+                            f"Filtered out {num_filtered} unsupported media objects (by mimetype). Supported: {SUPPORTED_MIMETYPES}"
+                        )
+                    else:
+                        logger.info("No unsupported media objects filtered out.")
+
+                    for obj in filtered_media_objects:
                         logger.debug(f"Found: {obj}")
                     # Placeholder: Simulate work
                     import asyncio

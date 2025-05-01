@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import re
 from datetime import datetime, timezone
@@ -55,6 +56,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                     stat.st_mtime, tz=timezone.utc
                 ).isoformat()
 
+                mime_type, _ = mimetypes.guess_type(rel_path)
                 results.append(
                     MediaObject(
                         object_key=rel_path,
@@ -64,6 +66,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                             "created": datetime.fromtimestamp(
                                 stat.st_ctime, tz=timezone.utc
                             ).isoformat(),
+                            "mimetype": mime_type,
                         },
                     )
                 )

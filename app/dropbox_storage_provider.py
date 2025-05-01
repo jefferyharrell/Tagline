@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import re
 from typing import List, Optional, cast
@@ -89,24 +90,37 @@ class DropboxStorageProvider(StorageProviderBase):
                         if regex_pattern and not regex_pattern.search(rel_path):
                             continue
 
+                        mime_type, _ = mimetypes.guess_type(rel_path)
+                        last_modified = (
+                            entry.server_modified.isoformat()
+                            if entry.server_modified
+                            else None
+                        )
+
                         # Create MediaObject with Dropbox metadata
                         results.append(
                             MediaObject(
                                 object_key=rel_path,
-                                last_modified=(
-                                    entry.server_modified.isoformat()
-                                    if entry.server_modified
-                                    else None
-                                ),
+                                last_modified=last_modified,
                                 metadata={
                                     "size": entry.size,
-                                    "content_hash": entry.content_hash,
-                                    "rev": entry.rev,
-                                    "client_modified": (
-                                        entry.client_modified.isoformat()
-                                        if entry.client_modified
-                                        else None
+                                    "content_hash": getattr(
+                                        entry, "content_hash", None
                                     ),
+                                    "rev": getattr(entry, "rev", None),
+                                    "client_modified": (
+                                        (
+                                            cm.isoformat()
+                                            if (
+                                                cm := getattr(
+                                                    entry, "client_modified", None
+                                                )
+                                            )
+                                            is not None
+                                            else None
+                                        )
+                                    ),
+                                    "mimetype": mime_type,
                                 },
                             )
                         )
