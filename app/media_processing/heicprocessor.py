@@ -72,21 +72,5 @@ class HEICProcessor(MediaProcessor):
             logger.exception(
                 f"Pillow/HEIF failed to process {self.media_object.object_key}: {e}"
             )
-            # If possible, save the problematic file for investigation
-            try:
-                error_dir = Path("/tmp/heic_errors")
-                error_dir.mkdir(parents=True, exist_ok=True)
-                # Clean the object key to create a safe filename
-                safe_key = self.media_object.object_key.replace("/", "_").lstrip("_")
-                p = Path(safe_key)
-                # Use stem and suffix to reconstruct filename correctly
-                filename = f"{p.stem}{p.suffix}" if p.suffix else p.stem
-                error_file = error_dir / filename
-                with open(error_file, "wb") as f:
-                    f.write(stream_content)
-                logger.warning(f"Saved problematic HEIC file to {error_file}")
-            except Exception as save_error:
-                logger.error(f"Could not save problematic HEIC file: {save_error}")
-
             return {}
         return metadata
