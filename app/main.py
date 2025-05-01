@@ -46,24 +46,29 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-# Use the correct async signature for FastAPI lifespan events
-# See: https://fastapi.tiangolo.com/advanced/events/#lifespan
-
 
 @asynccontextmanager
 async def lifespan(app):
 
+    logging.info("Starting application...")
+
+    logging.info("Loading settings...")
     try:
         settings = get_settings()
     except ValidationError as e:
         logging.critical(f"Configuration error:\n{e}")
         raise RuntimeError(f"Configuration error: {e}")
+    logging.info("Loading settings complete.")
 
     logging.getLogger().setLevel(settings.LOG_LEVEL)
-    validate_config_on_startup(settings)
+    logging.info(f"Log level set to {logging.getLevelName(settings.LOG_LEVEL)}")
 
+    logging.info("Validating configuration...")
+    validate_config_on_startup(settings)
+    logging.info("Configuration validation complete.")
+
+    logging.info("Application startup complete.")
     yield
-    # (Optional) Add any shutdown/cleanup logic here
 
 
 app = FastAPI(
