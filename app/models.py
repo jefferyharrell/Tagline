@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime, LargeBinary, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import declarative_base
 
@@ -20,6 +20,8 @@ class MediaObject(Base):
     )
     object_key = Column(String(255), unique=True, nullable=False)
     object_metadata = Column(JSONB, nullable=False, default=dict)
+    thumbnail = Column(LargeBinary, nullable=True)
+    thumbnail_mimetype = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow

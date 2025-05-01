@@ -30,22 +30,64 @@ async def ingest(media_object: MediaObject) -> bool:
                 f"Extracted intrinsic metadata for {media_object.object_key}: "
                 f"{intrinsic_metadata}"
             )
+            # Update the metadata on the Pydantic object before saving
+            media_object.metadata = (
+                media_object.metadata or {}
+            )  # Ensure metadata dict exists
+            media_object.metadata["intrinsic"] = intrinsic_metadata
         else:
             logger.warning(
-                f"Processor {type(processor).__name__} returned empty intrinsic metadata for "
-                f"{media_object.object_key}."
+                f"No intrinsic metadata extracted for {media_object.object_key}"
             )
 
-    except NotImplementedError:
-        logger.warning(
-            f"No processor found for mimetype '{(media_object.metadata or {}).get('mimetype')}' "
-            f"on object {media_object.object_key}. Skipping intrinsic metadata extraction."
+        # 3. Generate and save thumbnail (safely)
+        try:
+            content = await processor.get_content()
+            thumbnail_result = await processor.generate_thumbnail(content)
+            if thumbnail_result:
+                thumbnail_bytes, thumbnail_mimetype = thumbnail_result
+                logger.info(
+                    f"Generated thumbnail for {media_object.object_key} with mimetype {thumbnail_mimetype}"
+                )
+            else:
+                thumbnail_bytes = None
+                thumbnail_mimetype = None
+        except Exception as thumb_exc:
+            logger.warning(
+                f"Failed to generate thumbnail for {media_object.object_key}: {thumb_exc}",
+                exc_info=True,  # Log traceback for debugging
+            )
+            thumbnail_bytes = None  # Ensure it's None on failure
+            thumbnail_mimetype = None
+
+        # 4. Get or create the MediaObject record in the database
+        repo = MediaObjectRepository()
+        db_media_object = repo.get_or_create(media_object)
+
+        if not db_media_object:
+            logger.error(
+                f"Failed to commit MediaObject via repository for key: {media_object.object_key}"
+            )
+            return False  # Indicate failure
+
+        # 5. Update thumbnail if generated successfully
+        if thumbnail_bytes and thumbnail_mimetype:
+            if not repo.update_thumbnail(
+                media_object.object_key, thumbnail_bytes, thumbnail_mimetype
+            ):
+                logger.error(
+                    f"Failed to update thumbnail for {media_object.object_key}"
+                )
+                # Decide if this is a critical failure or just a warning
+
+        logger.info(
+            f"Successfully processed and committed {media_object.object_key}"
+            + (" with" if intrinsic_metadata else " without")
+            + " intrinsic metadata."
         )
-        # Continue without intrinsic metadata
-        pass
+        return True  # Indicate success
 
     except Exception as e:
-        # Log other processing errors but attempt to commit basic info anyway
         logger.exception(
             f"Error during intrinsic metadata extraction for {media_object.object_key}: {e}"
         )

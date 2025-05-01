@@ -26,6 +26,46 @@ class MediaProcessor(Protocol):
         """Return True if this processor can handle the given mimetype."""
         raise NotImplementedError
 
+    async def generate_thumbnail(
+        self, content: bytes, size: int = 512, fmt: str = "webp", quality: int = 85
+    ) -> tuple[bytes, str]:
+        """
+        Generate a thumbnail from raw image bytes.
+        Scales the shortest side to `size` pixels, center-crops to (size, size), converts to RGB, and saves as WebP by default.
+        Args:
+            content: The raw bytes of the image to thumbnail.
+            size: The width/height of the square thumbnail (default: 512).
+            fmt: Output format (default: 'webp').
+            quality: Output quality (default: 85).
+        Returns:
+            (thumbnail image bytes, mimetype string)
+        """
+        from io import BytesIO
+
+        from PIL import Image
+
+        with Image.open(BytesIO(content)) as img:
+            img = img.convert("RGB")
+            scale = size / min(img.size)
+            new_w, new_h = [round(dim * scale) for dim in img.size]
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            left = (img.width - size) // 2
+            top = (img.height - size) // 2
+            img = img.crop((left, top, left + size, top + size))
+            out = BytesIO()
+            img.save(out, format=fmt.upper(), quality=quality)
+            # Map Pillow format to mimetype
+            fmt_lc = fmt.lower()
+            mimetype = {
+                "jpeg": "image/jpeg",
+                "jpg": "image/jpeg",
+                "webp": "image/webp",
+                "png": "image/png",
+                "heic": "image/heic",
+                "heif": "image/heif",
+            }.get(fmt_lc, f"image/{fmt_lc}")
+            return out.getvalue(), mimetype
+
     def __init__(self, media_object: MediaObject):
         """Initialize with the media object and prepare for content loading."""
         self.media_object = media_object

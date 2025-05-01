@@ -36,6 +36,23 @@ class MediaObjectRepository:
             # For now, let's raise to prevent using a non-functional repository
             raise
 
+    def get_by_id(self, id) -> Optional[ORM_MediaObject]:
+        """Retrieves a MediaObject by its UUID."""
+        session = self.SessionLocal()
+        try:
+            logger.debug(f"Querying for MediaObject with id: {id}")
+            media_object = session.query(ORM_MediaObject).filter_by(id=id).first()
+            if media_object:
+                logger.debug(f"Found MediaObject: {media_object.id}")
+            else:
+                logger.debug("MediaObject not found for id: %s", id)
+            return media_object
+        except SQLAlchemyError as e:
+            logger.error(f"Database error querying for id {id}: {e}")
+            return None
+        finally:
+            session.close()
+
     def get_by_object_key(self, object_key: str) -> Optional[ORM_MediaObject]:
         """Retrieves a MediaObject by its object_key."""
         session = self.SessionLocal()
@@ -108,6 +125,43 @@ class MediaObjectRepository:
                 f"Database error creating MediaObject for key {media_object.object_key}: {e}"
             )
             return None
+        finally:
+            session.close()
+
+    def update_thumbnail(
+        self, object_key: str, thumbnail_bytes: bytes, thumbnail_mimetype: str
+    ) -> bool:
+        """Updates the thumbnail and its mimetype for a MediaObject identified by its object_key.
+
+        Args:
+            object_key: The unique key of the MediaObject to update.
+            thumbnail_bytes: The binary data of the thumbnail.
+            thumbnail_mimetype: The mimetype of the thumbnail.
+
+        Returns:
+            True if the update was successful, False otherwise.
+        """
+        session = self.SessionLocal()
+        try:
+            logger.debug(f"Attempting to update thumbnail for object_key: {object_key}")
+            media_object = (
+                session.query(ORM_MediaObject).filter_by(object_key=object_key).first()
+            )
+            if not media_object:
+                logger.warning(
+                    f"MediaObject not found for thumbnail update: {object_key}"
+                )
+                return False
+
+            media_object.thumbnail = thumbnail_bytes  # type: ignore[assignment] # ORM handles assignment to Column attribute
+            media_object.thumbnail_mimetype = thumbnail_mimetype  # type: ignore[assignment] # ORM handles assignment to Column attribute
+            session.commit()
+            logger.info(f"Successfully updated thumbnail for {object_key}")
+            return True
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Database error updating thumbnail for {object_key}: {e}")
+            return False
         finally:
             session.close()
 

@@ -1,6 +1,5 @@
 import logging
 from io import BytesIO
-from pathlib import Path
 from typing import Any
 
 from PIL import Image
@@ -28,6 +27,18 @@ except Exception as e:
 @register_processor
 class HEICProcessor(MediaProcessor):
     """Processes HEIC/HEIF images using Pillow and pillow-heif."""
+
+    async def generate_thumbnail(
+        self, content: bytes, size: int = 512, fmt: str = "webp", quality: int = 85
+    ) -> tuple[bytes, str]:
+        """Generate a thumbnail for HEIC images using the default logic, ensuring pillow-heif is registered."""
+        logger.debug(
+            f"Generating thumbnail for HEIC image, size={size}, fmt={fmt}, quality={quality}"
+        )
+        # pillow-heif registration should already be handled at module load
+        return await super().generate_thumbnail(
+            content, size=size, fmt=fmt, quality=quality
+        )
 
     SUPPORTED_MIMETYPES = {"image/heic", "image/heif"}
 
