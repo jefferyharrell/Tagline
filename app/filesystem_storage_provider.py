@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from app.storage_provider import MediaObject, StorageProviderBase
+from app.storage_types import MediaObject, StorageProviderBase
 
 
 class FilesystemStorageProvider(StorageProviderBase):

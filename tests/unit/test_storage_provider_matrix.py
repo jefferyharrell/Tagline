@@ -7,7 +7,7 @@ import pytest
 
 from app.dropbox_storage_provider import DropboxStorageProvider
 from app.filesystem_storage_provider import FilesystemStorageProvider
-from app.storage_provider import MediaObject, StorageProviderBase
+from app.storage_types import MediaObject, StorageProviderBase
 
 # --- Provider Fixtures ---
 
@@ -123,7 +123,12 @@ def dropbox_provider_with_files(monkeypatch, tmp_path: Path) -> StorageProviderB
                 )
 
         instance.files_download.side_effect = files_download_side_effect
-        provider = DropboxStorageProvider()
+        provider = DropboxStorageProvider(
+            root_path=os.environ["DROPBOX_ROOT_PATH"],
+            app_key=os.environ["DROPBOX_APP_KEY"],
+            app_secret=os.environ["DROPBOX_APP_SECRET"],
+            refresh_token=os.environ["DROPBOX_REFRESH_TOKEN"],
+        )
         return provider
 
 

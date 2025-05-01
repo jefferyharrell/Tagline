@@ -1,48 +1,44 @@
-from typing import List, Optional, Protocol
-
-from pydantic import BaseModel
-
-
-class MediaObject(BaseModel):
-    object_key: str
-    last_modified: Optional[str] = None  # or datetime
-    metadata: Optional[dict] = None
+from app.config import Settings, StorageProviderType
+from app.dropbox_storage_provider import DropboxStorageProvider
+from app.filesystem_storage_provider import FilesystemStorageProvider
+from app.storage_types import StorageProviderBase
 
 
-class StorageProviderBase(Protocol):
-    """
-    Protocol for storage providers.
-    All storage backends (local, S3, etc.) must implement this interface.
-    """
+class StorageProviderException(Exception):
+    """Base exception for storage provider errors."""
 
-    async def list(
-        self,
-        prefix: Optional[str] = None,
-        limit: int = 100,
-        offset: int = 0,
-        regex: Optional[str] = None,
-    ) -> List[MediaObject]:
-        """
-        List media objects in storage, optionally filtered by regex on object key.
+    pass
 
-        Args:
-            prefix: Only return keys with this prefix.
-            limit: Max number of results.
-            offset: Start at this offset.
-            regex: If provided, only return keys matching this regex pattern.
 
-        Returns:
-            List of MediaObject objects. If the provider can supply metadata (e.g., width, height, last_modified) as part of the listing, the MediaObject.metadata property SHOULD be set; otherwise, it MAY be empty or omitted.
-        """
-        ...
+def get_storage_provider(settings: Settings) -> "StorageProviderBase":
+    """Factory function to get the configured storage provider instance."""
+    provider_type = settings.STORAGE_PROVIDER
 
-    async def retrieve(self, object_key: str) -> bytes:
-        """
-        Retrieve a media object's raw data from storage.
-
-        Args:
-            object_key: Unique identifier for the object
-        Returns:
-            The raw bytes of the object
-        """
-        ...
+    if provider_type == StorageProviderType.FILESYSTEM:
+        assert (
+            settings.FILESYSTEM_ROOT_PATH
+        ), "FILESYSTEM_ROOT_PATH must be set for filesystem provider"
+        return FilesystemStorageProvider(root_path=settings.FILESYSTEM_ROOT_PATH)
+    elif provider_type == StorageProviderType.DROPBOX:
+        assert (
+            settings.DROPBOX_ROOT_PATH
+        ), "DROPBOX_ROOT_PATH must be set for dropbox provider"
+        assert (
+            settings.DROPBOX_APP_KEY
+        ), "DROPBOX_APP_KEY must be set for dropbox provider"
+        assert (
+            settings.DROPBOX_APP_SECRET
+        ), "DROPBOX_APP_SECRET must be set for dropbox provider"
+        assert (
+            settings.DROPBOX_REFRESH_TOKEN
+        ), "DROPBOX_REFRESH_TOKEN must be set for dropbox provider"
+        return DropboxStorageProvider(
+            root_path=settings.DROPBOX_ROOT_PATH,
+            app_key=settings.DROPBOX_APP_KEY,
+            app_secret=settings.DROPBOX_APP_SECRET,
+            refresh_token=settings.DROPBOX_REFRESH_TOKEN,
+        )
+    # Add other providers here as elif blocks
+    else:
+        # This case should ideally be prevented by Pydantic validation
+        raise NotImplementedError(f"Storage provider '{provider_type}' not implemented")

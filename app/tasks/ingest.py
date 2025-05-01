@@ -1,10 +1,12 @@
 import logging
 import os
-import time
 from enum import Enum
 
 import redis
 from redis.exceptions import ConnectionError, LockNotOwnedError
+
+from app.config import get_settings
+from app.storage_provider import StorageProviderException, get_storage_provider
 
 # Configure basic logging
 logging.basicConfig(
@@ -23,47 +25,92 @@ class IngestStatus(Enum):
     FAILED = "failed"
 
 
-def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
+async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
+    """Orchestrates the media ingest process.
+
+    1. Attempts to acquire a Redis lock to prevent concurrent runs.
+    2. If successful, fetches media objects from the configured storage provider.
+    3. Logs the results.
+    4. Releases the lock.
+
+    Args:
+        redis_url: Optional Redis connection URL for the lock.
+
+    Returns:
+        IngestStatus indicating the outcome.
     """
-    Orchestrator for the ingest process. Acquires the ingest lock, fetches all media objects from the storage provider (stub), and releases the lock.
-    """
-    redis_url = redis_url or os.getenv("REDIS_URL", "redis://redis:6379/0")
-    try:
+    # Use provided URL or default from environment
+    redis_host = os.environ.get("REDIS_HOST", "localhost")
+    redis_port = int(os.environ.get("REDIS_PORT", 6379))
+    redis_db = int(os.environ.get("REDIS_DB", 0))
+    redis_password = os.environ.get("REDIS_PASSWORD", None)
+
+    if redis_url:
         r = redis.from_url(redis_url)
-        r.ping()
-    except ConnectionError as e:
-        logger.error(f"Orchestrator could not connect to Redis: {e}")
-        return IngestStatus.FAILED_TO_ACQUIRE_LOCK
+    else:
+        r = redis.Redis(
+            host=redis_host,
+            port=redis_port,
+            db=redis_db,
+            password=redis_password,
+        )
 
-    lock_key = "ingest:lock"
-    lock = r.lock(lock_key, timeout=10800, blocking_timeout=0)
-    if not lock.acquire():
-        logger.info("Ingest orchestrator already running (lock busy). Exiting.")
-        return IngestStatus.ALREADY_RUNNING
+    lock_key = "ingest_orchestrator_lock"
+    # Use a reasonable timeout (e.g., 1 hour)
+    lock_timeout = 3600
+    lock = r.lock(lock_key, timeout=lock_timeout)
 
     try:
-        logger.info(
-            "Ingest orchestrator started (lock acquired). Fetching media objects..."
-        )
-        # --- STUB: Fetch media objects from storage provider ---
-        # Replace this with actual storage provider integration
-        media_objects = ["media1", "media2", "media3"]
-        logger.info(f"Fetched {len(media_objects)} media objects: {media_objects}")
-        # ------------------------------------------------------
-        logger.info("Ingest orchestrator completed.")
-        return IngestStatus.COMPLETED
-    except Exception as e:
-        logger.error(f"Error during ingest orchestrator: {e}", exc_info=True)
+        if lock.acquire(blocking=False):
+            logger.info("Acquired ingest lock. Starting ingest process.")
+            try:
+                # Get settings and storage provider instance
+                settings = get_settings()
+                storage_provider = get_storage_provider(settings)
+
+                logger.info(
+                    f"Using storage provider: {settings.STORAGE_PROVIDER.value}"
+                )
+
+                # Fetch media objects from the provider
+                try:
+                    media_objects = await storage_provider.list()
+                    logger.info(
+                        f"Fetched {len(media_objects)} media objects from storage."
+                    )
+                    # TODO: Further processing: enqueue tasks for each media object
+                    for obj in media_objects:
+                        logger.debug(f"  - {obj.object_key}")
+                    # Placeholder: Simulate work
+                    import asyncio
+
+                    await asyncio.sleep(5)  # Simulate work
+                    logger.info("Ingest process completed.")
+                    return IngestStatus.COMPLETED
+                except StorageProviderException as e:
+                    logger.error(f"Storage provider error during ingest: {e}")
+                    return IngestStatus.FAILED
+                except Exception as e:
+                    logger.exception(
+                        f"Unexpected error during media object fetching: {e}"
+                    )
+                    return IngestStatus.FAILED
+
+            finally:
+                try:
+                    lock.release()
+                    logger.info("Released ingest lock.")
+                except LockNotOwnedError:
+                    # This shouldn't happen if acquire was successful, but good to handle
+                    logger.warning("Attempted to release a lock not owned.")
+                except ConnectionError:
+                    logger.error("Redis connection error while releasing lock.")
+        else:
+            logger.warning("Ingest process already running. Skipping.")
+            return IngestStatus.ALREADY_RUNNING
+    except ConnectionError:
+        logger.error("Redis connection error while acquiring lock.")
         return IngestStatus.FAILED
-    finally:
-        try:
-            lock.release()
-            logger.info("Ingest orchestrator lock released.")
-        except LockNotOwnedError:
-            logger.warning(
-                "Could not release ingest orchestrator lock (possibly expired or not owned)."
-            )
-        except Exception as e:
-            logger.error(
-                f"Error releasing ingest orchestrator lock: {e}", exc_info=True
-            )
+    except Exception as e:
+        logger.exception(f"Unexpected error in ingest orchestrator: {e}")
+        return IngestStatus.FAILED

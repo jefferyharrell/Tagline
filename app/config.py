@@ -1,19 +1,26 @@
 import logging
 import os
+from enum import Enum
 from typing import Any
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class StorageProviderType(str, Enum):
+    FILESYSTEM = "filesystem"
+    DROPBOX = "dropbox"
+    # Add more providers as needed
+
+
 class Settings(BaseSettings):
-    API_KEY: str = "changeme"
+    API_KEY: str
     LOG_LEVEL: int = logging.INFO
     DATABASE_URL: str
     UNIT_TEST_DATABASE_URL: str | None = None  # Optional, for unit tests
 
     # Storage Provider Configuration
-    STORAGE_PROVIDER: str = "filesystem"
+    STORAGE_PROVIDER: StorageProviderType
     FILESYSTEM_ROOT_PATH: str | None = None
 
     # Dropbox Storage Provider Configuration
@@ -21,6 +28,22 @@ class Settings(BaseSettings):
     DROPBOX_APP_SECRET: str | None = None
     DROPBOX_REFRESH_TOKEN: str | None = None
     DROPBOX_ROOT_PATH: str | None = None
+
+    @field_validator("STORAGE_PROVIDER", mode="before")
+    @classmethod
+    def parse_storage_provider(
+        cls, v: str | StorageProviderType
+    ) -> StorageProviderType:
+        if isinstance(v, StorageProviderType):
+            return v
+        if isinstance(v, str):
+            try:
+                return StorageProviderType(v.lower())
+            except ValueError:
+                raise ValueError(f"Invalid STORAGE_PROVIDER: {v}")
+        raise ValueError(
+            f"STORAGE_PROVIDER must be a string or StorageProviderType, got {type(v)}"
+        )
 
     def get_active_database_url(self) -> str:
         """

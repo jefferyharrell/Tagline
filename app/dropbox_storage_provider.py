@@ -7,7 +7,7 @@ from dropbox.exceptions import ApiError, AuthError, RateLimitError
 from dropbox.files import FileMetadata, ListFolderResult
 
 from app.storage_exceptions import StorageProviderException
-from app.storage_provider import MediaObject, StorageProviderBase
+from app.storage_types import MediaObject, StorageProviderBase
 
 
 class DropboxStorageProvider(StorageProviderBase):
@@ -17,19 +17,30 @@ class DropboxStorageProvider(StorageProviderBase):
     Object keys are relative paths from the root, starting with a slash.
     """
 
-    def __init__(self, root_path: Optional[str] = None):
-        self.root_path = root_path or os.environ["DROPBOX_ROOT_PATH"]
-        app_key = os.environ["DROPBOX_APP_KEY"]
-        app_secret = os.environ["DROPBOX_APP_SECRET"]
-        refresh_token = os.environ["DROPBOX_REFRESH_TOKEN"]
+    def __init__(
+        self,
+        root_path: str,
+        app_key: str,
+        app_secret: str,
+        refresh_token: str,
+    ):
+        """Initialize Dropbox provider with necessary credentials and root path."""
+        self.root_path = root_path
         try:
             self.dbx = dropbox.Dropbox(
                 app_key=app_key,
                 app_secret=app_secret,
                 oauth2_refresh_token=refresh_token,
             )
+            # Test connection by getting account info
+            self.dbx.users_get_current_account()
         except AuthError as e:
             raise StorageProviderException(f"Dropbox authentication failed: {e}")
+        except ApiError as e:
+            # Handle potential connection errors during initialization
+            raise StorageProviderException(
+                f"Dropbox API error during initialization: {e}"
+            )
 
     async def list(
         self,

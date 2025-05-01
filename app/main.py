@@ -1,18 +1,70 @@
 import logging
 import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from pydantic import ValidationError
 
 from app.api.routes import api_router
-from app.config import get_settings
+from app.config import StorageProviderType, get_settings
 
-settings = get_settings()
+# Define required environment variables for each storage provider
+PROVIDER_REQUIRED_VARS = {
+    StorageProviderType.FILESYSTEM: ["FILESYSTEM_ROOT_PATH"],
+    StorageProviderType.DROPBOX: [
+        "DROPBOX_APP_KEY",
+        "DROPBOX_APP_SECRET",
+        "DROPBOX_REFRESH_TOKEN",
+        "DROPBOX_ROOT_PATH",
+    ],
+    # Add other providers here
+}
+
+
+def validate_config_on_startup(settings):
+    """Checks provider-specific config variables after basic settings are loaded."""
+    provider = settings.STORAGE_PROVIDER
+    required_vars = PROVIDER_REQUIRED_VARS.get(provider, [])
+    missing = []
+
+    for var in required_vars:
+        if not getattr(settings, var, None):
+            missing.append(var)
+
+    if missing:
+        logging.critical(
+            f"Missing required config for storage provider '{provider.value}': {', '.join(missing)}"
+        )
+        raise RuntimeError(
+            f"Missing required config for storage provider '{provider.value}': {', '.join(missing)}"
+        )
+
 
 logging.basicConfig(
     stream=sys.stdout,
-    level=settings.LOG_LEVEL,
+    level="INFO",  # Default to INFO, will be updated after settings are loaded
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+
+# Use the correct async signature for FastAPI lifespan events
+# See: https://fastapi.tiangolo.com/advanced/events/#lifespan
+
+
+@asynccontextmanager
+async def lifespan(app):
+
+    try:
+        settings = get_settings()
+    except ValidationError as e:
+        logging.critical(f"Configuration error:\n{e}")
+        raise RuntimeError(f"Configuration error: {e}")
+
+    logging.getLogger().setLevel(settings.LOG_LEVEL)
+    validate_config_on_startup(settings)
+
+    yield
+    # (Optional) Add any shutdown/cleanup logic here
+
 
 app = FastAPI(
     title="Tagline Media Management API",
@@ -20,6 +72,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 app.include_router(api_router, prefix="/v1")
