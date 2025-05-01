@@ -27,6 +27,7 @@ services:
       - .env
     volumes:
       - .:/app
+      - ../test-storage:/storage
     environment:
       - PYTHONPATH=/app
     restart: unless-stopped
@@ -37,7 +38,7 @@ services:
   worker:
     build: .
     container_name: tagline-worker
-    command: rq worker default
+    command: python worker_entrypoint.py
     depends_on:
       - redis
     environment:
@@ -46,6 +47,7 @@ services:
       - PYTHONPATH=/app
     volumes:
       - .:/app
+      - ../test-storage:/storage
     restart: unless-stopped
     env_file:
       - .env

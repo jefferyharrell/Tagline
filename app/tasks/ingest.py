@@ -8,10 +8,6 @@ from redis.exceptions import ConnectionError, LockNotOwnedError
 from app.config import get_settings
 from app.storage_provider import StorageProviderException, get_storage_provider
 
-# Configure basic logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S"
-)
 logger = logging.getLogger(__name__)
 
 
@@ -67,7 +63,6 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
                 # Get settings and storage provider instance
                 settings = get_settings()
                 storage_provider = get_storage_provider(settings)
-
                 logger.info(
                     f"Using storage provider: {settings.STORAGE_PROVIDER.value}"
                 )
@@ -80,11 +75,11 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
                     )
                     # TODO: Further processing: enqueue tasks for each media object
                     for obj in media_objects:
-                        logger.debug(f"  - {obj.object_key}")
+                        logger.debug(f"Found: {obj}")
                     # Placeholder: Simulate work
                     import asyncio
 
-                    await asyncio.sleep(5)  # Simulate work
+                    await asyncio.sleep(5)  # Simulate time-consuming task
                     logger.info("Ingest process completed.")
                     return IngestStatus.COMPLETED
                 except StorageProviderException as e:
@@ -97,6 +92,7 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
                     return IngestStatus.FAILED
 
             finally:
+                # Ensure the lock is always released
                 try:
                     lock.release()
                     logger.info("Released ingest lock.")
