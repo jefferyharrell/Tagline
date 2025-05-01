@@ -78,11 +78,17 @@ pre-commit:
 # Docker Compose
 up:
     # Start all containers in the background
-    docker compose up -d
+    docker compose up --wait
+    just migrate
 
 down:
     # Stop all containers
     docker compose down
+
+bounce:
+    just down
+    just up
+    just logs
 
 build:
     # Build Docker images
@@ -94,7 +100,7 @@ pip-install:
 
 logs:
     # Tail backend logs
-    docker compose logs -f
+    docker compose logs -f backend worker
 
 shell:
     # Open a bash shell in the backend container
