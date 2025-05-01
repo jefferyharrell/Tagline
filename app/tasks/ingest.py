@@ -103,12 +103,13 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
 
             # Filter out unsupported types (Example: only allow images for now)
             # This is basic filtering; more sophisticated logic might be needed
-            supported_mimetypes = ["image/jpeg", "image/png", "image/gif", "image/heic"]
+            from app.constants import SUPPORTED_MIMETYPES
+
             filtered_media_objects = [
                 obj
                 for obj in media_objects
                 # Handle potential None metadata
-                if (obj.metadata or {}).get("mimetype") in supported_mimetypes
+                if (obj.metadata or {}).get("mimetype") in SUPPORTED_MIMETYPES
             ]
             unsupported_count = len(media_objects) - len(filtered_media_objects)
             if unsupported_count > 0:
