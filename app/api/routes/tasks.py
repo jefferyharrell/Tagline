@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from redis.exceptions import ConnectionError
 from rq import Queue
 
-from app.tasks.ingest import ingest_orchestrator
+from app.tasks.ingest_orchestrator import ingest_orchestrator
 
 router = APIRouter()
 
