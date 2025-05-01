@@ -1,6 +1,6 @@
 from app.config import Settings, StorageProviderType
-from app.dropbox_storage_provider import DropboxStorageProvider
-from app.filesystem_storage_provider import FilesystemStorageProvider
+from app.storage_providers.dropbox import DropboxStorageProvider
+from app.storage_providers.filesystem import FilesystemStorageProvider
 from app.storage_types import StorageProviderBase
 
 

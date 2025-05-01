@@ -7,8 +7,8 @@ from redis.exceptions import ConnectionError, LockNotOwnedError
 from rq import Queue
 
 from app.config import get_settings
-from app.constants import SUPPORTED_MIMETYPES
-from app.db.repositories.media_object import MediaObjectRepository
+from app.dependencies import get_media_object_repository
+from app.media_processing.factory import is_mimetype_supported
 from app.storage_provider import StorageProviderException, get_storage_provider
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,9 @@ class IngestStatus(Enum):
     FAILED = "failed"
 
 
-async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
+async def ingest_orchestrator(
+    redis_url: str | None = None,
+) -> IngestStatus:
     """Orchestrates the media ingest process.
 
     1. Attempts to acquire a Redis lock to prevent concurrent runs.
@@ -75,12 +77,20 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
                 logger.exception(f"Unexpected error during object listing: {e}")
                 return IngestStatus.FAILED
 
-            filtered_media_objects = [
-                obj
-                for obj in media_objects
-                if (obj.metadata or {}).get("mimetype") in SUPPORTED_MIMETYPES
-            ]
-            unsupported_count = len(media_objects) - len(filtered_media_objects)
+            filtered_media_objects = []
+            unsupported_count = 0
+            for obj in media_objects:
+                mimetype = str((obj.metadata or {}).get("mimetype"))
+                logger.debug(
+                    f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
+                )
+                if mimetype != "None" and is_mimetype_supported(mimetype):
+                    filtered_media_objects.append(obj)
+                    logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
+                else:
+                    unsupported_count += 1
+                    logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
+
             if unsupported_count > 0:
                 logger.info(
                     f"Filtered out {unsupported_count} unsupported media objects."
@@ -90,7 +100,7 @@ async def ingest_orchestrator(redis_url: str | None = None) -> IngestStatus:
 
             redis_conn = redis.from_url(redis_url)
             queue = Queue(connection=redis_conn)
-            repo = MediaObjectRepository()
+            repo = get_media_object_repository()
             queued_count = 0
 
             for obj in filtered_media_objects:

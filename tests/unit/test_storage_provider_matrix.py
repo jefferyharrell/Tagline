@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.dropbox_storage_provider import DropboxStorageProvider
-from app.filesystem_storage_provider import FilesystemStorageProvider
+from app.storage_providers.dropbox import DropboxStorageProvider
+from app.storage_providers.filesystem import FilesystemStorageProvider
 from app.storage_types import MediaObject, StorageProviderBase
 
 # --- Provider Fixtures ---
