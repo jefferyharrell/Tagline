@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from app.api.routes import private_router, public_router
+from app.api.v1.routes import private_router, public_router
 from app.auth import get_current_user
 from app.config import StorageProviderType, get_settings
 
