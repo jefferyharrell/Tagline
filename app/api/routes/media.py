@@ -7,7 +7,7 @@ from app.db.repositories.media_object import MediaObjectRepository
 router = APIRouter()
 
 
-@router.get("/v1/media/{id}/thumbnail", response_class=Response, tags=["media"])
+@router.get("/media/{id}/thumbnail", response_class=Response, tags=["media"])
 def get_media_thumbnail(id: UUID):
     """
     Returns the thumbnail bytes for a media object by UUID, or 404 if not found or no thumbnail exists.

@@ -62,7 +62,7 @@ def trigger_ingest():
 
 
 @router.get(
-    "/v1/ingest/status",
+    "/tasks/ingest/status",
     tags=["tasks"],
     summary="Get ingest orchestrator status",
 )
