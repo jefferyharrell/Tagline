@@ -104,6 +104,8 @@ docker-compose.yml
 .windsurf/
 
 # Ignore media directory
-media/
+media/*
+!media/Sparkle.heic
+!media/Sparkle.jpg
 
 # End of file
