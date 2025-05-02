@@ -1,5 +1,4 @@
 import logging
-import sys
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
@@ -41,13 +40,6 @@ def validate_config_on_startup(settings):
         raise RuntimeError(
             f"Missing required config for storage provider '{provider.value}': {', '.join(missing)}"
         )
-
-
-logging.basicConfig(
-    stream=sys.stdout,
-    level="INFO",  # Default to INFO, will be updated after settings are loaded
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
 
 
 @asynccontextmanager

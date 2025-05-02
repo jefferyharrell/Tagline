@@ -99,7 +99,7 @@ async def ingest_orchestrator(
                 logger.info("No unsupported media objects filtered out.")
 
             redis_conn = redis.from_url(redis_url)
-            ingest_queue = Queue('ingest', connection=redis_conn)
+            ingest_queue = Queue("ingest", connection=redis_conn)
             repo = get_media_object_repository()
             queued_count = 0
 
