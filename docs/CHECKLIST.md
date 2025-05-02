@@ -6,53 +6,71 @@
 - [x] Create Dockerfile
 - [x] Set up development and production requirements
 - [x] Create Justfile for development tasks
+- [ ] Provide .env.example file with placeholder values
 
 ## Database and ORM 🗄️
-- [ ] Design SQLAlchemy models for MediaObject
-  - [ ] Support flexible metadata structure
-  - [ ] Implement UUID primary key
-  - [ ] Add timestamps (created_at, updated_at)
-- [ ] Set up Alembic for database migrations
-- [ ] Create initial migration script
+- [x] Design SQLAlchemy models for MediaObject
+  - [x] Support flexible metadata structure
+  - [x] Implement UUID primary key
+  - [x] Add timestamps (created_at, updated_at)
+- [x] Set up Alembic for database migrations
+- [x] Create initial migration script
 
 ## Storage Providers 💾
-- [ ] Create abstract base class for storage providers
-- [ ] Implement local filesystem storage provider
-- [ ] Add Dropbox storage provider support
-- [ ] Implement thumbnail generation
-- [ ] Add file type validation
+- [x] Create abstract base class for storage providers
+- [x] Implement local filesystem storage provider
+- [x] Add Dropbox storage provider support
+- [x] Add file type validation
+
+## Task Queuing
+- [x] Choose a task queue system
+- [x] Implement the required infrastructure for the task queue system
+  - [x] Worker in its own container in the same Docker Compose stack
+
+## Ingest
+- [x] Scaffold out an ingest task
+  - [x] Must run idempotently
+  - [x] Returns "started" or "already running" as appropriate
+    - [x] Enum might be useful here
+  - [x] Must be able to write log messages to stdout
+- [x] Implement ingest task processing
+- [x] Provide ingest task progress/status endpoint
 
 ## API Development 🌐
 - [ ] Implement authentication middleware
   - [ ] API key validation
   - [ ] Error handling for unauthorized access
-- [ ] Create media object CRUD endpoints
-  - [ ] POST /v1/media (create)
-  - [ ] GET /v1/media (list with pagination)
-  - [ ] GET /v1/media/{id} (retrieve)
-  - [ ] PUT /v1/media/{id} (update)
-  - [ ] DELETE /v1/media/{id} (delete)
+- [ ] Implement API endpoints:
+  - [ ] GET /v1/media (list media objects)
+  - [ ] GET /v1/media/{id} (retrieve media object details)
+  - [ ] PATCH /v1/media/{id} (update media object metadata)
+  - [x] GET /v1/media/{id}/thumbnail (retrieve thumbnail)
+  - [ ] GET /v1/media/{id}/data (retrieve raw media object data)
+  - [ ] POST /v1/ingest (initiate media scan)
+  - [ ] GET /v1/ingest/status (get ingest task status)
+  - [ ] GET /v1/database/health (database health check)
+  - [ ] POST /v1/database/scan (trigger database scan)
 - [ ] Implement metadata handling
   - [ ] Validate metadata structure
   - [ ] Support flexible metadata fields
 
 ## Logging and Monitoring 📊
-- [ ] Configure logging
-  - [ ] Support configurable log levels
-  - [ ] Ensure human-readable log format
-  - [ ] Add log rotation
-- [ ] Add health check endpoint
+- [x] Configure logging
+  - [x] Support configurable log levels
+  - [x] Ensure human-readable log format
+- [x] Add health check endpoint
 - [ ] Implement request tracing
 
 ## Testing 🧪
 - [x] Set up pytest configuration
 - [ ] Write unit tests
-  - [ ] Model validation
-  - [ ] Storage provider tests
-  - [ ] API endpoint tests
-- [ ] Write integration tests
-- [ ] Write end-to-end tests
-- [ ] Configure test coverage reporting
+  - [x] Model validation
+  - [x] Storage provider tests
+  - [x] API endpoint tests
+- [x] Write end-to-end (E2E) tests (in tests/e2e, use HTTPX)
+- [ ] Configure test coverage reporting (pytest-cov)
+- [ ] Implement test data generation using Faker
+- [ ] Achieve ≥90% code coverage
 
 ## Security 🔒
 - [ ] Implement input validation
@@ -65,6 +83,7 @@
 - [ ] Implement caching for media objects
 - [ ] Add pagination performance optimizations
 - [ ] Profile and optimize database queries
+- [ ] Add database indexing for common query patterns
 
 ## Deployment 🚢
 - [x] Create Dockerfile

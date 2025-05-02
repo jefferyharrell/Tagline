@@ -5,6 +5,8 @@ from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from redis.exceptions import ConnectionError
 from rq import Queue
+from rq.exceptions import NoSuchJobError
+from rq.job import Job
 
 from app.tasks.ingest_orchestrator import ingest_orchestrator
 
@@ -46,6 +48,57 @@ def trigger_ingest():
         return JSONResponse(
             {"status": "enqueued", "job_id": job.id},
             status_code=status.HTTP_202_ACCEPTED,
+        )
+    except ConnectionError:
+        return JSONResponse(
+            {"status": "error", "message": "Could not connect to Redis"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.get(
+    "/v1/ingest/status",
+    tags=["tasks"],
+    summary="Get ingest orchestrator status",
+)
+def get_ingest_status():
+    """
+    Get the status and progress of the current or last run ingest orchestrator task.
+    """
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    try:
+        r = redis.from_url(redis_url)
+        r.ping()
+
+        job = Job.fetch(ORCHESTRATOR_JOB_ID, connection=r)
+
+        job_status = job.get_status()
+        metadata = job.meta
+
+        # Add failure reason if applicable
+        if job_status == "failed":
+            metadata["failure_reason"] = job.exc_info
+
+        return JSONResponse(
+            {
+                "job_id": job.id,
+                "status": job_status,
+                "metadata": metadata,
+                "enqueued_at": job.enqueued_at.isoformat() if job.enqueued_at else None,
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+            }
+        )
+
+    except NoSuchJobError:
+        return JSONResponse(
+            {"status": "not_found", "message": "Ingest job not found."},
+            status_code=status.HTTP_404_NOT_FOUND,
         )
     except ConnectionError:
         return JSONResponse(
