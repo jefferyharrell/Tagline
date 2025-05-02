@@ -10,7 +10,7 @@ from app.tasks.ingest_orchestrator import ingest_orchestrator
 
 router = APIRouter()
 
-INGEST_TIMEOUT = 10800  # 3 hours
+ORCHESTRATOR_JOB_ID = "orchestrator-singleton-job"
 
 
 @router.post(
@@ -28,13 +28,21 @@ def trigger_ingest():
     try:
         r = redis.from_url(redis_url)
         r.ping()
-        lock = r.lock("ingest:lock", timeout=INGEST_TIMEOUT)
-        if lock.locked():
-            return JSONResponse(
-                {"status": "already_running"}, status_code=status.HTTP_409_CONFLICT
-            )
         orchestrator_queue = Queue("orchestrator", connection=r)
-        job = orchestrator_queue.enqueue(ingest_orchestrator, redis_url=redis_url)
+        from rq.job import Job
+
+        try:
+            existing_job = Job.fetch(ORCHESTRATOR_JOB_ID, connection=r)
+            if existing_job.get_status() in ("queued", "started", "deferred"):
+                return JSONResponse(
+                    {"status": "already_running"}, status_code=status.HTTP_409_CONFLICT
+                )
+        except Exception:
+            # Job doesn't exist or can't be fetched, so it's safe to enqueue
+            pass
+        job = orchestrator_queue.enqueue(
+            ingest_orchestrator, redis_url=redis_url, job_id=ORCHESTRATOR_JOB_ID
+        )
         return JSONResponse(
             {"status": "enqueued", "job_id": job.id},
             status_code=status.HTTP_202_ACCEPTED,

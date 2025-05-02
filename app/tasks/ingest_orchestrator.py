@@ -1,9 +1,8 @@
 import logging
-import os
 from enum import Enum
 
 import redis
-from redis.exceptions import ConnectionError, LockNotOwnedError
+from redis.exceptions import ConnectionError
 from rq import Queue
 
 from app.config import get_settings
@@ -40,95 +39,91 @@ async def ingest_orchestrator(
     Returns:
         IngestStatus indicating the outcome.
     """
-    redis_host = os.environ.get("REDIS_HOST", "localhost")
-    redis_port = int(os.environ.get("REDIS_PORT", 6379))
-    redis_db = int(os.environ.get("REDIS_DB", 0))
-    redis_password = os.environ.get("REDIS_PASSWORD", None)
-
-    if redis_url:
-        r = redis.from_url(redis_url)
-    else:
-        r = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=redis_db,
-            password=redis_password,
-        )
-
-    lock_key = "ingest_orchestrator_lock"
-    lock_timeout = 3600
-    lock = r.lock(lock_key, timeout=lock_timeout)
+    # Redis connection will be handled by redis_conn below; remove unused variable assignment.
 
     try:
-        if lock.acquire(blocking=False):
-            logger.info("Acquired ingest lock. Starting ingest process.")
-            try:
-                settings = get_settings()
-                storage_provider = get_storage_provider(settings)
-                logger.info(
-                    f"Fetching media objects from {storage_provider.provider_name}"
-                )
-                media_objects = storage_provider.list_media_objects()
-                logger.info(f"Found {len(media_objects)} total media objects.")
-            except StorageProviderException as e:
-                logger.error(f"Storage provider error: {e}")
-                return IngestStatus.FAILED
-            except Exception as e:
-                logger.exception(f"Unexpected error during object listing: {e}")
-                return IngestStatus.FAILED
+        logger.info("Starting ingest process.")
+        try:
+            settings = get_settings()
+            storage_provider = get_storage_provider(settings)
+            logger.info(f"Fetching media objects from {storage_provider.provider_name}")
+            media_objects = storage_provider.list_media_objects()
+            logger.info(f"Found {len(media_objects)} total media objects.")
+        except StorageProviderException as e:
+            logger.error(f"Storage provider error: {e}")
+            return IngestStatus.FAILED
+        except Exception as e:
+            logger.exception(f"Unexpected error during object listing: {e}")
+            return IngestStatus.FAILED
 
-            filtered_media_objects = []
-            unsupported_count = 0
-            for obj in media_objects:
-                mimetype = str((obj.metadata or {}).get("mimetype"))
-                logger.debug(
-                    f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
-                )
-                if mimetype != "None" and is_mimetype_supported(mimetype):
-                    filtered_media_objects.append(obj)
-                    logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
-                else:
-                    unsupported_count += 1
-                    logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
-
-            if unsupported_count > 0:
-                logger.info(
-                    f"Filtered out {unsupported_count} unsupported media objects."
-                )
+        filtered_media_objects = []
+        unsupported_count = 0
+        for obj in media_objects:
+            mimetype = str((obj.metadata or {}).get("mimetype"))
+            logger.debug(
+                f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
+            )
+            if mimetype != "None" and is_mimetype_supported(mimetype):
+                filtered_media_objects.append(obj)
+                logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
             else:
-                logger.info("No unsupported media objects filtered out.")
+                unsupported_count += 1
+                logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
 
-            redis_conn = redis.from_url(redis_url)
-            ingest_queue = Queue("ingest", connection=redis_conn)
-            repo = get_media_object_repository()
-            queued_count = 0
-
-            for obj in filtered_media_objects:
-                exists = repo.get_by_object_key(obj.object_key)
-                if exists:
-                    logger.info(f"Skipping {obj.object_key}: already present in DB.")
-                    continue
-                job = ingest_queue.enqueue("app.tasks.ingest.ingest", media_object=obj)
-                logger.debug(f"Queued ingest job {job.id} for {obj.object_key}")
-                queued_count += 1
-
-            logger.info(f"Queued {queued_count} new media objects for processing")
-            logger.info("Ingest process completed.")
-            return IngestStatus.COMPLETED
+        if unsupported_count > 0:
+            logger.info(f"Filtered out {unsupported_count} unsupported media objects.")
         else:
-            logger.warning("Ingest process already running. Skipping.")
-            return IngestStatus.ALREADY_RUNNING
+            logger.info("No unsupported media objects filtered out.")
+
+        redis_conn = redis.from_url(redis_url)
+        ingest_queue = Queue("ingest", connection=redis_conn)
+        repo = get_media_object_repository()
+        queued_count = 0
+        job_ids = []
+
+        for obj in filtered_media_objects:
+            exists = repo.get_by_object_key(obj.object_key)
+            if exists:
+                logger.info(f"Skipping {obj.object_key}: already present in DB.")
+                continue
+            job = ingest_queue.enqueue("app.tasks.ingest.ingest", media_object=obj)
+            logger.debug(f"Queued ingest job {job.id} for {obj.object_key}")
+            job_ids.append(job.id)
+            queued_count += 1
+
+        logger.info(f"Queued {queued_count} new media objects for processing")
+
+        # Wait for all ingest jobs to finish
+        import time
+
+        from rq.job import Job
+
+        poll_interval = 5  # seconds
+        logger.info(f"Waiting for {len(job_ids)} ingest jobs to finish...")
+        while job_ids:
+            remaining = []
+            for jid in job_ids:
+                try:
+                    j = Job.fetch(jid, connection=redis_conn)
+                    if j.get_status() not in (
+                        "finished",
+                        "failed",
+                        "stopped",
+                    ):  # still running
+                        remaining.append(jid)
+                except Exception:
+                    # If job can't be fetched, treat as finished
+                    continue
+            if not remaining:
+                break
+            logger.info(f"Still waiting for {len(remaining)} jobs...")
+            time.sleep(poll_interval)
+            job_ids = remaining
+        logger.info("All ingest jobs finished. Ingest process completed.")
+        return IngestStatus.COMPLETED
     except ConnectionError:
-        logger.error("Redis connection error while acquiring lock.")
+        logger.error("Redis connection error during ingest orchestrator.")
         return IngestStatus.FAILED
     except Exception as e:
         logger.exception(f"Unexpected error in ingest orchestrator: {e}")
         return IngestStatus.FAILED
-    finally:
-        try:
-            lock.release()
-            logger.info("Released ingest lock.")
-        except LockNotOwnedError:
-            logger.warning("Attempted to release a lock not owned.")
-        except ConnectionError:
-            logger.error("Redis connection error while releasing lock.")
