@@ -3,6 +3,8 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from app.api.routes import private_router, public_router
@@ -81,10 +83,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+# Direct route to pretty UI
+@app.get("/elements", include_in_schema=False)
+async def custom_docs():
+    return FileResponse("app/static/elements.html")
+
+
 # Public endpoints (e.g., /v1/health)
 app.include_router(public_router, prefix="/v1")
-# Protected endpoints (all others)
 
+# Protected endpoints (all others)
 app.include_router(
     private_router, prefix="/v1", dependencies=[Depends(get_current_user)]
 )
