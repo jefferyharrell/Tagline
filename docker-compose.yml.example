@@ -27,7 +27,6 @@ services:
       - .env
     volumes:
       - .:/app
-      - ../test-storage:/storage
     environment:
       - PYTHONPATH=/app
     restart: unless-stopped
@@ -47,7 +46,6 @@ services:
       - .env
     volumes:
       - .:/app
-      - ../test-storage:/storage
     # Only one replica ensures singleton orchestrator
     deploy:
       replicas: 1
@@ -65,7 +63,6 @@ services:
       - .env
     volumes:
       - .:/app
-      - ../test-storage:/storage
     # Scale this up/down as needed for parallelism!
     deploy:
       replicas: 2  # Change this number to scale up/down

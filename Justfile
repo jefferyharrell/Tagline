@@ -13,6 +13,7 @@ setup:
     source venv/bin/activate
     pip install --upgrade pip
     pip install -r requirements-dev.txt
+    if [ ! -f "docker-compose.yml" ]; then cp docker-compose.yml.example docker-compose.yml; fi
     if [ ! -f ".env" ]; then cp .env.example .env; fi
     echo -e "\033[1;32mSetup complete! Activate your venv with 'source venv/bin/activate' and start coding.\033[0m"
 

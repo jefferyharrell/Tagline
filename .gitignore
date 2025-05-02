@@ -91,6 +91,9 @@ node_modules/
 # Ignore yarn lock just in case
 yarn.lock
 
+# Ignore docker-compose.yml
+docker-compose.yml
+
 # Ignore .windsurfrules
 .windsurfrules
 
@@ -99,5 +102,8 @@ yarn.lock
 
 # Ignore .windsurf directory
 .windsurf/
+
+# Ignore media directory
+media/
 
 # End of file
