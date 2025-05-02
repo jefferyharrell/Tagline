@@ -2,10 +2,11 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from pydantic import ValidationError
 
-from app.api.routes import api_router
+from app.api.routes import private_router, public_router
+from app.auth import get_current_user
 from app.config import StorageProviderType, get_settings
 
 # Define required environment variables for each storage provider
@@ -80,4 +81,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(api_router, prefix="/v1")
+# Public endpoints (e.g., /v1/health)
+app.include_router(public_router, prefix="/v1")
+# Protected endpoints (all others)
+
+app.include_router(
+    private_router, prefix="/v1", dependencies=[Depends(get_current_user)]
+)
