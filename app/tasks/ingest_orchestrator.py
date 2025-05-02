@@ -99,7 +99,7 @@ async def ingest_orchestrator(
                 logger.info("No unsupported media objects filtered out.")
 
             redis_conn = redis.from_url(redis_url)
-            queue = Queue(connection=redis_conn)
+            ingest_queue = Queue('ingest', connection=redis_conn)
             repo = get_media_object_repository()
             queued_count = 0
 
@@ -108,7 +108,7 @@ async def ingest_orchestrator(
                 if exists:
                     logger.info(f"Skipping {obj.object_key}: already present in DB.")
                     continue
-                job = queue.enqueue("app.tasks.ingest.ingest", media_object=obj)
+                job = ingest_queue.enqueue("app.tasks.ingest.ingest", media_object=obj)
                 logger.debug(f"Queued ingest job {job.id} for {obj.object_key}")
                 queued_count += 1
 

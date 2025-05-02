@@ -35,19 +35,36 @@ services:
       - postgres
       - redis
 
-  worker:
+  ingest-orchestrator:
     build: .
-    container_name: tagline-worker
-    command: python worker_entrypoint.py
-    depends_on:
-      - redis
+    command: rq worker orchestrator
     environment:
-      - PYTHONUNBUFFERED=1
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app
+    depends_on:
+      - redis
+    env_file:
+      - .env
     volumes:
       - .:/app
       - ../test-storage:/storage
-    restart: unless-stopped
+    # Only one replica ensures singleton orchestrator
+    deploy:
+      replicas: 1
+
+  ingest-worker:
+    build: .
+    command: rq worker ingest
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
     env_file:
       - .env
+    volumes:
+      - .:/app
+      - ../test-storage:/storage
+    # Scale this up/down as needed for parallelism!
+    deploy:
+      replicas: 2  # Change this number to scale up/down

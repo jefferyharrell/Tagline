@@ -33,8 +33,8 @@ def trigger_ingest():
             return JSONResponse(
                 {"status": "already_running"}, status_code=status.HTTP_409_CONFLICT
             )
-        q = Queue(connection=r)
-        job = q.enqueue(ingest_orchestrator, redis_url=redis_url)
+        orchestrator_queue = Queue('orchestrator', connection=r)
+        job = orchestrator_queue.enqueue(ingest_orchestrator, redis_url=redis_url)
         return JSONResponse(
             {"status": "enqueued", "job_id": job.id},
             status_code=status.HTTP_202_ACCEPTED,

@@ -100,7 +100,7 @@ pip-install:
 
 logs:
     # Tail backend logs
-    docker compose logs -f backend worker
+    docker compose logs -f
 
 shell:
     # Open a bash shell in the backend container
