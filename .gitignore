@@ -97,4 +97,7 @@ yarn.lock
 # Ignore .cursor
 .cursor/
 
+# Ignore .windsurf directory
+.windsurf/
+
 # End of file
