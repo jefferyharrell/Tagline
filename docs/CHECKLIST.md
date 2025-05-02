@@ -6,7 +6,7 @@
 - [x] Create Dockerfile
 - [x] Set up development and production requirements
 - [x] Create Justfile for development tasks
-- [ ] Provide .env.example file with placeholder values
+- [x] Provide .env.example file with placeholder values
 
 ## Database and ORM 🗄️
 - [x] Design SQLAlchemy models for MediaObject
