@@ -136,3 +136,26 @@ class FilesystemStorageProvider(StorageProviderBase):
                 f"Object '{object_key}' not found in filesystem storage."
             )
         return file_path.read_bytes()
+
+    def count(
+        self,
+        prefix: Optional[str] = None,
+        regex: Optional[str] = None,
+    ) -> int:
+        """
+        Return the total count of media objects, optionally filtered by prefix and regex.
+        """
+        regex_pattern = re.compile(regex) if regex else None
+        count = 0
+        for dirpath, _, filenames in os.walk(self.root_path):
+            for filename in filenames:
+                full_path = Path(dirpath) / filename
+                if not full_path.is_file():
+                    continue
+                rel_path = "/" + str(full_path.relative_to(self.root_path))
+                if prefix is not None and not rel_path.startswith(prefix):
+                    continue
+                if regex_pattern and not regex_pattern.search(rel_path):
+                    continue
+                count += 1
+        return count

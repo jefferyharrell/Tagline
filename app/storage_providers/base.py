@@ -23,3 +23,11 @@ class StorageProviderBase(Protocol):
         ...
 
     async def retrieve(self, object_key: str) -> bytes: ...
+
+    def count(
+        self,
+        prefix: Optional[str] = None,
+        regex: Optional[str] = None,
+    ) -> int:
+        """Return the total count of media objects, optionally filtered."""
+        ...

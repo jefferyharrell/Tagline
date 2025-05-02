@@ -241,3 +241,90 @@ class DropboxStorageProvider(StorageProviderBase):
             raise StorageProviderException(f"Dropbox API error: {e}") from e
         except Exception as e:
             raise StorageProviderException(f"Dropbox error: {e}") from e
+
+    def count(
+        self,
+        prefix: Optional[str] = None,
+        regex: Optional[str] = None,
+    ) -> int:
+        """
+        Return the total count of media objects, optionally filtered by prefix and regex.
+        Note: This requires paginating through all Dropbox entries matching the prefix,
+        which might be slow for very large directories.
+        """
+        try:
+            # Compose the path to list
+            list_path = self.root_path
+            if prefix:
+                # Ensure prefix starts with / and root_path doesn't end with /
+                # Dropbox paths should not have double slashes
+                norm_prefix = prefix.lstrip("/")
+                norm_root = self.root_path.rstrip("/")
+                list_path = (
+                    f"{norm_root}/{norm_prefix}" if norm_root else f"/{norm_prefix}"
+                )
+                # If root_path is empty or '/', adjust list_path
+                if not self.root_path or self.root_path == "/":
+                    list_path = f"/{norm_prefix}"
+
+            # Compile regex pattern if provided
+            regex_pattern = re.compile(regex) if regex else None
+
+            count = 0
+            has_more = True
+            cursor = None
+
+            while has_more:
+                if cursor:
+                    res = cast(
+                        ListFolderResult, self.dbx.files_list_folder_continue(cursor)
+                    )
+                else:
+                    # Use path=list_path, recursive=True only makes sense if prefix is a directory
+                    # If prefix points to a file, list_folder might error or return empty.
+                    # We count only FileMetadata instances returned.
+                    res = cast(
+                        ListFolderResult,
+                        self.dbx.files_list_folder(list_path, recursive=True),
+                    )
+
+                for entry in res.entries:
+                    if isinstance(entry, FileMetadata):
+                        # Normalize path_display for consistent comparison
+                        entry_path = entry.path_display
+                        if not entry_path.startswith("/"):
+                            entry_path = "/" + entry_path
+
+                        # Calculate relative path based on the original root_path
+                        # Use os.path.relpath carefully with Dropbox paths
+                        try:
+                            rel_path = "/" + os.path.relpath(entry_path, self.root_path)
+                        except (
+                            ValueError
+                        ):  # Handle cases where entry_path is not under root_path
+                            continue
+
+                        # Apply prefix filter strictly (covers cases where list_path was broad)
+                        if prefix is not None and not rel_path.startswith(prefix):
+                            continue
+
+                        # Apply regex filter if provided
+                        if regex_pattern and not regex_pattern.search(rel_path):
+                            continue
+
+                        count += 1
+
+                has_more = res.has_more
+                cursor = res.cursor
+
+            return count
+
+        except RateLimitError as e:
+            raise StorageProviderException("Dropbox rate limit exceeded") from e
+        except ApiError as e:
+            # If the path doesn't exist, count is 0
+            if e.error and e.error.is_path() and e.error.get_path().is_not_found():
+                return 0
+            raise StorageProviderException(f"Dropbox API error: {e}") from e
+        except Exception as e:
+            raise StorageProviderException(f"Dropbox error: {e}") from e

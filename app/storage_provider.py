@@ -1,4 +1,6 @@
-from app.config import Settings, StorageProviderType
+from fastapi import Depends
+
+from app.config import Settings, StorageProviderType, get_settings
 from app.storage_providers.base import StorageProviderBase
 from app.storage_providers.dropbox import DropboxStorageProvider
 from app.storage_providers.filesystem import FilesystemStorageProvider
@@ -10,7 +12,9 @@ class StorageProviderException(Exception):
     pass
 
 
-def get_storage_provider(settings: Settings) -> "StorageProviderBase":
+def get_storage_provider(
+    settings: Settings = Depends(get_settings),
+) -> "StorageProviderBase":
     """Factory function to get the configured storage provider instance."""
     provider_type = settings.STORAGE_PROVIDER
 
