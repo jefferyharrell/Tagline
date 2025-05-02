@@ -47,8 +47,13 @@ async def ingest_orchestrator(
             settings = get_settings()
             storage_provider = get_storage_provider(settings)
             logger.info(f"Fetching media objects from {storage_provider.provider_name}")
-            media_objects = storage_provider.list_media_objects()
-            logger.info(f"Found {len(media_objects)} total media objects.")
+            # Use the new generator for efficient iteration
+            logger.info(
+                f"Iterating media objects from {storage_provider.provider_name}"
+            )
+            media_objects_iter = storage_provider.all_media_objects()
+            # We'll count as we go
+            total_count = 0
         except StorageProviderException as e:
             logger.error(f"Storage provider error: {e}")
             return IngestStatus.FAILED
@@ -56,32 +61,25 @@ async def ingest_orchestrator(
             logger.exception(f"Unexpected error during object listing: {e}")
             return IngestStatus.FAILED
 
-        filtered_media_objects = []
         unsupported_count = 0
-        for obj in media_objects:
+        queued_count = 0
+        total_count = 0
+        job_ids = []
+        redis_conn = redis.from_url(redis_url)
+        ingest_queue = Queue("ingest", connection=redis_conn)
+        repo = get_media_object_repository()
+
+        for obj in media_objects_iter:
+            total_count += 1
             mimetype = str((obj.metadata or {}).get("mimetype"))
             logger.debug(
                 f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
             )
-            if mimetype != "None" and is_mimetype_supported(mimetype):
-                filtered_media_objects.append(obj)
-                logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
-            else:
+            if mimetype == "None" or not is_mimetype_supported(mimetype):
                 unsupported_count += 1
                 logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
-
-        if unsupported_count > 0:
-            logger.info(f"Filtered out {unsupported_count} unsupported media objects.")
-        else:
-            logger.info("No unsupported media objects filtered out.")
-
-        redis_conn = redis.from_url(redis_url)
-        ingest_queue = Queue("ingest", connection=redis_conn)
-        repo = get_media_object_repository()
-        queued_count = 0
-        job_ids = []
-
-        for obj in filtered_media_objects:
+                continue
+            logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
             exists = repo.get_by_object_key(obj.object_key)
             if exists:
                 logger.info(f"Skipping {obj.object_key}: already present in DB.")
@@ -91,6 +89,11 @@ async def ingest_orchestrator(
             job_ids.append(job.id)
             queued_count += 1
 
+        logger.info(f"Found {total_count} total media objects.")
+        if unsupported_count > 0:
+            logger.info(f"Filtered out {unsupported_count} unsupported media objects.")
+        else:
+            logger.info("No unsupported media objects filtered out.")
         logger.info(f"Queued {queued_count} new media objects for processing")
 
         # Wait for all ingest jobs to finish

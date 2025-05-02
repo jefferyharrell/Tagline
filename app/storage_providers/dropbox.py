@@ -1,14 +1,15 @@
 import mimetypes
 import os
 import re
-from typing import List, Optional, cast
+from typing import Iterable, List, Optional, cast
 
 import dropbox
 from dropbox.exceptions import ApiError, RateLimitError
 from dropbox.files import FileMetadata, ListFolderResult
 
 from app.storage_exceptions import StorageProviderException
-from app.storage_types import MediaObject, StorageProviderBase
+from app.storage_providers.base import StorageProviderBase
+from app.storage_types import MediaObject
 
 
 class DropboxStorageProvider(StorageProviderBase):
@@ -122,6 +123,91 @@ class DropboxStorageProvider(StorageProviderBase):
 
             # Apply pagination
             return results[offset : offset + limit]
+
+        except RateLimitError as e:
+            raise StorageProviderException("Dropbox rate limit exceeded") from e
+        except ApiError as e:
+            raise StorageProviderException(f"Dropbox API error: {e}") from e
+        except Exception as e:
+            raise StorageProviderException(f"Dropbox error: {e}") from e
+
+    def all_media_objects(
+        self,
+        prefix: Optional[str] = None,
+        regex: Optional[str] = None,
+    ) -> Iterable[MediaObject]:
+        """
+        Yield all files under the root path, optionally filtered by prefix and regex.
+        Returns an iterable of MediaObject instances with Dropbox metadata.
+        """
+        try:
+            # Compose the path to list
+            list_path = self.root_path
+            if prefix:
+                # Remove leading slash to avoid double-slash in Dropbox path
+                prefix_path = prefix.lstrip("/")
+                list_path = os.path.join(self.root_path, prefix_path)
+
+            # Compile regex pattern if provided
+            regex_pattern = re.compile(regex) if regex else None
+
+            # Dropbox API returns up to 2,000 entries per call; handle pagination
+            has_more = True
+            cursor = None
+
+            while has_more:
+                if cursor:
+                    res = cast(
+                        ListFolderResult, self.dbx.files_list_folder_continue(cursor)
+                    )
+                else:
+                    res = cast(
+                        ListFolderResult,
+                        self.dbx.files_list_folder(list_path, recursive=True),
+                    )
+
+                for entry in res.entries:
+                    if isinstance(entry, FileMetadata):
+                        rel_path = os.path.relpath(entry.path_display, self.root_path)
+                        rel_path = "/" + rel_path.lstrip("/")
+
+                        # Apply regex filter if provided
+                        if regex_pattern and not regex_pattern.search(rel_path):
+                            continue
+
+                        mime_type, _ = mimetypes.guess_type(rel_path)
+                        last_modified = (
+                            entry.server_modified.isoformat()
+                            if entry.server_modified
+                            else None
+                        )
+
+                        # Yield MediaObject with Dropbox metadata
+                        yield MediaObject(
+                            object_key=rel_path,
+                            last_modified=last_modified,
+                            metadata={
+                                "size": entry.size,
+                                "content_hash": getattr(entry, "content_hash", None),
+                                "rev": getattr(entry, "rev", None),
+                                "client_modified": (
+                                    (
+                                        cm.isoformat()
+                                        if (
+                                            cm := getattr(
+                                                entry, "client_modified", None
+                                            )
+                                        )
+                                        is not None
+                                        else None
+                                    )
+                                ),
+                                "mimetype": mime_type,
+                            },
+                        )
+
+                has_more = res.has_more
+                cursor = res.cursor
 
         except RateLimitError as e:
             raise StorageProviderException("Dropbox rate limit exceeded") from e

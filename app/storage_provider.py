@@ -1,7 +1,7 @@
 from app.config import Settings, StorageProviderType
+from app.storage_providers.base import StorageProviderBase
 from app.storage_providers.dropbox import DropboxStorageProvider
 from app.storage_providers.filesystem import FilesystemStorageProvider
-from app.storage_types import StorageProviderBase
 
 
 class StorageProviderException(Exception):
