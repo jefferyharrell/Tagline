@@ -16,9 +16,13 @@ class JPEGProcessor(MediaProcessor):
     SUPPORTED_MIMETYPES = {"image/jpeg"}
 
     async def generate_thumbnail(
-        self, content: bytes, size: int = 512, fmt: str = "webp", quality: int = 85
+        self,
+        content: bytes,
+        size: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        quality: int | None = None,
     ) -> tuple[bytes, str]:
-        """Generate a thumbnail for JPEG images using the default logic."""
+        """Generate a thumbnail for JPEG images using the global or supplied settings."""
         return await super().generate_thumbnail(
             content, size=size, fmt=fmt, quality=quality
         )

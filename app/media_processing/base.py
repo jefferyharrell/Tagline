@@ -27,34 +27,50 @@ class MediaProcessor(Protocol):
         raise NotImplementedError
 
     async def generate_thumbnail(
-        self, content: bytes, size: int = 512, fmt: str = "webp", quality: int = 85
+        self,
+        content: bytes,
+        size: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        quality: int | None = None,
     ) -> tuple[bytes, str]:
         """
-        Generate a thumbnail from raw image bytes.
-        Scales the shortest side to `size` pixels, center-crops to (size, size), converts to RGB, and saves as WebP by default.
-        Args:
-            content: The raw bytes of the image to thumbnail.
-            size: The width/height of the square thumbnail (default: 512).
-            fmt: Output format (default: 'webp').
-            quality: Output quality (default: 85).
+        Generate a thumbnail from raw image bytes using global or supplied settings.
+        If not provided, uses settings.THUMBNAIL_SIZE, settings.THUMBNAIL_FORMAT, and settings.THUMBNAIL_QUALITY.
+        Resizes to the specified width and height, converts to RGB, and saves as the configured format.
         Returns:
             (thumbnail image bytes, mimetype string)
         """
+        from app.config import get_settings
+
+        settings = get_settings()
+        size = size if size is not None else settings.THUMBNAIL_SIZE
+        fmt = fmt if fmt is not None else settings.THUMBNAIL_FORMAT
+        quality = quality if quality is not None else settings.THUMBNAIL_QUALITY
         from io import BytesIO
 
         from PIL import Image
 
+        width, height = size
         with Image.open(BytesIO(content)) as img:
             img = img.convert("RGB")
-            scale = size / min(img.size)
-            new_w, new_h = [round(dim * scale) for dim in img.size]
-            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-            left = (img.width - size) // 2
-            top = (img.height - size) // 2
-            img = img.crop((left, top, left + size, top + size))
+            orig_w, orig_h = img.size
+            # If image is smaller than or equal to thumbnail size, do not resize
+            if orig_w <= width and orig_h <= height:
+                thumb = img
+            else:
+                # Scale so that the smallest dimension fits within the thumbnail size
+                scale = max(width / orig_w, height / orig_h)
+                new_w = int(orig_w * scale)
+                new_h = int(orig_h * scale)
+                img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                # Center crop to the thumbnail size
+                left = (new_w - width) // 2
+                top = (new_h - height) // 2
+                right = left + width
+                bottom = top + height
+                thumb = img.crop((left, top, right, bottom))
             out = BytesIO()
-            img.save(out, format=fmt.upper(), quality=quality)
-            # Map Pillow format to mimetype
+            thumb.save(out, format=fmt.upper(), quality=quality)
             fmt_lc = fmt.lower()
             mimetype = {
                 "jpeg": "image/jpeg",

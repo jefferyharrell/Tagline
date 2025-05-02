@@ -29,7 +29,11 @@ class HEICProcessor(MediaProcessor):
     """Processes HEIC/HEIF images using Pillow and pillow-heif."""
 
     async def generate_thumbnail(
-        self, content: bytes, size: int = 512, fmt: str = "webp", quality: int = 85
+        self,
+        content: bytes,
+        size: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        quality: int | None = None,
     ) -> tuple[bytes, str]:
         """Generate a thumbnail for HEIC images using the default logic, ensuring pillow-heif is registered."""
         logger.debug(

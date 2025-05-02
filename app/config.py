@@ -19,6 +19,26 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     UNIT_TEST_DATABASE_URL: str | None = None  # Optional, for unit tests
 
+    THUMBNAIL_FORMAT: str = "jpeg"
+    THUMBNAIL_QUALITY: int = 85
+    THUMBNAIL_SIZE: tuple[int, int] = (512, 512)
+
+    @field_validator("THUMBNAIL_SIZE", mode="before")
+    @classmethod
+    def parse_thumbnail_size(cls, v):
+        if isinstance(v, str):
+            # Accept "512,512" or "512x512" or "(512, 512)"
+            v = v.strip().replace("x", ",").replace("(", "").replace(")", "")
+            parts = [int(part) for part in v.split(",") if part.strip()]
+            if len(parts) == 2:
+                return tuple(parts)
+            raise ValueError("THUMBNAIL_SIZE must be a tuple of two integers")
+        if isinstance(v, (list, tuple)) and len(v) == 2:
+            return tuple(map(int, v))
+        if isinstance(v, int):
+            return (v, v)
+        raise ValueError("THUMBNAIL_SIZE must be a tuple of two integers")
+
     # Storage Provider Configuration
     STORAGE_PROVIDER: StorageProviderType
     FILESYSTEM_ROOT_PATH: str | None = None
