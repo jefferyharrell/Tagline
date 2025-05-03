@@ -9,7 +9,7 @@ from app.domain_media_object import MediaObjectRecord
 from app.media_processing import heicprocessor  # noqa: F401
 from app.media_processing import jpegprocessor  # noqa: F401
 from app.media_processing.factory import get_processor
-from app.storage_types import MediaObject
+from app.schemas import MediaObject
 
 logger = logging.getLogger(__name__)
 

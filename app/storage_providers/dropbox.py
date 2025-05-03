@@ -7,9 +7,9 @@ import dropbox
 from dropbox.exceptions import ApiError, RateLimitError
 from dropbox.files import FileMetadata, ListFolderResult
 
+from app.schemas import MediaObject
 from app.storage_exceptions import StorageProviderException
 from app.storage_providers.base import StorageProviderBase
-from app.storage_types import MediaObject
 
 
 class DropboxStorageProvider(StorageProviderBase):

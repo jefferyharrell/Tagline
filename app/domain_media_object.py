@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 from app.models import OrmMediaObject
-from app.storage_types import MediaObject as PydanticMediaObject
+from app.schemas import MediaObject as PydanticMediaObject
 
 
 class MediaObjectRecord:

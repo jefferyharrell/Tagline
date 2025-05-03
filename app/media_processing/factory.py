@@ -2,7 +2,7 @@ import logging
 from typing import Type
 
 from app.media_processing.base import MediaProcessor
-from app.storage_types import MediaObject
+from app.schemas import MediaObject
 
 logger = logging.getLogger(__name__)
 

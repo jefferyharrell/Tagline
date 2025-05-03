@@ -1,6 +1,6 @@
 from typing import Iterable, List, Optional, Protocol
 
-from app.storage_types import MediaObject
+from app.schemas import MediaObject
 
 
 class StorageProviderBase(Protocol):

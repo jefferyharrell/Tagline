@@ -8,11 +8,11 @@ from pydantic import BaseModel, Field
 
 # Import needed for get_media_thumbnail (placeholder logic)
 from app.db.repositories.media_object import MediaObjectRepository
-from app.storage_provider import get_storage_provider
-from app.storage_providers.base import StorageProviderBase
 
 # Use MediaObject from storage_types for consistency with storage provider
-from app.storage_types import MediaObject
+from app.schemas import MediaObject
+from app.storage_provider import get_storage_provider
+from app.storage_providers.base import StorageProviderBase
 
 router = APIRouter()
 

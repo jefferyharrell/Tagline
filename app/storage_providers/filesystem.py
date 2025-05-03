@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
+from app.schemas import MediaObject
 from app.storage_providers.base import StorageProviderBase
-from app.storage_types import MediaObject
 
 
 class FilesystemStorageProvider(StorageProviderBase):

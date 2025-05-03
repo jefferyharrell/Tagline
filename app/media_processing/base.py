@@ -4,8 +4,8 @@ from io import BytesIO
 from typing import Any, Protocol, runtime_checkable
 
 from app.config import Settings, get_settings
+from app.schemas import MediaObject
 from app.storage_provider import get_storage_provider
-from app.storage_types import MediaObject
 
 logger = logging.getLogger(__name__)
 

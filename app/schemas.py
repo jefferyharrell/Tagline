@@ -18,3 +18,9 @@ class MediaObjectMetadata(BaseModel):
                 if len(kw) > 64:
                     raise ValueError("Each keyword must be at most 64 characters long.")
         return v
+
+
+class MediaObject(BaseModel):
+    object_key: str
+    last_modified: Optional[str] = None  # or datetime
+    metadata: Optional[dict] = None
