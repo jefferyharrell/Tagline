@@ -7,7 +7,7 @@ import dropbox
 from dropbox.exceptions import ApiError, RateLimitError
 from dropbox.files import FileMetadata, ListFolderResult
 
-from app.schemas import MediaObject
+from app.schemas import StoredMediaObject
 from app.storage_exceptions import StorageProviderException
 from app.storage_providers.base import StorageProviderBase
 
@@ -42,10 +42,10 @@ class DropboxStorageProvider(StorageProviderBase):
         limit: int = 100,
         offset: int = 0,
         regex: Optional[str] = None,
-    ) -> List[MediaObject]:
+    ) -> List[StoredMediaObject]:
         """
         List all files under the root path, optionally filtered by prefix and regex.
-        Returns a list of MediaObject instances with Dropbox metadata.
+        Returns a list of StoredMediaObject instances with Dropbox metadata.
         """
         try:
             # Compose the path to list
@@ -59,7 +59,7 @@ class DropboxStorageProvider(StorageProviderBase):
             regex_pattern = re.compile(regex) if regex else None
 
             # Dropbox API returns up to 2,000 entries per call; handle pagination
-            results: List[MediaObject] = []
+            results: List[StoredMediaObject] = []
             has_more = True
             cursor = None
 
@@ -90,9 +90,9 @@ class DropboxStorageProvider(StorageProviderBase):
                             else None
                         )
 
-                        # Create MediaObject with Dropbox metadata
+                        # Create StoredMediaObject with Dropbox metadata
                         results.append(
-                            MediaObject(
+                            StoredMediaObject(
                                 object_key=rel_path,
                                 last_modified=last_modified,
                                 metadata={
@@ -135,10 +135,10 @@ class DropboxStorageProvider(StorageProviderBase):
         self,
         prefix: Optional[str] = None,
         regex: Optional[str] = None,
-    ) -> Iterable[MediaObject]:
+    ) -> Iterable[StoredMediaObject]:
         """
         Yield all files under the root path, optionally filtered by prefix and regex.
-        Returns an iterable of MediaObject instances with Dropbox metadata.
+        Returns an iterable of StoredMediaObject instances with Dropbox metadata.
         """
         try:
             # Compose the path to list
@@ -182,8 +182,8 @@ class DropboxStorageProvider(StorageProviderBase):
                             else None
                         )
 
-                        # Yield MediaObject with Dropbox metadata
-                        yield MediaObject(
+                        # Yield StoredMediaObject with Dropbox metadata
+                        yield StoredMediaObject(
                             object_key=rel_path,
                             last_modified=last_modified,
                             metadata={

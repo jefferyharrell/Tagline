@@ -6,6 +6,7 @@ from PIL import Image
 
 from app.media_processing.base import MediaProcessor
 from app.media_processing.factory import register_processor
+from app.schemas import StoredMediaObject
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,9 @@ except Exception as e:
 
 @register_processor
 class HEICProcessor(MediaProcessor):
+    def __init__(self, stored_media_object: StoredMediaObject):
+        super().__init__(stored_media_object)
+
     """Processes HEIC/HEIF images using Pillow and pillow-heif."""
 
     async def generate_thumbnail(
@@ -67,7 +71,7 @@ class HEICProcessor(MediaProcessor):
             # Log the stream details for debugging
             stream_content = stream.read()
             logger.debug(
-                f"HEIC stream details for {self.media_object.object_key}: "
+                f"HEIC stream details for {self.stored_media_object.object_key}: "
                 f"Length={len(stream_content)} bytes"
             )
 
@@ -80,12 +84,12 @@ class HEICProcessor(MediaProcessor):
                 metadata["mode"] = img.mode
                 metadata["format"] = img.format
                 logger.debug(
-                    f"Extracted HEIC metadata for {self.media_object.object_key}: "
+                    f"Extracted HEIC metadata for {self.stored_media_object.object_key}: "
                     f"W={metadata.get('width')}, H={metadata.get('height')}"
                 )
         except Exception as e:
             logger.exception(
-                f"Pillow/HEIF failed to process {self.media_object.object_key}: {e}"
+                f"Pillow/HEIF failed to process {self.stored_media_object.object_key}: {e}"
             )
             return {}
         return metadata

@@ -1,6 +1,6 @@
 from typing import Iterable, List, Optional, Protocol
 
-from app.schemas import MediaObject
+from app.schemas import StoredMediaObject
 
 
 class StorageProviderBase(Protocol):
@@ -12,13 +12,13 @@ class StorageProviderBase(Protocol):
         limit: int = 100,
         offset: int = 0,
         regex: Optional[str] = None,
-    ) -> List[MediaObject]: ...
+    ) -> List[StoredMediaObject]: ...
 
     def all_media_objects(
         self,
         prefix: Optional[str] = None,
         regex: Optional[str] = None,
-    ) -> Iterable[MediaObject]:
+    ) -> Iterable[StoredMediaObject]:
         """Return an iterable of all media objects, optionally filtered."""
         ...
 

@@ -8,7 +8,7 @@ from sqlalchemy.orm import declarative_base
 Base = declarative_base()
 
 
-class OrmMediaObject(Base):
+class ORMMediaObject(Base):
     __tablename__ = "media_objects"
 
     id = Column(

@@ -6,12 +6,16 @@ from PIL import Image
 
 from app.media_processing.base import MediaProcessor
 from app.media_processing.factory import register_processor
+from app.schemas import StoredMediaObject
 
 logger = logging.getLogger(__name__)
 
 
 @register_processor
 class PNGProcessor(MediaProcessor):
+    def __init__(self, stored_media_object: StoredMediaObject):
+        super().__init__(stored_media_object)
+
     """Processes PNG images using Pillow."""
 
     SUPPORTED_MIMETYPES = {"image/png"}
@@ -46,12 +50,12 @@ class PNGProcessor(MediaProcessor):
                 metadata["mode"] = img.mode
                 metadata["format"] = img.format
                 logger.debug(
-                    f"Extracted PNG metadata for {self.media_object.object_key}: "
+                    f"Extracted PNG metadata for {self.stored_media_object.object_key}: "
                     f"W={metadata.get('width')}, H={metadata.get('height')}"
                 )
         except Exception as e:
             logger.exception(
-                f"Pillow failed to process PNG {self.media_object.object_key}: {e}"
+                f"Pillow failed to process PNG {self.stored_media_object.object_key}: {e}"
             )
             return {}
         return metadata

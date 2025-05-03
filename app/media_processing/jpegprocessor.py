@@ -5,12 +5,16 @@ from PIL import Image
 
 from app.media_processing.base import MediaProcessor
 from app.media_processing.factory import register_processor
+from app.schemas import StoredMediaObject
 
 logger = logging.getLogger(__name__)
 
 
 @register_processor
 class JPEGProcessor(MediaProcessor):
+    def __init__(self, stored_media_object: StoredMediaObject):
+        super().__init__(stored_media_object)
+
     """Processes JPEG images using Pillow."""
 
     SUPPORTED_MIMETYPES = {"image/jpeg"}
@@ -47,12 +51,12 @@ class JPEGProcessor(MediaProcessor):
                 metadata["mode"] = img.mode
                 metadata["format"] = img.format
                 logger.debug(
-                    f"Extracted JPEG metadata for {self.media_object.object_key}: "
+                    f"Extracted JPEG metadata for {self.stored_media_object.object_key}: "
                     f"W={metadata.get('width')}, H={metadata.get('height')}"
                 )
         except Exception as e:
             logger.exception(
-                f"Pillow failed to process JPEG {self.media_object.object_key}: {e}"
+                f"Pillow failed to process JPEG {self.stored_media_object.object_key}: {e}"
             )
             return {}
         return metadata

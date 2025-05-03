@@ -7,8 +7,8 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from app.models import OrmMediaObject
-from app.schemas import MediaObject as PydanticMediaObject
+from app.models import ORMMediaObject
+from app.schemas import MediaObject as PydanticMediaObject, StoredMediaObject
 
 
 class MediaObjectRecord:
@@ -33,7 +33,7 @@ class MediaObjectRecord:
         self.last_modified = last_modified
 
     @classmethod
-    def from_orm(cls, orm_obj: OrmMediaObject) -> "MediaObjectRecord":
+    def from_orm(cls, orm_obj: ORMMediaObject) -> "MediaObjectRecord":
         return cls(
             id=getattr(orm_obj, "id", None),
             object_key=getattr(orm_obj, "object_key", None),
@@ -45,8 +45,8 @@ class MediaObjectRecord:
             last_modified=None,  # Could be derived from updated_at or metadata
         )
 
-    def to_orm(self) -> OrmMediaObject:
-        return OrmMediaObject(
+    def to_orm(self) -> ORMMediaObject:
+        return ORMMediaObject(
             id=self.id,
             object_key=self.object_key,
             object_metadata=self.metadata,
@@ -65,13 +65,29 @@ class MediaObjectRecord:
             last_modified=getattr(pydantic_obj, "last_modified", None),
         )
 
+    @classmethod
+    def from_stored(cls, stored_obj: StoredMediaObject) -> "MediaObjectRecord":
+        return cls(
+            id=None,  # Not persisted yet
+            object_key=stored_obj.object_key,
+            metadata=stored_obj.metadata or {},
+            last_modified=getattr(stored_obj, "last_modified", None),
+        )
+
     def to_pydantic(self) -> PydanticMediaObject:
+        """Converts this domain object to its Pydantic schema representation."""
         if self.object_key is None:
             raise ValueError(
                 "object_key must not be None when converting to PydanticMediaObject"
             )
+        if self.id is None:
+            raise ValueError(
+                "id must not be None when converting to PydanticMediaObject"
+            )
         return PydanticMediaObject(
+            id=self.id,
             object_key=self.object_key,
             metadata=self.metadata,
             last_modified=self.last_modified,
+            # Ensure PydanticMediaObject (schemas.MediaObject) matches these fields
         )

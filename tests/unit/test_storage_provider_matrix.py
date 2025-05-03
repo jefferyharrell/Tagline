@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.schemas import MediaObject
+from app.schemas import StoredMediaObject
 from app.storage_providers.base import StorageProviderBase
 from app.storage_providers.dropbox import DropboxStorageProvider
 from app.storage_providers.filesystem import FilesystemStorageProvider
@@ -151,7 +151,7 @@ async def test_list_and_retrieve(provider_fixture: str, request: Any):
 
     # Verify metadata is present
     for obj in objects:
-        assert isinstance(obj, MediaObject)
+        assert isinstance(obj, StoredMediaObject)
         assert obj.last_modified is not None
         assert obj.metadata is not None
         assert "size" in obj.metadata

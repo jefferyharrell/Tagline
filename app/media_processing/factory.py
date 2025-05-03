@@ -2,7 +2,7 @@ import logging
 from typing import Type
 
 from app.media_processing.base import MediaProcessor
-from app.schemas import MediaObject
+from app.schemas import StoredMediaObject
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,14 @@ def is_mimetype_supported(mimetype: str) -> bool:
     return supported
 
 
-def get_processor(media_object: MediaObject) -> MediaProcessor:
+def get_processor(stored_media_object: StoredMediaObject) -> MediaProcessor:
     """Finds and instantiates the appropriate processor for the media object."""
-    mimetype = (media_object.metadata or {}).get("mimetype")
+    mimetype = (stored_media_object.metadata or {}).get("mimetype")
     if not mimetype:
         # Maybe raise a specific exception type?
-        raise ValueError(f"Media object {media_object.object_key} missing mimetype")
+        raise ValueError(
+            f"Media object {stored_media_object.object_key} missing mimetype"
+        )
 
     applicable_processors = [
         p_cls for p_cls in _PROCESSOR_REGISTRY if p_cls.handles_mimetype(mimetype)
@@ -55,11 +57,11 @@ def get_processor(media_object: MediaObject) -> MediaProcessor:
     logger.debug(f"Using processor {processor_cls.__name__} for mimetype {mimetype}")
     try:
         # Pass the media object to the constructor
-        return processor_cls(media_object)
+        return processor_cls(stored_media_object)
     except Exception as e:
         logger.exception(
             f"Failed to instantiate processor {processor_cls.__name__} "
-            f"for {media_object.object_key}"
+            f"for {stored_media_object.object_key}"
         )
         # Re-raise a more specific error?
         raise RuntimeError(f"Processor instantiation failed for {mimetype}") from e

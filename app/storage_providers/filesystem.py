@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from app.schemas import MediaObject
+from app.schemas import StoredMediaObject
 from app.storage_providers.base import StorageProviderBase
 
 
@@ -31,10 +31,10 @@ class FilesystemStorageProvider(StorageProviderBase):
         limit: int = 100,
         offset: int = 0,
         regex: Optional[str] = None,
-    ) -> List[MediaObject]:
+    ) -> List[StoredMediaObject]:
         """
         List all files under the root path, optionally filtered by prefix and regex.
-        Returns a list of MediaObject instances with filesystem metadata.
+        Returns a list of StoredMediaObject instances with filesystem metadata.
         """
         # Walk the filesystem and collect file paths
         results = []
@@ -61,7 +61,7 @@ class FilesystemStorageProvider(StorageProviderBase):
 
                 mime_type, _ = mimetypes.guess_type(rel_path)
                 results.append(
-                    MediaObject(
+                    StoredMediaObject(
                         object_key=rel_path,
                         last_modified=last_modified,
                         metadata={
@@ -81,10 +81,10 @@ class FilesystemStorageProvider(StorageProviderBase):
         self,
         prefix: Optional[str] = None,
         regex: Optional[str] = None,
-    ) -> Iterable[MediaObject]:
+    ) -> Iterable[StoredMediaObject]:
         """
         Yield all files under the root path, optionally filtered by prefix and regex.
-        Returns an iterable of MediaObject instances with filesystem metadata.
+        Returns an iterable of StoredMediaObject instances with filesystem metadata.
         """
         regex_pattern = re.compile(regex) if regex else None
 
@@ -112,7 +112,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                 ).isoformat()
 
                 mime_type, _ = mimetypes.guess_type(rel_path)
-                yield MediaObject(
+                yield StoredMediaObject(
                     object_key=rel_path,
                     last_modified=last_modified,
                     metadata={

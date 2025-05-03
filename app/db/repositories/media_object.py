@@ -1,7 +1,7 @@
 """Repository for managing MediaObject persistence."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings
 from app.domain_media_object import MediaObjectRecord
-from app.models import OrmMediaObject
+from app.models import ORMMediaObject
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class MediaObjectRepository:
         session = self.SessionLocal()
         try:
             logger.debug(f"Querying for MediaObject with id: {id}")
-            orm_obj = session.query(OrmMediaObject).filter_by(id=id).first()
+            orm_obj = session.query(ORMMediaObject).filter_by(id=id).first()
             if orm_obj:
                 logger.debug(f"Found MediaObject: {orm_obj.id}")
                 return MediaObjectRecord.from_orm(orm_obj)
@@ -59,7 +59,7 @@ class MediaObjectRepository:
         try:
             logger.debug(f"Querying for MediaObject with object_key: {object_key}")
             orm_obj = (
-                session.query(OrmMediaObject).filter_by(object_key=object_key).first()
+                session.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if orm_obj:
                 logger.debug(f"Found MediaObject: {orm_obj.id}")
@@ -130,7 +130,7 @@ class MediaObjectRepository:
         try:
             logger.debug(f"Attempting to update thumbnail for object_key: {object_key}")
             media_object = (
-                session.query(OrmMediaObject).filter_by(object_key=object_key).first()
+                session.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if not media_object:
                 logger.warning(
@@ -162,3 +162,40 @@ class MediaObjectRepository:
             The existing or newly created MediaObjectRecord, or None on error.
         """
         return self.create(record)
+
+    def get_all(self, limit: int = 100, offset: int = 0) -> List[MediaObjectRecord]:
+        """Retrieves a paginated list of all MediaObjectRecords."""
+        session = self.SessionLocal()
+        try:
+            logger.debug(
+                f"Querying for all MediaObjects with limit={limit}, offset={offset}"
+            )
+            orm_objs = (
+                session.query(ORMMediaObject)
+                .order_by(ORMMediaObject.created_at)
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
+            records = [MediaObjectRecord.from_orm(obj) for obj in orm_objs]
+            logger.debug(f"Found {len(records)} MediaObjects.")
+            return records
+        except SQLAlchemyError as e:
+            logger.error(f"Database error querying for all MediaObjects: {e}")
+            return []
+        finally:
+            session.close()
+
+    def count(self) -> int:
+        """Returns the total count of MediaObjectRecords in the database."""
+        session = self.SessionLocal()
+        try:
+            logger.debug("Querying for total count of MediaObjects.")
+            total = session.query(ORMMediaObject).count()
+            logger.debug(f"Total count: {total}")
+            return total
+        except SQLAlchemyError as e:
+            logger.error(f"Database error counting MediaObjects: {e}")
+            return 0
+        finally:
+            session.close()

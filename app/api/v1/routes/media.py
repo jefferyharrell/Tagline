@@ -1,6 +1,5 @@
-import math
-import random
-from typing import List, Optional
+import logging
+from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -8,11 +7,9 @@ from pydantic import BaseModel, Field
 
 # Import needed for get_media_thumbnail (placeholder logic)
 from app.db.repositories.media_object import MediaObjectRepository
+from app.schemas import MediaObject, PaginatedMediaResponse
 
-# Use MediaObject from storage_types for consistency with storage provider
-from app.schemas import MediaObject
-from app.storage_provider import get_storage_provider
-from app.storage_providers.base import StorageProviderBase
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -29,46 +26,50 @@ class PaginatedMediaObjectList(BaseModel):
     pages: int = Field(..., description="Total number of pages.")
 
 
+# Dependency function for the repository
+def get_media_object_repository() -> MediaObjectRepository:
+    """Provides an instance of the MediaObjectRepository."""
+    return MediaObjectRepository()
+
+
 # --- Endpoints ---
 
 
-@router.get("/media", response_model=PaginatedMediaObjectList, tags=["media"])
+@router.get(
+    "/media",
+    response_model=PaginatedMediaResponse,
+    summary="Get Media Objects List",
+    tags=["media"],
+)
 def list_media_objects(
     limit: int = Query(100, ge=1, le=500, description="Number of items per page."),
     offset: int = Query(0, ge=0, description="Pagination offset."),
-    shuffle: Optional[bool] = Query(None, description="Randomize order of items."),
-    storage_provider: StorageProviderBase = Depends(get_storage_provider),
-):
-    """Retrieve a paginated list of media objects."""
-    # TODO: Implement count method in concrete storage providers (filesystem.py, dropbox.py)
-    # The count method is currently just a placeholder in the protocol.
-    total_count = storage_provider.count()  # Assuming no prefix/regex filters for now
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+) -> PaginatedMediaResponse:
+    """
+    Retrieves a paginated list of media objects stored in the database.
+    """
+    total_count = repo.count()
+    media_records = repo.get_all(limit=limit, offset=offset)
 
-    # TODO: Implement efficient shuffling in storage providers or handle here.
-    # Current shuffle implementation fetches all items if shuffle=True, which is inefficient.
-    if shuffle:
-        # Inefficient: fetch all, then shuffle, then slice
-        # Consider optimizing in storage provider if possible
-        all_items = list(
-            storage_provider.all_media_objects()
-        )  # Assumes all_media_objects exists and works
-        random.shuffle(all_items)
-        media_objects = all_items[offset : offset + limit]
-        # Adjust total_count if needed, though shuffle usually doesn't change total
-        total_count = len(
-            all_items
-        )  # Recalculate total if all_media_objects filters differently than count()
-    else:
-        media_objects = storage_provider.list_media_objects(limit=limit, offset=offset)
+    # Filter records missing essential fields and convert to API schema
+    media_objects = []
+    for record in media_records:
+        if record.id is not None and record.object_key is not None:
+            media_objects.append(
+                MediaObject(
+                    id=record.id,
+                    object_key=record.object_key,
+                    last_modified=record.last_modified,
+                )
+            )
+        else:
+            logger.warning(f"Skipping record due to missing id or object_key: {record}")
 
-    total_pages = math.ceil(total_count / limit) if limit > 0 else 0
-
-    return PaginatedMediaObjectList(
-        items=media_objects,
-        total=total_count,
-        limit=limit,
-        offset=offset,
-        pages=total_pages,
+    # Note: The total_count might slightly differ from len(media_objects) if filtering occurred.
+    # This is generally acceptable for pagination display but could be refined if needed.
+    return PaginatedMediaResponse(
+        items=media_objects, total=total_count, limit=limit, offset=offset
     )
 
 

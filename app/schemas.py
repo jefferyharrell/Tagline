@@ -1,4 +1,5 @@
 from typing import List, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,7 +21,27 @@ class MediaObjectMetadata(BaseModel):
         return v
 
 
-class MediaObject(BaseModel):
+class StoredMediaObject(BaseModel):
+    """Schema for media objects as returned by storage providers."""
+
     object_key: str
     last_modified: Optional[str] = None  # or datetime
     metadata: Optional[dict] = None
+
+
+class MediaObject(BaseModel):
+    """Schema for MediaObject API representation."""
+
+    id: UUID
+    object_key: str
+    last_modified: Optional[str] = None  # or datetime
+    metadata: Optional[dict] = None
+
+
+class PaginatedMediaResponse(BaseModel):
+    """Schema for paginated list of MediaObjects."""
+
+    items: List[MediaObject]
+    total: int
+    limit: int
+    offset: int
