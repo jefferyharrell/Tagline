@@ -73,6 +73,20 @@ def list_media_objects(
     )
 
 
+@router.get("/media/{id}", response_model=MediaObject, tags=["media"])
+def get_media_object(
+    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
+) -> MediaObject:
+    """
+    Retrieve a single media object by its UUID.
+    Returns 404 if not found.
+    """
+    record = repo.get_by_id(id)
+    if not record or record.id is None or record.object_key is None:
+        raise HTTPException(status_code=404, detail="Media object not found")
+    return record.to_pydantic()
+
+
 @router.get("/media/{id}/thumbnail", response_class=Response, tags=["media"])
 def get_media_thumbnail(id: UUID):
     """
