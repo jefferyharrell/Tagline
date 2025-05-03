@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from app.models import Base, MediaObject
+from app.models import Base, OrmMediaObject
 
 pytestmark = pytest.mark.unit
 
@@ -55,8 +55,8 @@ def db_session():
 
 
 @pytest.fixture
-def media_object(fake_metadata: Dict[str, Any], db_session: Session) -> MediaObject:
-    obj = MediaObject(
+def media_object(fake_metadata: Dict[str, Any], db_session: Session) -> OrmMediaObject:
+    obj = OrmMediaObject(
         id=uuid.uuid4(),
         object_key="test_key",
         object_metadata=fake_metadata,
@@ -69,7 +69,7 @@ def media_object(fake_metadata: Dict[str, Any], db_session: Session) -> MediaObj
     return obj
 
 
-def test_media_object_instantiation(media_object: MediaObject) -> None:
+def test_media_object_instantiation(media_object: OrmMediaObject) -> None:
     # Tell pyright these are regular Python attributes, not SQLAlchemy columns
     obj_key: str = media_object.object_key  # type: ignore
     obj_metadata: Dict[str, Any] = media_object.object_metadata  # type: ignore
@@ -82,7 +82,7 @@ def test_media_object_instantiation(media_object: MediaObject) -> None:
     assert isinstance(updated, datetime)
 
 
-def test_media_object_repr(media_object: MediaObject) -> None:
+def test_media_object_repr(media_object: OrmMediaObject) -> None:
     # Get the string representation
     obj_key: str = media_object.object_key  # type: ignore
     r = repr(media_object)
@@ -92,9 +92,9 @@ def test_media_object_repr(media_object: MediaObject) -> None:
 
 def test_model_table_and_columns() -> None:
     # Table name is a class attribute, not a column
-    assert MediaObject.__tablename__ == "media_objects"
+    assert OrmMediaObject.__tablename__ == "media_objects"
     # Get column names from table definition
-    columns = {col.name for col in MediaObject.__table__.columns}
+    columns = {col.name for col in OrmMediaObject.__table__.columns}
     assert {"id", "object_key", "object_metadata", "created_at", "updated_at"}.issubset(
         columns
     )

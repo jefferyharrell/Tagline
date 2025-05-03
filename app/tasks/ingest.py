@@ -2,6 +2,7 @@ import logging
 
 # Import necessary components for media processing
 from app.db.repositories.media_object import MediaObjectRepository
+from app.domain_media_object import MediaObjectRecord
 
 # Import processor modules to trigger registration via decorators
 # The noqa comment prevents linters from flagging unused import, which is needed here.
@@ -62,7 +63,8 @@ async def ingest(media_object: MediaObject) -> bool:
 
         # 4. Get or create the MediaObject record in the database
         repo = MediaObjectRepository()
-        db_media_object = repo.get_or_create(media_object)
+        domain_record = MediaObjectRecord.from_pydantic(media_object)
+        db_media_object = repo.get_or_create(domain_record)
 
         if not db_media_object:
             logger.error(
@@ -110,7 +112,8 @@ async def ingest(media_object: MediaObject) -> bool:
 
         # Commit the object (create or update)
         # Assuming repo.create handles potential updates or has get_or_create logic
-        db_obj = repo.create(media_object)
+        domain_record = MediaObjectRecord.from_pydantic(media_object)
+        db_obj = repo.create(domain_record)
 
         if not db_obj:
             logger.error(

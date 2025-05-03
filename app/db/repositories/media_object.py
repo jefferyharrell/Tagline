@@ -8,10 +8,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings
-from app.models import MediaObject as ORM_MediaObject
-from app.storage_types import (  # Use Pydantic for input
-    MediaObject as PydanticMediaObject,
-)
+from app.domain_media_object import MediaObjectRecord
+from app.models import OrmMediaObject
 
 logger = logging.getLogger(__name__)
 
@@ -36,93 +34,80 @@ class MediaObjectRepository:
             # For now, let's raise to prevent using a non-functional repository
             raise
 
-    def get_by_id(self, id) -> Optional[ORM_MediaObject]:
-        """Retrieves a MediaObject by its UUID."""
+    def get_by_id(self, id) -> Optional[MediaObjectRecord]:
+        """Retrieves a MediaObjectRecord by its UUID."""
         session = self.SessionLocal()
         try:
             logger.debug(f"Querying for MediaObject with id: {id}")
-            media_object = session.query(ORM_MediaObject).filter_by(id=id).first()
-            if media_object:
-                logger.debug(f"Found MediaObject: {media_object.id}")
+            orm_obj = session.query(OrmMediaObject).filter_by(id=id).first()
+            if orm_obj:
+                logger.debug(f"Found MediaObject: {orm_obj.id}")
+                return MediaObjectRecord.from_orm(orm_obj)
             else:
                 logger.debug("MediaObject not found for id: %s", id)
-            return media_object
+                return None
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for id {id}: {e}")
             return None
         finally:
             session.close()
 
-    def get_by_object_key(self, object_key: str) -> Optional[ORM_MediaObject]:
-        """Retrieves a MediaObject by its object_key."""
+    def get_by_object_key(self, object_key: str) -> Optional[MediaObjectRecord]:
+        """Retrieves a MediaObjectRecord by its object_key."""
+        assert object_key is not None, "object_key must not be None"
         session = self.SessionLocal()
         try:
             logger.debug(f"Querying for MediaObject with object_key: {object_key}")
-            media_object = (
-                session.query(ORM_MediaObject).filter_by(object_key=object_key).first()
+            orm_obj = (
+                session.query(OrmMediaObject).filter_by(object_key=object_key).first()
             )
-            if media_object:
-                logger.debug(f"Found MediaObject: {media_object.id}")
+            if orm_obj:
+                logger.debug(f"Found MediaObject: {orm_obj.id}")
+                return MediaObjectRecord.from_orm(orm_obj)
             else:
                 logger.debug("MediaObject not found for key: %s", object_key)
-            return media_object
+                return None
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for object_key {object_key}: {e}")
             return None
         finally:
             session.close()
 
-    def create(self, media_object: PydanticMediaObject) -> Optional[ORM_MediaObject]:
-        """Creates a new MediaObject record in the database or retrieves existing.
-
-        Attempts to add the new object and commits. If an IntegrityError occurs
-        (likely due to the unique constraint on object_key), it rolls back and
-        fetches the existing object by object_key.
-
-        Args:
-            media_object: The MediaObject schema object containing data.
-
-        Returns:
-            The created or existing MediaObjectModel, or None on other errors.
-        """
+    def create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
+        """Creates a new MediaObjectRecord in the database or retrieves existing."""
+        assert record.object_key is not None, "object_key must not be None"
         logger.debug(
-            f"Attempting to create/get MediaObject for key: {media_object.object_key}"
+            f"Attempting to create/get MediaObject for key: {record.object_key}"
         )
-        db_obj = ORM_MediaObject(
-            object_key=media_object.object_key,
-            object_metadata=media_object.metadata or {},
-        )
+        orm_obj = record.to_orm()
         session = self.SessionLocal()
         try:
-            with session.begin_nested():  # Use nested transaction if already in one
-                session.add(db_obj)
-            # Commit the outer transaction if this is the top level
+            with session.begin_nested():
+                session.add(orm_obj)
             session.commit()
             logger.info(
-                f"Successfully created MediaObject: {db_obj.id} for key {db_obj.object_key}"
+                f"Successfully created MediaObject: {orm_obj.id} for key {orm_obj.object_key}"
             )
-            return db_obj
+            return MediaObjectRecord.from_orm(orm_obj)
         except IntegrityError:
-            session.rollback()  # Rollback the failed insert
+            session.rollback()
             logger.warning(
-                f"IntegrityError on create for key {media_object.object_key}, likely exists. Fetching."
+                f"IntegrityError on create for key {record.object_key}, likely exists. Fetching."
             )
-            # Fetch and return the existing object
-            existing_obj = self.get_by_object_key(media_object.object_key)
+            existing_obj = self.get_by_object_key(record.object_key)
             if existing_obj:
                 logger.info(
                     f"Found existing MediaObject: {existing_obj.id} for key {existing_obj.object_key}"
                 )
             else:
-                # This case is unlikely if IntegrityError was due to object_key, but log it.
                 logger.error(
-                    f"IntegrityError occurred but failed to fetch existing object for key {media_object.object_key}"
+                    f"IntegrityError occurred but failed to fetch existing object for key {record.object_key}"
                 )
             return existing_obj
         except SQLAlchemyError as e:
             session.rollback()
             logger.error(
-                f"Database error creating MediaObject for key {media_object.object_key}: {e}"
+                f"Database error creating MediaObject for key {record.object_key}: {e}"
             )
             return None
         finally:
@@ -145,7 +130,7 @@ class MediaObjectRepository:
         try:
             logger.debug(f"Attempting to update thumbnail for object_key: {object_key}")
             media_object = (
-                session.query(ORM_MediaObject).filter_by(object_key=object_key).first()
+                session.query(OrmMediaObject).filter_by(object_key=object_key).first()
             )
             if not media_object:
                 logger.warning(
@@ -165,18 +150,15 @@ class MediaObjectRepository:
         finally:
             session.close()
 
-    def get_or_create(
-        self, media_object: PydanticMediaObject
-    ) -> Optional[ORM_MediaObject]:
-        """Gets an existing MediaObject by object_key or creates it if not found.
+    def get_or_create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
+        """Gets an existing MediaObjectRecord by object_key or creates it if not found.
 
         Relies on the atomic nature of the updated create() method.
 
         Args:
-            media_object: The MediaObject schema object.
+            record: The MediaObjectRecord domain object.
 
         Returns:
-            The existing or newly created MediaObjectModel, or None on error.
+            The existing or newly created MediaObjectRecord, or None on error.
         """
-        # The 'create' method now handles the 'get or create' logic atomically
-        return self.create(media_object)
+        return self.create(record)

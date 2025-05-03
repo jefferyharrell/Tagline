@@ -8,7 +8,7 @@ from sqlalchemy.orm import declarative_base
 Base = declarative_base()
 
 
-class MediaObject(Base):
+class OrmMediaObject(Base):
     __tablename__ = "media_objects"
 
     id = Column(
@@ -28,4 +28,4 @@ class MediaObject(Base):
     )
 
     def __repr__(self):
-        return f"<MediaObject(id={self.id}, object_key={self.object_key})>"
+        return f"<OrmMediaObject(id={self.id}, object_key={self.object_key})>"
