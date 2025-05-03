@@ -14,6 +14,12 @@ from app.models import ORMMediaObject
 logger = logging.getLogger(__name__)
 
 
+class MediaObjectNotFound(Exception):
+    """Raised when a MediaObject is not found for update/save."""
+
+    pass
+
+
 class MediaObjectRepository:
     """Handles database operations for MediaObject models."""
 
@@ -183,6 +189,47 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for all MediaObjects: {e}")
             return []
+        finally:
+            session.close()
+
+    def save(self, record: MediaObjectRecord) -> MediaObjectRecord:
+        """
+        Updates an existing MediaObjectRecord in the database.
+        Raises MediaObjectNotFound if not found.
+        Returns the updated MediaObjectRecord.
+        """
+        assert record.id is not None, "id must not be None for update/save"
+        session = self.SessionLocal()
+        try:
+            orm_obj = session.query(ORMMediaObject).filter_by(id=record.id).first()
+            if orm_obj is None:
+                raise MediaObjectNotFound(f"MediaObject with id {record.id} not found.")
+            # Update fields
+            from typing import cast
+
+            if record.object_key is not None:
+                orm_obj.object_key = cast(str, record.object_key)  # type: ignore[assignment]
+            if record.metadata is not None:
+                orm_obj.object_metadata = cast(dict, record.metadata)  # type: ignore[assignment]
+            if record.thumbnail is not None:
+                orm_obj.thumbnail = cast(bytes, record.thumbnail)  # type: ignore[assignment]
+            if record.thumbnail_mimetype is not None:
+                orm_obj.thumbnail_mimetype = cast(str, record.thumbnail_mimetype)  # type: ignore[assignment]
+            # updated_at expects a datetime
+            from datetime import datetime
+
+            if record.last_modified:
+                try:
+                    # Try to parse ISO8601 string to datetime
+                    new_updated_at = datetime.fromisoformat(record.last_modified)
+                    orm_obj.updated_at = new_updated_at  # type: ignore[assignment]
+                except Exception:
+                    pass  # fallback: do not update if parsing fails
+            session.commit()
+            return MediaObjectRecord.from_orm(orm_obj)
+        except SQLAlchemyError:
+            session.rollback()
+            raise
         finally:
             session.close()
 

@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 # Import needed for get_media_thumbnail (placeholder logic)
-from app.db.repositories.media_object import MediaObjectRepository
-from app.schemas import MediaObject, PaginatedMediaResponse
+from app.db.repositories.media_object import MediaObjectNotFound, MediaObjectRepository
+from app.schemas import MediaObject, MediaObjectMetadata, PaginatedMediaResponse
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +85,48 @@ def get_media_object(
     if not record or record.id is None or record.object_key is None:
         raise HTTPException(status_code=404, detail="Media object not found")
     return record.to_pydantic()
+
+
+@router.patch("/media/{id}", response_model=MediaObject, tags=["media"])
+def patch_media_object(
+    id: UUID,
+    metadata_patch: MediaObjectMetadata,
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+) -> MediaObject:
+    """
+    Partially update metadata for a media object by its UUID.
+    Merges new fields into the existing metadata dict. Returns the updated object.
+    """
+    record = repo.get_by_id(id)
+    if not record or record.id is None or record.object_key is None:
+        raise HTTPException(status_code=404, detail="Media object not found")
+
+    # Defensive: ensure record.metadata is a dict
+    existing_metadata = record.metadata or {}
+    patch_dict = metadata_patch.model_dump(exclude_unset=True)
+    if not patch_dict:
+        # No changes requested, return current object
+        return record.to_pydantic()
+
+    # Merge patch into existing metadata
+    merged_metadata = {**existing_metadata, **patch_dict}
+    record.metadata = merged_metadata
+
+    # Update last_modified timestamp
+    from datetime import datetime
+
+    record.last_modified = datetime.utcnow().isoformat()
+
+    # Save using explicit save method
+    try:
+        updated = repo.save(record)
+    except MediaObjectNotFound:
+        raise HTTPException(status_code=404, detail="Media object not found")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update media object: {e}"
+        )
+    return updated.to_pydantic()
 
 
 @router.get("/media/{id}/thumbnail", response_class=Response, tags=["media"])
