@@ -37,9 +37,9 @@
 - [x] Provide ingest task progress/status endpoint
 
 ## API Development 🌐
-- [ ] Implement authentication middleware
-  - [ ] API key validation
-  - [ ] Error handling for unauthorized access
+- [x] Implement authentication middleware
+  - [x] API key validation
+  - [x] Error handling for unauthorized access
 - [ ] Implement API endpoints:
   - [x] GET /v1/media (list media objects)
   - [x] GET /v1/media/{id} (retrieve media object details)
@@ -48,9 +48,9 @@
   - [x] GET /v1/media/{id}/data (retrieve raw media object data)
   - [x] POST /v1/ingest (initiate media scan)
   - [x] GET /v1/ingest/status (get ingest task status)
-- [ ] Implement metadata handling
-  - [ ] Validate metadata structure
-  - [ ] Support flexible metadata fields
+- [x] Implement metadata handling
+  - [x] Validate metadata structure
+  - [x] Support flexible metadata fields
 
 ## Logging and Monitoring 📊
 - [x] Configure logging
@@ -66,12 +66,12 @@
   - [x] Storage provider tests
   - [x] API endpoint tests
 - [x] Write end-to-end (E2E) tests (in tests/e2e, use HTTPX)
-- [ ] Configure test coverage reporting (pytest-cov)
+- [x] Configure test coverage reporting (pytest-cov)
 - [ ] Implement test data generation using Faker
 - [ ] Achieve ≥90% code coverage
 
 ## Security 🔒
-- [ ] Implement input validation
+- [ x] Implement input validation
 - [ ] Add rate limiting
 - [ ] Configure CORS
 - [ ] Implement secure file upload

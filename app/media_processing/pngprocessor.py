@@ -32,6 +32,18 @@ class PNGProcessor(MediaProcessor):
             content, size=size, fmt=fmt, quality=quality
         )
 
+    async def generate_proxy(
+        self,
+        content: bytes,
+        size: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        quality: int | None = None,
+    ) -> tuple[bytes, str]:
+        """Generate a proxy for PNG images using the global or supplied settings."""
+        return await super().generate_proxy(
+            content, size=size, fmt=fmt, quality=quality
+        )
+
     @classmethod
     def handles_mimetype(cls, mimetype: str) -> bool:
         normalized_mimetype = mimetype.strip().lower()

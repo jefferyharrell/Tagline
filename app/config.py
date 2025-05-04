@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(message)s",
+    format="%(asctime)s [%(levelname)-8s] %(message)s",
     datefmt="%H:%M:%S",
     stream=sys.stdout,
 )
@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     THUMBNAIL_QUALITY: int = 85
     THUMBNAIL_SIZE: tuple[int, int] = (512, 512)
 
+    PROXY_FORMAT: str = "jpeg"
+    PROXY_QUALITY: int = 85
+    PROXY_SIZE: tuple[int, int] = (1024, 1024)
+
     @field_validator("THUMBNAIL_SIZE", mode="before")
     @classmethod
     def parse_thumbnail_size(cls, v):
@@ -46,6 +50,23 @@ class Settings(BaseSettings):
         if isinstance(v, int):
             return (v, v)
         raise ValueError("THUMBNAIL_SIZE must be a tuple of two integers")
+
+    @field_validator("PROXY_SIZE", mode="before")
+    @classmethod
+    def parse_proxy_size(cls, v):
+        if isinstance(v, str):
+            try:
+                width, height = map(int, v.split("x"))
+                return (width, height)
+            except ValueError:
+                pass
+        elif (
+            isinstance(v, tuple) and len(v) == 2 and all(isinstance(i, int) for i in v)
+        ):
+            return v
+        raise ValueError(
+            'PROXY_SIZE must be a tuple of two integers or a string like "1024x1024"'
+        )
 
     # Storage Provider Configuration
     STORAGE_PROVIDER: StorageProviderType

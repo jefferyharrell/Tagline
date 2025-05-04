@@ -156,6 +156,41 @@ class MediaObjectRepository:
         finally:
             session.close()
 
+    def update_proxy(
+        self, object_key: str, proxy_bytes: bytes, proxy_mimetype: str
+    ) -> bool:
+        """Updates the proxy and its mimetype for a MediaObject identified by its object_key.
+
+        Args:
+            object_key: The unique key of the MediaObject to update.
+            proxy_bytes: The binary data of the proxy.
+            proxy_mimetype: The mimetype of the proxy.
+
+        Returns:
+            True if the update was successful, False otherwise.
+        """
+        session = self.SessionLocal()
+        try:
+            logger.debug(f"Attempting to update proxy for object_key: {object_key}")
+            media_object = (
+                session.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            )
+            if not media_object:
+                logger.warning(f"MediaObject not found for proxy update: {object_key}")
+                return False
+
+            media_object.proxy = proxy_bytes  # type: ignore[assignment]
+            media_object.proxy_mimetype = proxy_mimetype  # type: ignore[assignment]
+            session.commit()
+            logger.info(f"Successfully updated proxy for {object_key}")
+            return True
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Database error updating proxy for {object_key}: {e}")
+            return False
+        finally:
+            session.close()
+
     def get_or_create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
         """Gets an existing MediaObjectRecord by object_key or creates it if not found.
 

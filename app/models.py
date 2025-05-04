@@ -22,6 +22,8 @@ class ORMMediaObject(Base):
     object_metadata = Column(JSONB, nullable=False, default=dict)
     thumbnail = Column(LargeBinary, nullable=True)
     thumbnail_mimetype = Column(String, nullable=True)
+    proxy = Column(LargeBinary, nullable=True)
+    proxy_mimetype = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow

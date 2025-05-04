@@ -46,6 +46,8 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 f"No intrinsic metadata extracted for {domain_record.object_key}"
             )
 
+        content = None  # Initialize content
+
         # 3. Generate and save thumbnail (safely)
         try:
             content = await processor.get_content()
@@ -65,6 +67,32 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
             )
             thumbnail_bytes = None  # Ensure it's None on failure
             thumbnail_mimetype = None
+
+        # 3b. Generate and save proxy (safely)
+        if content:  # Only proceed if content was successfully retrieved
+            try:
+                proxy_result = await processor.generate_proxy(content)
+                if proxy_result:
+                    proxy_bytes, proxy_mimetype = proxy_result
+                    logger.info(
+                        f"Generated proxy for {domain_record.object_key} with mimetype {proxy_mimetype}"
+                    )
+                else:
+                    proxy_bytes = None
+                    proxy_mimetype = None
+            except Exception as proxy_exc:
+                logger.warning(
+                    f"Failed to generate proxy for {domain_record.object_key}: {proxy_exc}",
+                    exc_info=True,
+                )
+                proxy_bytes = None
+                proxy_mimetype = None
+        else:
+            logger.warning(
+                f"Skipping proxy generation for {domain_record.object_key} due to earlier content retrieval failure."
+            )
+            proxy_bytes = None
+            proxy_mimetype = None
 
         # 4. Get or create the MediaObject record in the database
         repo = MediaObjectRepository()
@@ -88,6 +116,16 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 logger.error(
                     f"Failed to update thumbnail for {domain_record.object_key}"
                 )
+                # Decide if this is a critical failure or just a warning
+
+        # 6. Update proxy if generated successfully
+        if proxy_bytes and proxy_mimetype:
+            if domain_record.object_key is None:
+                logger.error("domain_record.object_key is None; cannot update proxy.")
+            elif not repo.update_proxy(
+                domain_record.object_key, proxy_bytes, proxy_mimetype
+            ):
+                logger.error(f"Failed to update proxy for {domain_record.object_key}")
                 # Decide if this is a critical failure or just a warning
 
         logger.info(

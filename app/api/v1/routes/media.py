@@ -21,7 +21,7 @@ router = APIRouter()
 async def get_media_data(
     id: UUID,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
-    provider = Depends(get_storage_provider),
+    provider=Depends(get_storage_provider),
 ) -> StreamingResponse:
     """Returns the raw bytes of a media object by UUID as a streamable response.
 
@@ -196,3 +196,19 @@ def get_media_thumbnail(id: UUID):
         getattr(media_object, "thumbnail_mimetype", None) or "application/octet-stream"
     )
     return Response(content=media_object.thumbnail, media_type=mimetype)
+
+
+@router.get("/media/{id}/proxy", response_class=Response, tags=["media"])
+def get_media_proxy(id: UUID):
+    """
+    Returns the proxy bytes for a media object by UUID, or 404 if not found or no proxy exists.
+    Returns with the stored proxy mimetype, or application/octet-stream if missing.
+    """
+    repo = MediaObjectRepository()
+    media_object = repo.get_by_id(id)
+    if not media_object or not getattr(media_object, "proxy", None):
+        raise HTTPException(status_code=404, detail="Proxy not found")
+    mimetype = (
+        getattr(media_object, "proxy_mimetype", None) or "application/octet-stream"
+    )
+    return Response(content=media_object.proxy, media_type=mimetype)

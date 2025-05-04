@@ -48,6 +48,18 @@ class HEICProcessor(MediaProcessor):
             content, size=size, fmt=fmt, quality=quality
         )
 
+    async def generate_proxy(
+        self,
+        content: bytes,
+        size: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        quality: int | None = None,
+    ) -> tuple[bytes, str]:
+        """Generate a proxy for HEIC images using the global or supplied settings."""
+        return await super().generate_proxy(
+            content, size=size, fmt=fmt, quality=quality
+        )
+
     SUPPORTED_MIMETYPES = {"image/heic", "image/heif"}
 
     @classmethod

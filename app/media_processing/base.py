@@ -82,6 +82,60 @@ class MediaProcessor(Protocol):
             }.get(fmt_lc, f"image/{fmt_lc}")
             return out.getvalue(), mimetype
 
+    async def generate_proxy(
+        self,
+        content: bytes,
+        size: tuple[int, int] | None = None,
+        fmt: str | None = None,
+        quality: int | None = None,
+    ) -> tuple[bytes, str]:
+        """
+        Generate a proxy from raw image bytes using global or supplied settings.
+        If not provided, uses settings.PROXY_SIZE, settings.PROXY_FORMAT, and settings.PROXY_QUALITY.
+        Resizes to the specified width and height while maintaining aspect ratio, converts to RGB,
+        and saves as the configured format.
+        Returns:
+            (proxy image bytes, mimetype string)
+        """
+        from app.config import get_settings
+
+        settings = get_settings()
+        size = size if size is not None else settings.PROXY_SIZE
+        fmt = fmt if fmt is not None else settings.PROXY_FORMAT
+        quality = quality if quality is not None else settings.PROXY_QUALITY
+
+        from io import BytesIO
+
+        from PIL import Image
+
+        width, height = size
+        with Image.open(BytesIO(content)) as img:
+            img = img.convert("RGB")
+            orig_w, orig_h = img.size
+
+            # If image is smaller than proxy size, do not resize
+            if orig_w <= width and orig_h <= height:
+                proxy = img
+            else:
+                # Calculate new dimensions while maintaining aspect ratio
+                ratio = min(width / orig_w, height / orig_h)
+                new_w = int(orig_w * ratio)
+                new_h = int(orig_h * ratio)
+                proxy = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+            out = BytesIO()
+            proxy.save(out, format=fmt.upper(), quality=quality)
+            fmt_lc = fmt.lower()
+            mimetype = {
+                "jpeg": "image/jpeg",
+                "jpg": "image/jpeg",
+                "webp": "image/webp",
+                "png": "image/png",
+                "heic": "image/heic",
+                "heif": "image/heif",
+            }.get(fmt_lc, f"image/{fmt_lc}")
+            return out.getvalue(), mimetype
+
     def __init__(self, stored_media_object: StoredMediaObject):
         """Initialize with the stored media object and prepare for content loading."""
         self.stored_media_object = stored_media_object
