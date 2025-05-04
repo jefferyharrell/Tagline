@@ -242,6 +242,47 @@ class DropboxStorageProvider(StorageProviderBase):
         except Exception as e:
             raise StorageProviderException(f"Dropbox error: {e}") from e
 
+    def iter_object_bytes(self, object_key: str) -> Iterable[bytes]:
+        """Yield bytes of a single media object in chunks.
+
+        Args:
+            object_key: Key of the object to retrieve
+
+        Yields:
+            Chunks of bytes from the object
+
+        Raises:
+            FileNotFoundError: If the object doesn't exist
+            StorageProviderException: For other errors
+        """
+        try:
+            rel_path = object_key.lstrip("/")
+            dropbox_path = os.path.join(self.root_path, rel_path)
+            from typing import Any, Tuple
+
+            md_response = cast(
+                Tuple[FileMetadata, Any], self.dbx.files_download(dropbox_path)
+            )
+            response = md_response[1]
+
+            # Yield response content in chunks
+            chunk_size = 4096  # 4KB chunks
+            content = response.content
+            if content is None:
+                raise StorageProviderException("Dropbox returned empty response")
+
+            for i in range(0, len(content), chunk_size):
+                yield content[i : i + chunk_size]
+
+        except ApiError as e:
+            if e.error and e.error.is_path() and e.error.get_path().is_not_found():
+                raise FileNotFoundError(
+                    f"Object '{object_key}' not found in Dropbox storage."
+                ) from e
+            raise StorageProviderException(f"Dropbox API error: {e}") from e
+        except Exception as e:
+            raise StorageProviderException(f"Dropbox error: {e}") from e
+
     def count(
         self,
         prefix: Optional[str] = None,

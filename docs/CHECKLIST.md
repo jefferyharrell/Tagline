@@ -41,15 +41,13 @@
   - [ ] API key validation
   - [ ] Error handling for unauthorized access
 - [ ] Implement API endpoints:
-  - [ ] GET /v1/media (list media objects)
-  - [ ] GET /v1/media/{id} (retrieve media object details)
-  - [ ] PATCH /v1/media/{id} (update media object metadata)
+  - [x] GET /v1/media (list media objects)
+  - [x] GET /v1/media/{id} (retrieve media object details)
+  - [x] PATCH /v1/media/{id} (update media object metadata)
   - [x] GET /v1/media/{id}/thumbnail (retrieve thumbnail)
-  - [ ] GET /v1/media/{id}/data (retrieve raw media object data)
-  - [ ] POST /v1/ingest (initiate media scan)
-  - [ ] GET /v1/ingest/status (get ingest task status)
-  - [ ] GET /v1/database/health (database health check)
-  - [ ] POST /v1/database/scan (trigger database scan)
+  - [x] GET /v1/media/{id}/data (retrieve raw media object data)
+  - [x] POST /v1/ingest (initiate media scan)
+  - [x] GET /v1/ingest/status (get ingest task status)
 - [ ] Implement metadata handling
   - [ ] Validate metadata structure
   - [ ] Support flexible metadata fields

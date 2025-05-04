@@ -137,6 +137,28 @@ class FilesystemStorageProvider(StorageProviderBase):
             )
         return file_path.read_bytes()
 
+    def iter_object_bytes(self, object_key: str) -> Iterable[bytes]:
+        """Yield bytes of a single media object in chunks.
+
+        Args:
+            object_key: Key of the object to retrieve
+
+        Yields:
+            Chunks of bytes from the object
+
+        Raises:
+            FileNotFoundError: If the object doesn't exist
+        """
+        file_path = self.root_path / object_key.lstrip("/")
+        if not file_path.is_file():
+            raise FileNotFoundError(
+                f"Object '{object_key}' not found in filesystem storage."
+            )
+
+        with file_path.open("rb") as f:
+            while chunk := f.read(4096):  # 4KB chunks
+                yield chunk
+
     def count(
         self,
         prefix: Optional[str] = None,

@@ -1,17 +1,70 @@
 import logging
-from typing import List
+from typing import List, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 # Import needed for get_media_thumbnail (placeholder logic)
 from app.db.repositories.media_object import MediaObjectNotFound, MediaObjectRepository
+from app.dependencies import get_media_object_repository
 from app.schemas import MediaObject, MediaObjectMetadata, PaginatedMediaResponse
+from app.storage_provider import get_storage_provider
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/media/{id}/data", response_class=StreamingResponse, tags=["media"])
+async def get_media_data(
+    id: UUID,
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+    provider = Depends(get_storage_provider),
+) -> StreamingResponse:
+    """Returns the raw bytes of a media object by UUID as a streamable response.
+
+    Returns 404 if not found.
+    """
+    # Get the media object record
+    record = repo.get_by_id(id)
+    if not record or record.id is None or not record.object_key:
+        raise HTTPException(status_code=404, detail="Media object not found")
+
+    # provider is now injected by FastAPI
+    # Get the mimetype from metadata or default to octet-stream
+    mimetype = record.metadata.get("mimetype", "application/octet-stream")
+
+    # Create an async generator to stream the bytes
+    async def content_stream():
+        try:
+            # At this point we know object_key is not None due to the check above
+            object_key = cast(
+                str, record.object_key
+            )  # Type assertion since we checked above
+            for chunk in provider.iter_object_bytes(object_key):
+                yield chunk
+        except FileNotFoundError:
+            # If the file is missing from storage but exists in DB
+            raise HTTPException(
+                status_code=404,
+                detail="Media object content not found in storage",
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve media object content: {str(e)}",
+            )
+
+    return StreamingResponse(
+        content=content_stream(),
+        media_type=mimetype,
+        headers={
+            "Content-Disposition": f'attachment; filename="{record.object_key.split("/")[-1]}"'
+        },
+    )
+
 
 # --- Pydantic Models ---
 
