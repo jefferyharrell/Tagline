@@ -86,6 +86,13 @@ Standard error response for all endpoints.
 
 **Note:** Thumbnails are generated using Pillow with HEIC support for JPEG and HEIC images.
 
+#### Proxy Media Object
+| Method | Path | Description | Response |
+|--------|------|-------------|----------|
+| GET | `/v1/media/{id}/proxy` | Get media object through proxy | Raw file data with appropriate Content-Type |
+
+**Note:** This endpoint serves the media file directly with the correct Content-Type header, making it suitable for embedding in web pages.
+
 ### Ingest Endpoints
 
 #### Initiate Media Scan
@@ -136,6 +143,9 @@ Standard error response for all endpoints.
 |                                 |        | 404         | Not found                          |
 |                                 |        | 401         | Unauthorized                       |
 | /v1/media/{id}/data             | GET    | 200         | Success (file data)                |
+|                                 |        | 404         | Not found                          |
+|                                 |        | 401         | Unauthorized                       |
+| /v1/media/{id}/proxy            | GET    | 200         | Success (file data with Content-Type) |
 |                                 |        | 404         | Not found                          |
 |                                 |        | 401         | Unauthorized                       |
 | /v1/media/{id}                  | PATCH  | 200         | Success (object updated)           |
