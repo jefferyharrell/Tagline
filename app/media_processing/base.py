@@ -48,10 +48,12 @@ class MediaProcessor(Protocol):
         quality = quality if quality is not None else settings.THUMBNAIL_QUALITY
         from io import BytesIO
 
-        from PIL import Image
+        from PIL import Image, ImageOps
 
         width, height = size
         with Image.open(BytesIO(content)) as img:
+            # Apply EXIF orientation correction before any other processing
+            img = ImageOps.exif_transpose(img)
             img = img.convert("RGB")
             orig_w, orig_h = img.size
             # If image is smaller than or equal to thumbnail size, do not resize
@@ -106,10 +108,12 @@ class MediaProcessor(Protocol):
 
         from io import BytesIO
 
-        from PIL import Image
+        from PIL import Image, ImageOps
 
         width, height = size
         with Image.open(BytesIO(content)) as img:
+            # Apply EXIF orientation correction before any other processing
+            img = ImageOps.exif_transpose(img)
             img = img.convert("RGB")
             orig_w, orig_h = img.size
 
