@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     PROXY_FORMAT: str = "jpeg"
     PROXY_QUALITY: int = 85
-    PROXY_SIZE: tuple[int, int] = (1024, 1024)
+    PROXY_SIZE: tuple[int, int] = (2048, 2048)
 
     @field_validator("THUMBNAIL_SIZE", mode="before")
     @classmethod
