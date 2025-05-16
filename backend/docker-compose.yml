@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tagline-postgres
+    environment:
+      POSTGRES_DB: tagline
+      POSTGRES_USER: tagline
+      POSTGRES_PASSWORD: tagline
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: tagline-redis
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  backend:
+    build: .
+    container_name: tagline-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+
+  ingest-orchestrator:
+    build: .
+    command: uv run rq worker orchestrator
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    # Only one replica ensures singleton orchestrator
+    deploy:
+      replicas: 1
+
+  ingest-worker:
+    build: .
+    command: uv run rq worker ingest
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    # Scale this up/down as needed for parallelism!
+    deploy:
+      replicas: 8  # Change this number to scale up/down

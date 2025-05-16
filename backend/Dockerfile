@@ -16,6 +16,12 @@ RUN pip install uv
 # Set workdir
 WORKDIR /app
 
+# Copy the rest of the application
+COPY app/ ./app/
+
+# Install dependencies with uv
+RUN uv pip install --system app
+
 # Expose port
 EXPOSE 8000
 
