@@ -6,38 +6,27 @@
 default:
     just help
 
-# Set up dev environment
-setup:
-    #!/usr/bin/env bash
-    if [ ! -d "venv" ]; then python3source -m venv venv; fi
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install -r requirements-dev.txt
-    if [ ! -f "docker-compose.yml" ]; then cp docker-compose.yml.example docker-compose.yml; fi
-    if [ ! -f ".env" ]; then cp .env.example .env; fi
-    echo -e "\033[1;32mSetup complete! Activate your venv with 'source venv/bin/activate' and start coding.\033[0m"
-
 format:
-    source venv/bin/activate && isort .
-    source venv/bin/activate && black .
+    uv run isort .
+    uv run black .
 
 lint:
-    source venv/bin/activate && ruff check --fix .
-    source venv/bin/activate && pyright --project .
+    uv run ruff check --fix .
+    uv run pyright --project .
 
 # Testing
 unit-tests:
-    source venv/bin/activate && PYTHONPATH=. pytest -s -v tests/unit -rs
+    uv run pytest -s -v tests/unit -rs
 
 e2e-tests:
-    source venv/bin/activate && pytest -s -v tests/e2e -rs
+    uv run pytest -s -v tests/e2e -rs
 
 test:
     just unit-tests
     just e2e-tests
 
 coverage:
-    source venv/bin/activate && pytest tests/unit --cov=app --cov-report=term-missing
+    uv run pytest tests/unit --cov=app --cov-report=term-missing
 
 all:
     just format
@@ -64,17 +53,10 @@ rebuild:
     just up
     echo "Rebuilt and started fresh containers."
 
-# Upgrade all pip packages in requirements-dev.txt
-update-deps:
-    source venv/bin/activate
-    pip install --upgrade -r requirements-dev.txt
-    pip list --outdated
-    echo "Dependencies updated. Check above for anything still out-of-date."
-
 # Pre-Commit
 pre-commit:
     # Run the pre-commit hoook
-    source venv/bin/activate && pre-commit run --all-files
+    uv run pre-commit run --all-files
 
 # Docker Compose
 up:
@@ -110,11 +92,11 @@ shell:
 # Alembic migrations (inside Docker)
 migrate:
     # Apply all migrations in the backend container
-    docker exec -it tagline-backend alembic upgrade head
+    docker exec -it tagline-backend uv run alembic upgrade head
 
 makemigration MESSAGE="Describe your migration":
     # Create a new Alembic migration (autogenerate) in Docker
-    docker exec -it tagline-backend alembic revision --autogenerate -m "{{MESSAGE}}"
+    docker exec -it tagline-backend uv run alembic revision --autogenerate -m "{{MESSAGE}}"
 
 dbshell:
     # Open a Postgres shell in the Postgres container for integration/dev DB
