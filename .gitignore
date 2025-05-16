@@ -1,111 +1,56 @@
-# .gitignore for Tagline-backend (FastAPI, Python 3.12+)
-# Covers Python, FastAPI, pre-commit, pytest, and common tooling
+# Created by https://www.toptal.com/developers/gitignore/api/macos,visualstudiocode
+# Edit at https://www.toptal.com/developers/gitignore?templates=macos,visualstudiocode
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-env/
-venv/
-.venv/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Pyright, Ruff, Black, and other tool caches
-.pyright/
-.ruff_cache/
-.black/
-
-# Pre-commit, lint, and test artifacts
-.pre-commit/
-
-# Environments
-.env
-.env.*
-.envrc
-*.env
-!.env.example
-*.envrc
-
-# VS Code
-.vscode/
-
-# macOS
+### macOS ###
+# General
 .DS_Store
 .AppleDouble
 .LSOverride
 
+# Icon must end with two \r
+Icon
+
+
 # Thumbnails
 ._*
 
-# Secrets and local override files
-secrets.env
-*.local
-*.bak
-*.swp
-*~
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 
-# Log and temp files
-*.log
-*.tmp
-*.temp
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 
-# Ignore node_modules just in case
-node_modules/
+### macOS Patch ###
+# iCloud generated files
+*.icloud
 
-# Ignore yarn lock just in case
-yarn.lock
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
 
-# Ignore docker-compose.yml
-docker-compose.yml
+# Local History for Visual Studio Code
+.history/
 
-# Ignore .windsurfrules
-.windsurfrules
+# Built Visual Studio Code Extensions
+*.vsix
 
-# Ignore .cursor
-.cursor/
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+.ionide
 
-# Ignore .windsurf directory
-.windsurf/
-
-# Ignore media directory
-media/*
-!media/Sparkle.heic
-!media/Sparkle.jpg
-
-# End of file
+# End of https://www.toptal.com/developers/gitignore/api/macos,visualstudiocode
