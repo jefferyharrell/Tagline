@@ -48,6 +48,13 @@ up:
 down:
     docker compose down
 
+bounce:
+    just down
+    just up
+
+restart:
+    docker compose restart
+
 build:
     docker compose build
 

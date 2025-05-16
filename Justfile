@@ -12,3 +12,7 @@ down:
 bounce:
     just down
     just up
+
+restart:
+    just --justfile backend/Justfile --working-directory backend restart 
+    just --justfile frontend/Justfile --working-directory frontend restart

@@ -71,7 +71,9 @@ down:
 bounce:
     just down
     just up
-    just logs
+
+restart:
+    docker compose restart
 
 build:
     # Build Docker images
