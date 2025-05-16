@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     UNIT_TEST_DATABASE_URL: str | None = None  # Optional, for unit tests
 
+    # JWT settings
+    JWT_SECRET: str
+    JWT_ALGORITHM: str = "HS256"
+
+    # Stytch configuration
+    STYTCH_PROJECT_ID: str
+    STYTCH_SECRET: str
+    STYTCH_ENV: str = "test"  # "test" or "live"
+
     THUMBNAIL_FORMAT: str = "jpeg"
     THUMBNAIL_QUALITY: int = 85
     THUMBNAIL_SIZE: tuple[int, int] = (512, 512)

@@ -4,11 +4,11 @@ from typing import Any, Dict
 
 import pytest
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import get_settings
 from app.models import Base, ORMMediaObject
+from tests.unit.test_utils import patch_sqlalchemy_types
 
 pytestmark = pytest.mark.unit
 
@@ -23,23 +23,19 @@ def fake_metadata() -> Dict[str, Any]:
 
 @pytest.fixture
 def db_session():
-    # Use the correct database URL for the context (unit/E2E)
-    settings = get_settings()
-    database_url = settings.get_active_database_url()
-    if not database_url:
-        pytest.skip("No database URL available for this test context")
+    # Use SQLite in-memory database for unit tests
+    engine = create_engine("sqlite:///:memory:")
 
-    # Create a test-specific schema to avoid conflicts
-    test_schema = f"test_{uuid.uuid4().hex[:8]}"
-    engine = create_engine(database_url)
+    # Patch SQLAlchemy types to work with SQLite
+    patch_sqlalchemy_types()
 
-    # Create schema and set search path
-    with engine.connect() as conn:
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {test_schema}"))
-        conn.execute(text(f"SET search_path TO {test_schema}"))
-        conn.commit()
+    # Register UUID type adapter for SQLite
+    from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 
-    # Create tables in test schema
+    if not hasattr(SQLiteTypeCompiler, "visit_UUID"):
+        SQLiteTypeCompiler.visit_UUID = lambda self, type_, **kw: "VARCHAR(36)"
+
+    # Create all tables in the in-memory database
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
@@ -48,10 +44,8 @@ def db_session():
         yield session
     finally:
         session.close()
-        # Drop the test schema and all its tables
-        with engine.connect() as conn:
-            conn.execute(text(f"DROP SCHEMA IF EXISTS {test_schema} CASCADE"))
-            conn.commit()
+        # No need to drop tables for in-memory database as they're automatically
+        # removed when the connection is closed
 
 
 @pytest.fixture

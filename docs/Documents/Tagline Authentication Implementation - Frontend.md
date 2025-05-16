@@ -65,7 +65,7 @@ export function loadStytch() {
       env: process.env.NODE_ENV === 'production' ? stytch.envs.live : stytch.envs.test,
     });
   }
-  
+
   return stytchClient;
 }
 ```
@@ -106,11 +106,11 @@ export function AuthProvider({ children }) {
     const checkSession = async () => {
       try {
         const sessionJwt = localStorage.getItem('sessionJwt');
-        
+
         if (sessionJwt) {
           // Verify JWT on the server side
           const payload = JSON.parse(atob(sessionJwt.split('.')[1]));
-          
+
           if (payload && payload.roles) {
             setUser({
               id: payload.user_id,
@@ -133,16 +133,16 @@ export function AuthProvider({ children }) {
 
   const login = async (sessionToken, sessionJwt, userRoles) => {
     localStorage.setItem('sessionJwt', sessionJwt);
-    
+
     // Parse JWT payload to get user info
     const payload = JSON.parse(atob(sessionJwt.split('.')[1]));
-    
+
     setUser({
       id: payload.user_id,
       email: payload.email,
       roles: userRoles,
     });
-    
+
     router.push('/dashboard');
   };
 
@@ -172,7 +172,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   const data = await request.json();
-  
+
   try {
     const response = await fetch(`${process.env.BACKEND_URL}/v1/auth/verify-email-eligibility`, {
       method: 'POST',
@@ -182,7 +182,7 @@ export async function POST(request) {
       },
       body: JSON.stringify({ email: data.email }),
     });
-    
+
     const result = await response.json();
     return NextResponse.json(result);
   } catch (error) {
@@ -203,12 +203,12 @@ import { loadStytch } from '@/lib/stytch-server';
 export async function POST(request) {
   const data = await request.json();
   const { token } = data;
-  
+
   try {
     // Authenticate with Stytch
     const stytch = loadStytch();
     const authResponse = await stytch.magicLinks.authenticate({ token });
-    
+
     // Verify with our backend and get user roles
     const backendResponse = await fetch(`${process.env.BACKEND_URL}/v1/auth/authenticate`, {
       method: 'POST',
@@ -218,9 +218,9 @@ export async function POST(request) {
       },
       body: JSON.stringify({ token }),
     });
-    
+
     const backendResult = await backendResponse.json();
-    
+
     // Combine Stytch session with our backend user data
     return NextResponse.json({
       sessionToken: authResponse.session_token,
@@ -263,7 +263,7 @@ export default function Login() {
     e.preventDefault();
     setIsEligibilityChecking(true);
     setError(null);
-    
+
     try {
       const response = await fetch('/api/auth/check-eligibility', {
         method: 'POST',
@@ -272,9 +272,9 @@ export default function Login() {
         },
         body: JSON.stringify({ email }),
       });
-      
+
       const result = await response.json();
-      
+
       if (result.eligible) {
         setIsEligible(true);
       } else {
@@ -299,11 +299,11 @@ export default function Login() {
         },
         body: JSON.stringify({ token: response.token }),
       });
-      
+
       if (!authResponse.ok) {
         throw new Error('Authentication failed');
       }
-      
+
       const result = await authResponse.json();
       await login(result.sessionToken, result.sessionJwt, result.userRoles);
     } catch (error) {
@@ -315,11 +315,11 @@ export default function Login() {
   return (
     <div className="login-container">
       <h1>Log in to Tagline</h1>
-      
+
       {!isEligible ? (
         <div className="eligibility-check">
           <p>Please enter your email to verify access</p>
-          
+
           <form onSubmit={checkEligibility}>
             <input
               type="email"
@@ -332,13 +332,13 @@ export default function Login() {
               {isEligibilityChecking ? 'Checking...' : 'Check Access'}
             </button>
           </form>
-          
+
           {error && <div className="error-message">{error}</div>}
         </div>
       ) : (
         <div className="stytch-login-container">
           <p>Please check your email for a magic link to sign in</p>
-          
+
           <StytchLogin
             config={{
               products: [Products.magicLinks],
@@ -367,7 +367,7 @@ export default function Login() {
               signupRedirectURL: `${window.location.origin}/auth/callback`,
             }}
           />
-          
+
           <button onClick={() => setIsEligible(false)} className="back-button">
             Change Email
           </button>
@@ -393,15 +393,15 @@ export default function StytchCallback() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { login } = useAuth();
-  
+
   useEffect(() => {
     const token = searchParams.get('token');
-    
+
     if (!token) {
       setError('Invalid or missing authentication token');
       return;
     }
-    
+
     const authenticateWithToken = async () => {
       try {
         const response = await fetch('/api/auth/session', {
@@ -411,14 +411,14 @@ export default function StytchCallback() {
           },
           body: JSON.stringify({ token }),
         });
-        
+
         if (!response.ok) {
           throw new Error('Authentication failed');
         }
-        
+
         const result = await response.json();
         await login(result.sessionToken, result.sessionJwt, result.userRoles);
-        
+
         // Redirect to dashboard after successful login
         router.push('/dashboard');
       } catch (error) {
@@ -426,10 +426,10 @@ export default function StytchCallback() {
         setError('Authentication failed. Please try again.');
       }
     };
-    
+
     authenticateWithToken();
   }, [searchParams, login, router]);
-  
+
   return (
     <div className="auth-callback">
       <h1>Authenticating...</h1>
@@ -456,44 +456,44 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 
-export default function ProtectedRoute({ 
-  children, 
-  requiredRoles = [] 
+export default function ProtectedRoute({
+  children,
+  requiredRoles = []
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
       return;
     }
-    
+
     if (
-      !loading && 
-      user && 
-      requiredRoles.length > 0 && 
+      !loading &&
+      user &&
+      requiredRoles.length > 0 &&
       !requiredRoles.some(role => user.roles.includes(role))
     ) {
       router.push('/unauthorized');
     }
   }, [user, loading, router, requiredRoles]);
-  
+
   if (loading) {
     return <div>Loading...</div>;
   }
-  
+
   if (!user) {
     return null; // Will redirect in useEffect
   }
-  
+
   if (
-    requiredRoles.length > 0 && 
+    requiredRoles.length > 0 &&
     !requiredRoles.some(role => user.roles.includes(role))
   ) {
     return null; // Will redirect in useEffect
   }
-  
+
   return children;
 }
 ```
@@ -529,21 +529,21 @@ import { useAuth } from '@/components/AuthProvider';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  
+
   return (
     <ProtectedRoute requiredRoles={['member']}>
       <div className="dashboard">
         <h1>Dashboard</h1>
-        
+
         <div className="user-info">
           <p>Welcome, {user?.email}</p>
           <p>Roles: {user?.roles.join(', ')}</p>
         </div>
-        
+
         <button onClick={logout} className="logout-button">
           Log Out
         </button>
-        
+
         {user?.roles.includes('admin') && (
           <div className="admin-panel">
             <h2>Admin Panel</h2>
@@ -590,26 +590,26 @@ async function verifyJWT(token) {
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
-  
+
   // Check if the path is public
   if (publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`))) {
     return NextResponse.next();
   }
-  
+
   // Check for JWT in cookies or authorization header
   const sessionJwt = request.cookies.get('sessionJwt')?.value;
-  
+
   if (!sessionJwt) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  
+
   // Verify JWT (implementation depends on your JWT library)
   const payload = await verifyJWT(sessionJwt);
-  
+
   if (!payload) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  
+
   // Allow authenticated requests to continue
   return NextResponse.next();
 }

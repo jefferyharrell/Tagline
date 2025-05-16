@@ -33,15 +33,15 @@ user_roles = Table(
 
 class Role(Base):
     __tablename__ = "roles"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, nullable=False, index=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationship with users
     users = relationship("User", secondary=user_roles, back_populates="roles")
-    
+
     @classmethod
     def seed_default_roles(cls, session):
         """Seed the default roles if they don't exist"""
@@ -51,36 +51,36 @@ class Role(Base):
             {"name": "active", "description": "Active JLLA member"},
             {"name": "sustainer", "description": "Sustainer JLLA member"}
         ]
-        
+
         for role_data in default_roles:
             role = session.query(Role).filter_by(name=role_data["name"]).first()
             if role is None:
                 role = Role(**role_data)
                 session.add(role)
-        
+
         session.commit()
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String, unique=True, nullable=False, index=True)
     is_active = Column(Boolean, default=True)
     stytch_user_id = Column(String, unique=True, nullable=True)  # Stytch's user ID
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationship with roles
     roles = relationship("Role", secondary=user_roles, back_populates="users")
-    
+
     def has_role(self, role_name):
         """Check if the user has a specific role"""
         return any(role.name == role_name for role in self.roles)
-    
+
     def has_any_role(self, role_names):
         """Check if the user has any of the specified roles"""
         return any(role.name in role_names for role in self.roles)
-    
+
     def has_all_roles(self, role_names):
         """Check if the user has all of the specified roles"""
         user_role_names = {role.name for role in self.roles}
@@ -88,7 +88,7 @@ class User(Base):
 
 class EligibleEmail(Base):
     __tablename__ = "eligible_emails"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String, unique=True, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -106,13 +106,13 @@ from typing import List
 class RoleRepository:
     def __init__(self, db: Session):
         self.db = db
-        
+
     def get_by_name(self, name: str):
         return self.db.query(models.Role).filter(models.Role.name == name).first()
-        
+
     def get_all(self):
         return self.db.query(models.Role).all()
-        
+
     def create(self, name: str, description: str = None):
         role = models.Role(name=name, description=description)
         self.db.add(role)
@@ -123,20 +123,20 @@ class RoleRepository:
 class UserRepository:
     def __init__(self, db: Session):
         self.db = db
-        
+
     def get_by_email(self, email: str):
         return self.db.query(models.User).filter(models.User.email == email).first()
-        
+
     def get_by_stytch_id(self, stytch_id: str):
         return self.db.query(models.User).filter(models.User.stytch_user_id == stytch_id).first()
-    
+
     def create(self, email: str, stytch_user_id: str = None):
         user = models.User(email=email, stytch_user_id=stytch_user_id)
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
         return user
-        
+
     def update_stytch_id(self, email: str, stytch_user_id: str):
         user = self.get_by_email(email)
         if user:
@@ -144,47 +144,47 @@ class UserRepository:
             self.db.commit()
             self.db.refresh(user)
         return user
-    
+
     def add_role(self, user_id: str, role_name: str):
         user = self.db.query(models.User).filter(models.User.id == user_id).first()
         if not user:
             return None
-            
+
         role_repo = RoleRepository(self.db)
         role = role_repo.get_by_name(role_name)
         if not role:
             return None
-            
+
         user.roles.append(role)
         self.db.commit()
         self.db.refresh(user)
         return user
-    
+
     def remove_role(self, user_id: str, role_name: str):
         user = self.db.query(models.User).filter(models.User.id == user_id).first()
         if not user:
             return None
-            
+
         role_repo = RoleRepository(self.db)
         role = role_repo.get_by_name(role_name)
         if not role:
             return None
-            
+
         if role in user.roles:
             user.roles.remove(role)
             self.db.commit()
             self.db.refresh(user)
         return user
-    
+
     def set_roles(self, user_id: str, role_names: List[str]):
         user = self.db.query(models.User).filter(models.User.id == user_id).first()
         if not user:
             return None
-            
+
         role_repo = RoleRepository(self.db)
         roles = [role_repo.get_by_name(name) for name in role_names]
         roles = [role for role in roles if role]  # Filter out None values
-        
+
         user.roles = roles
         self.db.commit()
         self.db.refresh(user)
@@ -193,17 +193,17 @@ class UserRepository:
 class EligibleEmailRepository:
     def __init__(self, db: Session):
         self.db = db
-        
+
     def is_eligible(self, email: str):
         return self.db.query(models.EligibleEmail).filter(models.EligibleEmail.email == email).first() is not None
-        
+
     def add_email(self, email: str, batch_id: str = None):
         eligible_email = models.EligibleEmail(email=email, batch_id=batch_id)
         self.db.add(eligible_email)
         self.db.commit()
         self.db.refresh(eligible_email)
         return eligible_email
-        
+
     def bulk_add(self, emails, batch_id: str = None):
         eligible_emails = [models.EligibleEmail(email=email, batch_id=batch_id) for email in emails]
         self.db.bulk_save_objects(eligible_emails)
@@ -220,21 +220,21 @@ from datetime import datetime
 
 class RoleBase(BaseModel):
     name: str
-    
+
 class RoleCreate(RoleBase):
     description: Optional[str] = None
-    
+
 class RoleAssign(BaseModel):
     role_name: str
-    
+
 class RoleBulkAssign(BaseModel):
     role_names: List[str]
-    
+
 class Role(RoleBase):
     id: str
     description: Optional[str]
     created_at: datetime
-    
+
     class Config:
         orm_mode = True
 
@@ -244,7 +244,7 @@ class User(BaseModel):
     is_active: bool
     created_at: datetime
     roles: List[Role]
-    
+
     class Config:
         orm_mode = True
 
@@ -308,8 +308,8 @@ async def verify_email_eligibility(email_data: schemas.EmailVerifyRequest, db: S
     return {"eligible": is_eligible}
 
 @router.post("/authenticate")
-async def authenticate_user(auth_data: schemas.StytchAuthRequest, 
-                           db: Session = Depends(get_db), 
+async def authenticate_user(auth_data: schemas.StytchAuthRequest,
+                           db: Session = Depends(get_db),
                            stytch_client = Depends(get_stytch_client)):
     # Validate the Stytch token
     try:
@@ -326,7 +326,7 @@ async def authenticate_user(auth_data: schemas.StytchAuthRequest,
     # Check if user exists, create if they don't
     user_repo = repositories.UserRepository(db)
     user = user_repo.get_by_stytch_id(auth_response.user_id)
-    
+
     if not user:
         # Get user email from Stytch
         try:
@@ -337,7 +337,7 @@ async def authenticate_user(auth_data: schemas.StytchAuthRequest,
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error retrieving user data"
             )
-        
+
         # Check if email is eligible
         email_repo = repositories.EligibleEmailRepository(db)
         if not email_repo.is_eligible(email):
@@ -345,7 +345,7 @@ async def authenticate_user(auth_data: schemas.StytchAuthRequest,
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Email not authorized for access"
             )
-        
+
         # Check if user with this email already exists
         existing_user = user_repo.get_by_email(email)
         if existing_user:
@@ -354,7 +354,7 @@ async def authenticate_user(auth_data: schemas.StytchAuthRequest,
         else:
             # Create new user
             user = user_repo.create(email=email, stytch_user_id=auth_response.user_id)
-            
+
             # Assign default "member" role to new users
             role_repo = repositories.RoleRepository(db)
             member_role = role_repo.get_by_name("member")
@@ -362,7 +362,7 @@ async def authenticate_user(auth_data: schemas.StytchAuthRequest,
                 user.roles.append(member_role)
                 db.commit()
                 db.refresh(user)
-    
+
     # Create JWT with user info and roles
     user_roles = [role.name for role in user.roles]
     jwt_payload = {
@@ -371,12 +371,12 @@ async def authenticate_user(auth_data: schemas.StytchAuthRequest,
         "roles": user_roles,
         "session_token": auth_response.session_token
     }
-    
+
     # Use JWT utilities to create the token
     access_token = create_access_token(data=jwt_payload)
-    
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
         "user_roles": user_roles
     }
@@ -415,7 +415,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-        
+
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
         raise credentials_exception
@@ -452,7 +452,7 @@ get_current_member = has_role("member")
 # Role management endpoints
 @router.post("/admin/roles", status_code=status.HTTP_201_CREATED)
 async def create_role(
-    role_data: schemas.RoleCreate, 
+    role_data: schemas.RoleCreate,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(get_current_admin)
 ):
@@ -522,7 +522,7 @@ async def set_user_roles(
 # Admin endpoints for managing eligible emails
 @router.post("/admin/eligible-emails", status_code=status.HTTP_201_CREATED)
 async def add_eligible_email(
-    email_data: schemas.EligibleEmailCreate, 
+    email_data: schemas.EligibleEmailCreate,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(get_current_admin)
 ):
@@ -531,7 +531,7 @@ async def add_eligible_email(
 
 @router.post("/admin/eligible-emails/bulk", status_code=status.HTTP_201_CREATED)
 async def bulk_add_eligible_emails(
-    email_data: schemas.EligibleEmailBulkCreate, 
+    email_data: schemas.EligibleEmailBulkCreate,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(get_current_admin)
 ):
@@ -549,7 +549,7 @@ async def bulk_add_eligible_emails(
 """create user and role tables
 
 Revision ID: xxx
-Revises: 
+Revises:
 Create Date: 2025-05-16 00:00:00.000000
 
 """
@@ -573,7 +573,7 @@ def upgrade():
         sa.Column('description', sa.String(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now())
     )
-    
+
     # Create users table
     op.create_table(
         'users',
@@ -584,14 +584,14 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), onupdate=sa.func.now())
     )
-    
+
     # Create association table
     op.create_table(
         'user_roles',
         sa.Column('user_id', sa.String(), sa.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
         sa.Column('role_id', sa.String(), sa.ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
     )
-    
+
     # Create eligible_emails table
     op.create_table(
         'eligible_emails',
@@ -618,19 +618,19 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     # Database configuration
     DATABASE_URL: str
-    
+
     # JWT settings
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    
+
     # Stytch configuration
     STYTCH_PROJECT_ID: str
     STYTCH_SECRET: str
     STYTCH_ENV: str = "test"  # "test" or "live"
-    
+
     # API configuration
     API_KEY: str
-    
+
     class Config:
         env_file = ".env"
 
