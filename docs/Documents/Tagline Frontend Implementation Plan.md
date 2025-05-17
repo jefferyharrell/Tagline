@@ -24,7 +24,7 @@ This document breaks down the Tagline frontend implementation into concrete, act
 - [x] Configure Docker and docker-compose files
 
 ### Authentication Foundation
-- [ ] Install Stytch dependencies
+- [x] Install Stytch dependencies
 - [ ] Create AuthProvider component and context
 - [ ] Implement user types and interfaces
 - [ ] Build JWT handling utilities (verify, decode)
