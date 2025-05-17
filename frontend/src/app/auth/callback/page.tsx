@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as StytchJS from '@stytch/vanilla-js';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { saveAuthState } from '@/lib/storage';
+import { UserRole } from '@/lib/types/auth';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -33,17 +35,35 @@ export default function AuthCallback() {
 
         if (mockAuthEnabled && token === 'mock_auth_token' && mockEmail) {
           console.log('Using mock authentication flow');
-          // Simulate Stytch response for mock auth
-          stytchSDKResponse = {
-            user_id: 'mock_user_id_123',
-            user: {
-              emails: [{ email: mockEmail, verified: true }],
-            },
-            session_token: 'mock_session_token',
-            session_jwt: 'mock_session_jwt',
-            // Add other fields as expected by your downstream logic if necessary
+          
+          // Create a mock user object that matches our User type
+          const mockUser = {
+            id: 'mock_user_id_123',
+            email: mockEmail,
+            roles: ['member'] as UserRole[],
+            firstName: 'Mock',
+            lastName: 'User',
+            createdAt: new Date().toISOString(),
+            lastLoginAt: new Date().toISOString()
           };
-          // No actual Stytch call is made here
+
+          // Save the auth state to localStorage
+          saveAuthState({
+            isAuthenticated: true,
+            user: mockUser
+          });
+
+          // Update the auth context
+          setState({
+            isLoading: false,
+            isAuthenticated: true,
+            user: mockUser,
+            error: null
+          });
+
+          // Redirect to dashboard
+          router.push('/');
+          return;
         } else {
           // Initialize Stytch client for real authentication
           const stytchClient = new StytchJS.StytchUIClient(process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN || '');

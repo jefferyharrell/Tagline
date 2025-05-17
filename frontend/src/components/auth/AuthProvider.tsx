@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { StytchUIClient } from '@stytch/vanilla-js';
 import { AuthContextType, AuthState, User } from '@/lib/types/auth';
+import { saveAuthState, loadAuthState, clearAuthState } from '@/lib/storage';
 
 // Create the auth context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,62 +23,111 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, setState] = useState<AuthState>(initialState);
   const [stytchClient, setStytchClient] = useState<StytchUIClient | null>(null);
 
-  // Initialize Stytch client on component mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !stytchClient) {
-      const client = new StytchUIClient(stytchPublicToken);
-      setStytchClient(client);
+  // Update state and persist to localStorage
+  const updateAuthState = useCallback((newState: Partial<AuthState>) => {
+    setState(prevState => {
+      const updatedState = { ...prevState, ...newState };
+      
+      // Persist to localStorage when user is authenticated
+      if (updatedState.isAuthenticated && updatedState.user) {
+        saveAuthState({
+          isAuthenticated: true,
+          user: updatedState.user
+        });
+      } else if (newState.isAuthenticated === false) {
+        // Clear auth state on logout
+        clearAuthState();
+      }
+      
+      return updatedState;
+    });
+  }, []);
 
-      // Check if user is already authenticated
-      const checkAuth = async () => {
-        try {
-          const { session } = await client.session.authenticate();
-          // Use type assertion to work around Stytch type issues
-          // This is necessary because the Stytch types may not match the actual API response
+  // Check if we're in mock auth mode
+  const isMockAuth = process.env.NEXT_PUBLIC_MOCK_AUTH === 'true';
+
+  // Initialize Stytch client and check auth status
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkAuth = async () => {
+      try {
+        // First try to load from localStorage for faster initial render
+        const storedAuth = loadAuthState();
+        
+        if (storedAuth?.isAuthenticated && storedAuth.user) {
+          // If we have a stored auth state, use it
+          setState({
+            isLoading: false,
+            isAuthenticated: true,
+            user: storedAuth.user,
+            error: null
+          });
+          return;
+        }
+
+        // If we're in mock auth mode, don't try to authenticate with Stytch
+        if (isMockAuth) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            isAuthenticated: false
+          }));
+          return;
+        }
+
+        // Only initialize Stytch client if we're not in mock mode
+        if (!stytchClient) {
+          const client = new StytchUIClient(stytchPublicToken);
+          setStytchClient(client);
+        }
+
+        // Verify with the server if we have a Stytch client
+        if (stytchClient) {
+          const { session } = await stytchClient.session.authenticate();
           const sessionAny = session as any;
           const token = sessionAny?.sessionToken || sessionAny?.session_token;
+          
           if (token) {
-            // Fetch user data from your API using the session token
             const response = await fetch('/api/auth/session', {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
+              headers: { Authorization: `Bearer ${token}` }
             });
 
             if (response.ok) {
               const userData = await response.json();
-              setState({
+              updateAuthState({
                 isLoading: false,
                 isAuthenticated: true,
                 user: userData.user,
                 error: null
               });
-            } else {
-              // Session token is invalid or expired
-              setState({
-                ...initialState,
-                isLoading: false
-              });
+              return;
             }
-          } else {
-            setState({
-              ...initialState,
-              isLoading: false
-            });
           }
-        } catch (error) {
-          console.error('Auth check error:', error);
-          setState({
-            ...initialState,
-            isLoading: false,
-            error: 'Authentication check failed'
-          });
         }
-      };
 
-      checkAuth();
-    }
-  }, []);
+
+        // If we get here, we're not authenticated
+        updateAuthState({
+          ...initialState,
+          isLoading: false
+        });
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // Don't clear stored auth on network errors, only on auth failures
+        if (error instanceof Error && error.message.includes('No session exists')) {
+          clearAuthState();
+        }
+        updateAuthState({
+          ...initialState,
+          isLoading: false,
+          error: 'Authentication check failed'
+        });
+      }
+    };
+
+    checkAuth();
+  }, [updateAuthState, stytchClient, isMockAuth]);
 
   // Check if email is eligible for login
   const checkEligibility = async (email: string): Promise<boolean> => {
@@ -107,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // First check if the email is eligible
     const isEligible = await checkEligibility(email);
     if (!isEligible) {
-      setState({
+      updateAuthState({
         ...state,
         error: 'This email is not eligible for access'
       });
@@ -115,22 +165,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Send magic link using Stytch API
-
-    // If not using mock, send real magic link
     try {
-      setState({ ...state, isLoading: true, error: null });
+      updateAuthState({ ...state, isLoading: true, error: null });
       await stytchClient.magicLinks.email.send(email, {
         login_magic_link_url: `${window.location.origin}/auth/callback`,
         signup_magic_link_url: `${window.location.origin}/auth/callback`
       });
-      setState({
+      updateAuthState({
         ...state,
         isLoading: false,
         error: null
       });
     } catch (error) {
       console.error('Login error:', error);
-      setState({
+      updateAuthState({
         ...state,
         isLoading: false,
         error: 'Failed to send magic link'
@@ -145,16 +193,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      setState({ ...state, isLoading: true });
+      updateAuthState({ ...state, isLoading: true });
       await stytchClient.session.revoke();
-      setState({
+      clearAuthState();
+      updateAuthState({
         ...initialState,
         isLoading: false
       });
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
-      setState({
+      updateAuthState({
         ...state,
         isLoading: false,
         error: 'Failed to logout'
