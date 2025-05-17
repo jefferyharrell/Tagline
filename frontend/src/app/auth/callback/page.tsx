@@ -73,8 +73,8 @@ export default function AuthCallback() {
             error: null
           });
 
-          // Redirect to dashboard on success
-          router.push('/dashboard');
+          // Redirect to home page on success
+          router.push('/');
         } catch (stytchError: any) {
           console.error('Stytch authentication error:', stytchError);
           throw new Error(stytchError.message || 'Failed to authenticate with Stytch');
