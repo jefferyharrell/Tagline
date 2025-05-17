@@ -15,13 +15,13 @@ This document breaks down the Tagline frontend implementation into concrete, act
 ## Phase 1: Foundation Setup
 
 ### Project Initialization
-- [ ] Create new Next.js 15 project with TypeScript and App Router
-- [ ] Set up Tailwind CSS
-- [ ] Configure shadcn/ui with custom theme
-- [ ] Set up ESLint and Prettier with appropriate rules
-- [ ] Create basic directory structure following specification
-- [ ] Set up environment variables (.env.local and .env.example)
-- [ ] Configure Docker and docker-compose files
+- [x] Create new Next.js 15 project with TypeScript and App Router
+- [x] Set up Tailwind CSS
+- [x] Configure shadcn/ui with custom theme
+- [x] Set up ESLint and Prettier with appropriate rules
+- [x] Create basic directory structure following specification
+- [x] Set up environment variables (.env.local and .env.example)
+- [x] Configure Docker and docker-compose files
 
 ### Authentication Foundation
 - [ ] Install Stytch dependencies
