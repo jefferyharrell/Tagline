@@ -26,7 +26,7 @@ This document breaks down the Tagline frontend implementation into concrete, act
 ### Authentication Foundation
 - [x] Install Stytch dependencies
 - [x] Create AuthProvider component and context
-- [ ] Implement user types and interfaces
+- [x] Implement user types and interfaces
 - [ ] Build JWT handling utilities (verify, decode)
 - [ ] Create login page with eligibility check UI
 - [ ] Implement auth callback page
