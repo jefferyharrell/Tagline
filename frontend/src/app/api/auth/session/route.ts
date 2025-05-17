@@ -1,5 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Helper function to authenticate with the backend using the magic link token
+async function authenticateWithBackend(token: string) {
+  console.log('Authenticating with backend using magic link token:', token.substring(0, 10) + '...');
+  
+  const authResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/authenticate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      token: token // This is the raw magic link token
+    })
+  });
+  
+  if (!authResponse.ok) {
+    const errorText = await authResponse.text();
+    console.error('Backend authentication failed:', errorText);
+    throw new Error(`Backend authentication failed: ${errorText}`);
+  }
+  
+  return authResponse;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Get the authorization header
@@ -20,34 +43,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Log the token for debugging
-    console.log('Received token in session endpoint:', token.substring(0, 10) + '...');
+    console.log('GET /api/auth/session - Received token in session endpoint:', token.substring(0, 10) + '...');
 
     try {
-      // The backend expects a specific format for the Stytch token
-      // We need to send the token to the backend's authenticate endpoint
-      console.log('Calling backend authenticate endpoint');
-      
-      // First, authenticate with the backend using the Stytch token
-      const authResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/authenticate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: token,
-          session_token: token
-        })
-      });
-      
-      if (!authResponse.ok) {
-        const errorText = await authResponse.text();
-        console.error('Backend authentication failed:', errorText);
-        return NextResponse.json(
-          { error: 'Authentication failed with backend' },
-          { status: authResponse.status }
-        );
-      }
+      // Authenticate with the backend using the provided token
+      const authResponse = await authenticateWithBackend(token);
       
       // Get the access token from the authentication response
       const authData = await authResponse.json();
@@ -91,16 +91,83 @@ export async function GET(request: NextRequest) {
         }
       });
     } catch (error) {
-      console.error('Error authenticating with backend:', error);
+      console.error('Error in GET /api/auth/session:', error);
       return NextResponse.json(
-        { error: 'Failed to authenticate with backend' },
+        { error: error instanceof Error ? error.message : 'Failed to authenticate with backend' },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Session API error:', error);
+    console.error('Unexpected error in session API:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// Handle POST requests to create a session with a magic link token
+export async function POST(request: NextRequest) {
+  try {
+    // Parse the request body
+    const body = await request.json();
+    const { token } = body;
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No token provided in request body' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('POST /api/auth/session - Creating session with magic link token:', token.substring(0, 10) + '...');
+    
+    try {
+      // Call the backend directly to authenticate with the token
+      console.log('Calling backend directly with magic link token');
+      
+      const backendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/authenticate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token // This is the raw magic link token
+        })
+      });
+      
+      if (!backendResponse.ok) {
+        const errorText = await backendResponse.text();
+        console.error('Backend authentication failed:', errorText);
+        return NextResponse.json(
+          { error: `Backend authentication failed: ${errorText}` },
+          { status: backendResponse.status }
+        );
+      }
+      
+      // Get the access token from the response
+      const authData = await backendResponse.json();
+      console.log('Backend auth successful with token type:', authData.token_type);
+      
+      // Return the session data
+      return NextResponse.json({
+        session_token: authData.access_token,
+        user_id: authData.user_id,
+        roles: authData.user_roles || []
+      });
+      
+    } catch (error) {
+      console.error('Error creating session with magic link token:', error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Failed to create session' },
+        { status: 500 }
+      );
+    }
+    
+  } catch (error) {
+    console.error('Unexpected error in session creation:', error);
+    return NextResponse.json(
+      { error: 'Internal server error during authentication' },
       { status: 500 }
     );
   }
