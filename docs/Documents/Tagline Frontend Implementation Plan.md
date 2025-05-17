@@ -24,22 +24,22 @@ This document breaks down the Tagline frontend implementation into concrete, act
 - [x] Configure Docker and docker-compose files
 
 ### Authentication Foundation
-- [ ] Install Stytch dependencies
-- [ ] Create AuthProvider component and context
-- [ ] Implement user types and interfaces
-- [ ] Build JWT handling utilities (verify, decode)
-- [ ] Create login page with eligibility check UI
-- [ ] Implement auth callback page
-- [ ] Create auth API proxy endpoints (check-eligibility, session)
-- [ ] Build ProtectedRoute component with role checking
-- [ ] Implement unauthorized access page
+- [x] Install Stytch dependencies
+- [x] Create AuthProvider component and context
+- [x] Implement user types and interfaces
+- [x] Build JWT handling utilities (verify, decode)
+- [x] Create login page with eligibility check UI
+- [x] Implement auth callback page
+- [x] Create auth API proxy endpoints (check-eligibility, session)
+- [x] Build ProtectedRoute component with role checking
+- [x] Implement unauthorized access page
 
 ### API Client Setup
-- [ ] Create API client with TypeScript interfaces
-- [ ] Implement request/response interceptors for auth
-- [ ] Set up error handling utilities
-- [ ] Create TypeScript interfaces for all API responses
-- [ ] Build API hooks (useSWR or React Query)
+- [x] Create API client with TypeScript interfaces
+- [x] Implement request/response interceptors for auth
+- [x] Set up error handling utilities
+- [x] Create TypeScript interfaces for all API responses
+- [x] Build API hooks (useSWR or React Query)
 
 ### Basic Layout and Navigation
 - [ ] Create root layout with meta tags and global styles
