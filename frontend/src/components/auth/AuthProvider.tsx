@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import * as StytchJS from '@stytch/vanilla-js';
+import { StytchUIClient } from '@stytch/vanilla-js';
 import { AuthContextType, AuthState, User } from '@/lib/types/auth';
 
 // Create the auth context with a default value
@@ -20,12 +20,12 @@ const stytchPublicToken = process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN || '';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(initialState);
-  const [stytchClient, setStytchClient] = useState<StytchJS.StytchUIClient | null>(null);
+  const [stytchClient, setStytchClient] = useState<StytchUIClient | null>(null);
 
   // Initialize Stytch client on component mount
   useEffect(() => {
     if (typeof window !== 'undefined' && !stytchClient) {
-      const client = new StytchJS.StytchUIClient(stytchPublicToken);
+      const client = new StytchUIClient(stytchPublicToken);
       setStytchClient(client);
 
       // Check if user is already authenticated
@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 Authorization: `Bearer ${token}`
               }
             });
-            
+
             if (response.ok) {
               const userData = await response.json();
               setState({
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         body: JSON.stringify({ email })
       });
-      
+
       const data = await response.json();
       return data.eligible;
     } catch (error) {

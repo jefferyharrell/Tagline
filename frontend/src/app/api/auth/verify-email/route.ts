@@ -2,67 +2,70 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // This endpoint verifies if an email is eligible for access to the Tagline application
 export async function POST(request: NextRequest) {
-  // For debugging purposes
-  console.log('🔍 Verify Email API route called');
   try {
+    // Parse the incoming request
     const body = await request.json();
     const { email } = body;
 
+    // Validate the request
     if (!email) {
-      console.log('❌ Email is missing in request');
       return NextResponse.json(
         { error: 'Email is required' },
         { status: 400 }
       );
     }
 
-    console.log(`📧 Verifying email: ${email}`);
+    // Get the backend URL from environment variables
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!backendUrl) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
 
-    // Since we're having CORS issues, let's temporarily bypass the backend check
-    // and assume the email is eligible (since we know it is during development)
-    console.log('✅ Bypassing backend check - assuming email is eligible');
-    
-    // For development, we'll assume the email is eligible
-    // In a production environment, this should call the backend API
-    return NextResponse.json({ eligible: true });
-    
-    /* This code is commented out until the CORS issues are resolved
-    // For debugging: log the API URL we're calling
-    console.log(`🔗 Calling backend API: ${process.env.NEXT_PUBLIC_API_URL}/v1/auth/verify-email`);
+    // Construct the full URL for the backend API
+    const apiUrl = `${backendUrl}/v1/auth/verify-email`;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/verify-email`, {
+      // Forward the request to the backend
+      const startTime = Date.now();
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(process.env.API_KEY && { 'Authorization': `Bearer ${process.env.API_KEY}` })
         },
         body: JSON.stringify({ email }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.log(`❌ Backend API error: ${response.status}`, errorData);
-        return NextResponse.json(
-          { error: errorData.detail || 'Failed to verify email' },
-          { status: response.status }
-        );
+      const responseTime = Date.now() - startTime;
+
+      // Get the response data
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error('Invalid response from backend');
       }
 
-      const data = await response.json();
-      console.log('✅ Backend API response:', data);
-      return NextResponse.json({ eligible: data.eligible });
+      // Forward the backend response to the client
+      return NextResponse.json(data, { status: response.status });
+
     } catch (apiError) {
-      console.log('❌ Error calling backend API:', apiError);
+      const errorMessage = apiError instanceof Error ? apiError.message : 'An unknown error occurred';
       return NextResponse.json(
-        { error: 'Error calling backend API' },
-        { status: 500 }
+        { error: 'Error connecting to the server', details: errorMessage },
+        { status: 502 } // Bad Gateway
       );
     }
-    */
   } catch (error) {
-    console.log('❌ Unexpected error in verify-email API route:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
-      { error: 'Unexpected error' },
+      {
+        error: 'An unexpected error occurred',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }

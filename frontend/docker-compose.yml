@@ -9,6 +9,12 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.next
     environment:
       - NODE_ENV=development
-    command: ["npm", "run", "dev"]
+      - NEXT_TELEMETRY_DISABLED=1
+    env_file:
+      - .env
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
