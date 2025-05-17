@@ -29,7 +29,7 @@ This document breaks down the Tagline frontend implementation into concrete, act
 - [x] Implement user types and interfaces
 - [x] Build JWT handling utilities (verify, decode)
 - [x] Create login page with eligibility check UI
-- [ ] Implement auth callback page
+- [x] Implement auth callback page
 - [ ] Create auth API proxy endpoints (check-eligibility, session)
 - [ ] Build ProtectedRoute component with role checking
 - [ ] Implement unauthorized access page
