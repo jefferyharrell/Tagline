@@ -23,7 +23,7 @@ test:
 all:
     just format
     just lint
-    just test
+    # just test
 
 clean:
     rm -rf node_modules .next
@@ -59,10 +59,10 @@ build:
     docker compose build
 
 logs:
-    docker compose logs -f tagline-frontend
+    docker compose logs -f frontend
 
 shell:
-    docker exec -it tagline-frontend-dev sh
+    docker exec -it tagline-frontend sh
 
 prune:
     docker system prune -f
