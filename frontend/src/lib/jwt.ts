@@ -1,7 +1,7 @@
-import { JwtPayload, AuthError } from '../types/auth';
+import { JwtPayload, AuthError } from "../types/auth";
 
-const TOKEN_KEY = 'auth_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
+const TOKEN_KEY = "auth_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 
 /**
  * Decodes a JWT token without verification
@@ -11,20 +11,20 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 export function decodeToken<T = JwtPayload>(token: string): T | null {
   try {
     // Split the token into its parts
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 3) {
-      throw new AuthError('Invalid token format', 'INVALID_TOKEN');
+      throw new AuthError("Invalid token format", "INVALID_TOKEN");
     }
 
     // Decode the payload (middle part)
     const payload = parts[1];
-    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
     return JSON.parse(decoded) as T;
   } catch (error) {
     if (error instanceof AuthError) {
       throw error;
     }
-    throw new AuthError('Failed to decode token', 'TOKEN_DECODE_ERROR');
+    throw new AuthError("Failed to decode token", "TOKEN_DECODE_ERROR");
   }
 }
 
@@ -35,7 +35,7 @@ export function isTokenExpired(token: string): boolean {
   try {
     const decoded = decodeToken<{ exp?: number }>(token);
     if (!decoded?.exp) return true;
-    
+
     // Convert exp (seconds) to milliseconds for comparison
     return Date.now() >= decoded.exp * 1000;
   } catch {
@@ -49,7 +49,7 @@ export function isTokenExpired(token: string): boolean {
 export function getValidToken(): string | null {
   const token = getToken();
   if (!token) return null;
-  
+
   try {
     return isTokenExpired(token) ? null : token;
   } catch {
@@ -64,8 +64,11 @@ export function setToken(token: string): void {
   try {
     localStorage.setItem(TOKEN_KEY, token);
   } catch (error) {
-    console.error('Failed to store token:', error);
-    throw new AuthError('Failed to store authentication token', 'TOKEN_STORAGE_ERROR');
+    console.error("Failed to store token:", error);
+    throw new AuthError(
+      "Failed to store authentication token",
+      "TOKEN_STORAGE_ERROR",
+    );
   }
 }
 
@@ -76,7 +79,7 @@ export function getToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);
   } catch (error) {
-    console.error('Failed to retrieve token:', error);
+    console.error("Failed to retrieve token:", error);
     return null;
   }
 }
@@ -88,7 +91,7 @@ export function removeToken(): void {
   try {
     localStorage.removeItem(TOKEN_KEY);
   } catch (error) {
-    console.error('Failed to remove token:', error);
+    console.error("Failed to remove token:", error);
   }
 }
 
@@ -99,8 +102,8 @@ export function setRefreshToken(token: string): void {
   try {
     localStorage.setItem(REFRESH_TOKEN_KEY, token);
   } catch (error) {
-    console.error('Failed to store refresh token:', error);
-    throw new AuthError('Failed to store refresh token', 'TOKEN_STORAGE_ERROR');
+    console.error("Failed to store refresh token:", error);
+    throw new AuthError("Failed to store refresh token", "TOKEN_STORAGE_ERROR");
   }
 }
 
@@ -111,7 +114,7 @@ export function getRefreshToken(): string | null {
   try {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
   } catch (error) {
-    console.error('Failed to retrieve refresh token:', error);
+    console.error("Failed to retrieve refresh token:", error);
     return null;
   }
 }
@@ -123,7 +126,7 @@ export function removeRefreshToken(): void {
   try {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch (error) {
-    console.error('Failed to remove refresh token:', error);
+    console.error("Failed to remove refresh token:", error);
   }
 }
 
@@ -156,19 +159,19 @@ export function getUserFromToken(): JwtPayload | null {
  */
 export async function verifyToken(token: string): Promise<boolean> {
   try {
-    const response = await fetch('/api/auth/verify-token', {
-      method: 'POST',
+    const response = await fetch("/api/auth/verify-token", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new AuthError(
-        error.message || 'Token verification failed',
-        error.code || 'TOKEN_VERIFICATION_FAILED'
+        error.message || "Token verification failed",
+        error.code || "TOKEN_VERIFICATION_FAILED",
       );
     }
 
@@ -177,6 +180,6 @@ export async function verifyToken(token: string): Promise<boolean> {
     if (error instanceof AuthError) {
       throw error;
     }
-    throw new AuthError('Failed to verify token', 'VERIFICATION_ERROR');
+    throw new AuthError("Failed to verify token", "VERIFICATION_ERROR");
   }
 }

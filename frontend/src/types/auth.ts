@@ -1,4 +1,4 @@
-export type UserRole = 'member' | 'admin' | 'active' | 'sustainer';
+export type UserRole = "member" | "admin" | "active" | "sustainer";
 
 export interface UserMetadata {
   firstName?: string;
@@ -65,11 +65,11 @@ export class AuthError extends Error {
 
   constructor(
     message: string,
-    code: string = 'AUTH_ERROR',
-    details?: Record<string, unknown>
+    code: string = "AUTH_ERROR",
+    details?: Record<string, unknown>,
   ) {
     super(message);
-    this.name = 'AuthError';
+    this.name = "AuthError";
     this.code = code;
     this.details = details;
   }
@@ -83,11 +83,11 @@ export class ApiError extends Error {
   constructor(
     message: string,
     status: number = 500,
-    code: string = 'API_ERROR',
-    details?: Record<string, unknown>
+    code: string = "API_ERROR",
+    details?: Record<string, unknown>,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.details = details;

@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 // This would typically check against your user database or whitelist
 // For now, we'll just allow any @example.com email for testing
 const isEmailAllowed = (email: string): boolean => {
   // TODO: Replace with actual whitelist check
-  return email.endsWith('@example.com') || email === 'jefferyharrell@gmail.com';
+  return email.endsWith("@example.com") || email === "jefferyharrell@gmail.com";
 };
 
 export async function POST(request: Request) {
@@ -13,8 +13,8 @@ export async function POST(request: Request) {
 
     if (!email) {
       return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
+        { message: "Email is required" },
+        { status: 400 },
       );
     }
 
@@ -22,27 +22,27 @@ export async function POST(request: Request) {
 
     if (!isEligible) {
       return NextResponse.json(
-        { 
+        {
           isEligible: false,
-          message: 'Access denied. Please contact support if you believe this is an error.'
+          message:
+            "Access denied. Please contact support if you believe this is an error.",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       isEligible: true,
-      message: 'Email is eligible for access'
+      message: "Email is eligible for access",
     });
-
   } catch (error) {
-    console.error('Error checking eligibility:', error);
+    console.error("Error checking eligibility:", error);
     return NextResponse.json(
-      { 
+      {
         isEligible: false,
-        message: 'An error occurred while checking eligibility'
+        message: "An error occurred while checking eligibility",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

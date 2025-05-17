@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AuthCallbackPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -14,22 +14,22 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const token = searchParams.get('token');
-        const error = searchParams.get('error');
+        const token = searchParams.get("token");
+        const error = searchParams.get("error");
 
         if (error) {
           throw new Error(error);
         }
 
         if (!token) {
-          throw new Error('No authentication token provided');
+          throw new Error("No authentication token provided");
         }
 
         // Exchange the Stytch token for a session
-        const response = await fetch('/api/auth/session', {
-          method: 'POST',
+        const response = await fetch("/api/auth/session", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ token }),
         });
@@ -37,23 +37,24 @@ export default function AuthCallbackPage() {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
-            errorData.message || 'Failed to authenticate. Please try again.'
+            errorData.message || "Failed to authenticate. Please try again.",
           );
         }
-        
+
         const { sessionToken, user } = await response.json();
-        
+
         // Store the session token (this would typically be handled by your auth provider)
         // For now, we'll just log it and redirect
-        console.log('Session established for user:', user);
-        
+        console.log("Session established for user:", user);
+
         // Redirect to dashboard or the originally requested page
-        const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+        const redirectTo = searchParams.get("redirectTo") || "/dashboard";
         router.push(redirectTo);
-        
       } catch (err) {
-        console.error('Authentication error:', err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        console.error("Authentication error:", err);
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -82,10 +83,7 @@ export default function AuthCallbackPage() {
             <p className="text-gray-600 dark:text-gray-400">{error}</p>
           </div>
           <div className="pt-4">
-            <Button 
-              className="w-full" 
-              onClick={() => router.push('/login')}
-            >
+            <Button className="w-full" onClick={() => router.push("/login")}>
               Return to Login
             </Button>
           </div>
