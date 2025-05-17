@@ -149,40 +149,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Login with email (magic link)
-  const login = async (email: string): Promise<void> => {
+  const login = async (email: string): Promise<boolean> => {
     if (!stytchClient) {
-      throw new Error('Stytch client not initialized');
+      console.error('Stytch client not initialized');
+      return false;
     }
 
-    // First check if the email is eligible
-    const isEligible = await checkEligibility(email);
-    if (!isEligible) {
-      updateAuthState({
-        ...state,
-        error: 'This email is not eligible for access'
-      });
-      return;
-    }
-
-    // Send magic link using Stytch API
     try {
+      // First check if the email is eligible
+      const isEligible = await checkEligibility(email);
+      if (!isEligible) {
+        updateAuthState({
+          ...state,
+          error: 'This email is not eligible for access'
+        });
+        return false;
+      }
+
+      // Update loading state before sending the email
       updateAuthState({ ...state, isLoading: true, error: null });
+      
+      // Send magic link using Stytch API
       await stytchClient.magicLinks.email.send(email, {
         login_magic_link_url: `${window.location.origin}/auth/callback`,
         signup_magic_link_url: `${window.location.origin}/auth/callback`
       });
+      
+      // Update state and return success
       updateAuthState({
         ...state,
         isLoading: false,
         error: null
       });
+      
+      return true;
+      
     } catch (error) {
       console.error('Login error:', error);
       updateAuthState({
         ...state,
         isLoading: false,
-        error: 'Failed to send magic link'
+        error: 'Failed to send magic link. Please try again.'
       });
+      return false;
     }
   };
 
