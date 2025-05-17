@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     STYTCH_SECRET: str
     STYTCH_ENV: str = "test"  # "test" or "live"
 
+    # Administrator access
+    ADMINISTRATOR_EMAIL: str | None = None  # Email that always has access
+
     THUMBNAIL_FORMAT: str = "jpeg"
     THUMBNAIL_QUALITY: int = 85
     THUMBNAIL_SIZE: tuple[int, int] = (512, 512)
