@@ -25,63 +25,83 @@ export default function AuthCallback() {
           return;
         }
 
-        // Initialize Stytch client
-        const stytchClient = new StytchJS.StytchUIClient(process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN || '');
+        // Stytch SDK's AuthenticateResponse type or a simplified version for our needs
+        let stytchSDKResponse: any; // Use 'any' for simplicity or define a proper type
 
-        try {
-          // Authenticate with Stytch directly from the client
-          const stytchResponse = await stytchClient.magicLinks.authenticate(token, {
-            session_duration_minutes: 60
-          });
+        const mockAuthEnabled = process.env.NEXT_PUBLIC_MOCK_AUTH === 'true';
+        const mockEmail = searchParams.get('mock_email');
 
-          // Use our frontend API route to verify email (avoids CORS issues)
-          const userResponse = await fetch('/api/auth/verify-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              email: stytchResponse.user?.emails?.[0]?.email || 'jefferyharrell@gmail.com' // Fallback to known email if not available
-            })
-          });
-
-          if (!userResponse.ok) {
-            const errorText = await userResponse.text();
-            console.error('Failed to verify email:', errorText);
-            throw new Error('Email verification failed');
-          }
-
-          const eligibilityData = await userResponse.json();
-
-          if (!eligibilityData.eligible) {
-            throw new Error('Email not eligible for access');
-          }
-
-          // Use an alternative approach - create a user session directly in our provider
-          setState({
-            isLoading: false,
-            isAuthenticated: true,
+        if (mockAuthEnabled && token === 'mock_auth_token' && mockEmail) {
+          console.log('Using mock authentication flow');
+          // Simulate Stytch response for mock auth
+          stytchSDKResponse = {
+            user_id: 'mock_user_id_123',
             user: {
-              id: stytchResponse.user_id,
-              email: stytchResponse.user?.emails?.[0]?.email || 'jefferyharrell@gmail.com',
-              roles: ['member'], // Default role
-              firstName: '',
-              lastName: '',
-              createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString()
+              emails: [{ email: mockEmail, verified: true }],
             },
-            error: null
-          });
-
-          // Redirect to home page on success
-          router.push('/');
-        } catch (stytchError: any) {
-          console.error('Stytch authentication error:', stytchError);
-          throw new Error(stytchError.message || 'Failed to authenticate with Stytch');
+            session_token: 'mock_session_token',
+            session_jwt: 'mock_session_jwt',
+            // Add other fields as expected by your downstream logic if necessary
+          };
+          // No actual Stytch call is made here
+        } else {
+          // Initialize Stytch client for real authentication
+          const stytchClient = new StytchJS.StytchUIClient(process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN || '');
+          try {
+            stytchSDKResponse = await stytchClient.magicLinks.authenticate(token, {
+              session_duration_minutes: 60
+            });
+          } catch (stytchError: any) {
+            console.error('Stytch authentication error:', stytchError);
+            throw new Error(stytchError.message || 'Failed to authenticate with Stytch');
+          }
         }
-      } catch (err) {
-        console.error('Authentication error:', err);
-        setError('Failed to authenticate. Please try again.');
+
+        // Use our frontend API route to verify email (avoids CORS issues)
+        const userResponse = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            // Ensure this path aligns with the structure of stytchSDKResponse (real or mock)
+            email: stytchSDKResponse.user?.emails?.[0]?.email || 'fallback_mock@example.com'
+          })
+        });
+
+        if (!userResponse.ok) {
+          const errorText = await userResponse.text();
+          console.error('Failed to verify email:', errorText);
+          throw new Error('Email verification failed');
+        }
+
+        const eligibilityData = await userResponse.json();
+
+        if (!eligibilityData.eligible) {
+          throw new Error('Email not eligible for access');
+        }
+
+        // Create a user session directly in our provider
+        setState({
+          isLoading: false,
+          isAuthenticated: true,
+          user: {
+            id: stytchSDKResponse.user_id,
+            email: stytchSDKResponse.user?.emails?.[0]?.email || 'fallback_mock@example.com',
+            roles: ['member'], // Default role
+            firstName: stytchSDKResponse.user?.name?.first_name || '',
+            lastName: stytchSDKResponse.user?.name?.last_name || '',
+            createdAt: new Date().toISOString(),
+            lastLoginAt: new Date().toISOString()
+          },
+          error: null
+        });
+
+        // Redirect to home page on success
+        router.push('/');
+      } catch (err: any) { // Catch block for the outer try
+        console.error('Authentication error in handleAuth:', err);
+        setError(err.message || 'Failed to authenticate. Please try again.');
         setLoading(false);
       }
     };

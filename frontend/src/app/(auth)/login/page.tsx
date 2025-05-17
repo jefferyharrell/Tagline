@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useRouter } from 'next/navigation'; 
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -10,6 +11,9 @@ export default function LoginPage() {
   const [isChecking, setIsChecking] = useState(false);
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter(); 
+
+  const mockAuthEnabled = process.env.NEXT_PUBLIC_MOCK_AUTH === 'true';
 
   const handleEligibilityCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +38,12 @@ export default function LoginPage() {
     } finally {
       setIsChecking(false);
     }
+  };
+
+  const handleMockLogin = () => {
+    const mockEmail = email || 'mockuser@example.com'; 
+    const mockAuthUrl = `/auth/callback?token=mock_auth_token&stytch_token_type=mock_magic_links&mock_email=${encodeURIComponent(mockEmail)}`;
+    router.push(mockAuthUrl);
   };
 
   return (
@@ -103,6 +113,20 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {mockAuthEnabled && (
+          <div className="mt-4">
+            <button
+              onClick={handleMockLogin}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            >
+              Mock Login (Dev Only)
+            </button>
+            <p className="mt-2 text-center text-xs text-gray-500">
+              (Uses '{email || 'mockuser@example.com'}')
+            </p>
           </div>
         )}
       </div>
