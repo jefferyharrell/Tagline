@@ -28,6 +28,35 @@ export default function LoginPage() {
     checkAuth();
   }, [stytch, router]);
 
+  const checkEmailEligibility = async (email: string): Promise<{ isEligible: boolean; error?: string }> => {
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        return { 
+          isEligible: false, 
+          error: error.error || 'Failed to check email eligibility' 
+        };
+      }
+
+      const data = await response.json();
+      return { isEligible: data.eligible };
+    } catch (error) {
+      console.error('Error checking email eligibility:', error);
+      return { 
+        isEligible: false, 
+        error: 'Failed to check email eligibility. Please try again.' 
+      };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -36,7 +65,16 @@ export default function LoginPage() {
     setMessage('');
 
     try {
-      // Start the magic link flow
+      // First check if email is eligible
+      const { isEligible, error } = await checkEmailEligibility(email);
+      
+      if (!isEligible) {
+        setMessage(error || 'This email is not authorized to access the application.');
+        setIsSuccess(false);
+        return;
+      }
+
+      // If email is eligible, proceed with magic link
       await stytch.magicLinks.email.loginOrCreate(email, {
         login_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
         signup_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
