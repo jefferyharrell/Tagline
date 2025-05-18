@@ -10,7 +10,7 @@
 - [x] 2.1 Create Stytch provider component
 - [x] 2.2 Set up root layout with Stytch provider
 - [x] 2.3 Create basic login page with Stytch UI
-- [ ] 2.4 Test Stytch magic link flow
+- [x] 2.4 Test Stytch magic link flow
 
 ## Phase 3: Backend Integration
 - [ ] 3.1 Create API route for authentication callback

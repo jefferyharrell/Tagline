@@ -37,8 +37,11 @@ export default function LoginPage() {
 
     try {
       // Start the magic link flow
-      await stytch.otps.email.loginOrCreate(email, {
-        expiration_minutes: 60,
+      await stytch.magicLinks.email.loginOrCreate(email, {
+        login_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
+        signup_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
+        login_expiration_minutes: 10,
+        signup_expiration_minutes: 10,
       });
 
       setMessage('Check your email for a magic link to sign in.');
