@@ -68,3 +68,9 @@ trigger: always_on
 - Split workflow: planning in Claude Desktop, implementation in Windsurf.
 - Keep commits focused and descriptive.
 - Prioritize working features over perfect architecture.
+
+## Development Environment
+- Our development environment is containerized with Docker, using Justfiles for command running. Backend and frontend each run in their own Docker Compose stack.
+- Use `just up` to start a stack
+- `just down` to stop it
+- `just bounce` to stop it and then restart it.
