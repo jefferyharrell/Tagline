@@ -60,19 +60,42 @@ NEXTAUTH_SECRET=your_nextauth_secret
 
 #### Stytch Provider
 ```jsx
-// pages/_app.jsx
-import { StytchProvider } from '@stytch/nextjs';
+// app/providers.tsx
+'use client';
+
+import { StytchProvider as Stytch } from '@stytch/nextjs';
 import { createStytchUIClient } from '@stytch/nextjs/ui';
 
-const stytchClient = createStytchUIClient(
-  process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN
-);
+export function StytchProvider({ children }: { children: React.ReactNode }) {
+  const stytchClient = createStytchUIClient(
+    process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN!
+  );
 
-export default function App({ Component, pageProps }) {
+  return <Stytch stytch={stytchClient}>{children}</Stytch>;
+}
+```
+
+#### Root Layout with Providers
+```tsx
+// app/layout.tsx
+import { Inter } from 'next/font/google';
+import { StytchProvider } from './providers';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <StytchProvider stytch={stytchClient}>
-      <Component {...pageProps} />
-    </StytchProvider>
+    <html lang="en">
+      <body className={inter.className}>
+        <StytchProvider>
+          {children}
+        </StytchProvider>
+      </body>
+    </html>
   );
 }
 ```
@@ -80,36 +103,40 @@ export default function App({ Component, pageProps }) {
 ### 2. Authentication Flow Components
 
 #### Login Page
-```jsx
-// pages/login.jsx
+```tsx
+// app/login/page.tsx
+'use client';
+
 import { StytchLogin } from '@stytch/nextjs';
 import { Products } from '@stytch/vanilla-js';
 
-export default function Login() {
+export default function LoginPage() {
   const config = {
     products: [Products.emailMagicLinks],
     emailMagicLinksOptions: {
-      loginRedirectURL: `${process.env.NEXTAUTH_URL}/api/auth/callback`,
+      loginRedirectURL: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
       loginExpirationMinutes: 30,
-      signupRedirectURL: `${process.env.NEXTAUTH_URL}/api/auth/callback`,
+      signupRedirectURL: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
       signupExpirationMinutes: 30,
     },
   };
 
-  return <StytchLogin config={config} />;
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <StytchLogin config={config} />
+    </div>
+  );
 }
 ```
 
 #### API Route for Callback
-```javascript
-// pages/api/auth/callback.js
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
+```typescript
+// app/api/auth/callback/route.ts
+import { NextResponse } from 'next/server';
 
+export async function POST(request: Request) {
   try {
-    const { token } = req.body;
+    const { token } = await request.json();
     
     // 1. Verify token with Stytch
     const stytchResponse = await verifyStytchToken(token);
@@ -117,7 +144,10 @@ export default async function handler(req, res) {
     // 2. Check email against whitelist
     const isEligible = await checkEmailEligibility(stytchResponse.email);
     if (!isEligible) {
-      return res.status(403).json({ message: 'Email not authorized' });
+      return NextResponse.json(
+        { message: 'Email not authorized' },
+        { status: 403 }
+      );
     }
     
     // 3. Create/update user in our backend
@@ -126,28 +156,72 @@ export default async function handler(req, res) {
       stytchUserId: stytchResponse.user_id
     });
     
-    // 4. Set JWT in HTTP-only cookie
-    setTokenCookie(res, userResponse.jwt);
+    // 4. Create response with redirect
+    const response = NextResponse.redirect(
+      new URL('/dashboard', process.env.NEXT_PUBLIC_APP_URL)
+    );
     
-    // 5. Redirect to dashboard
-    res.redirect(302, '/dashboard');
+    // 5. Set JWT in HTTP-only cookie
+    response.cookies.set({
+      name: 'auth_token',
+      value: userResponse.jwt,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    
+    return response;
     
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).json({ message: 'Authentication failed' });
+    return NextResponse.json(
+      { message: 'Authentication failed' },
+      { status: 500 }
+    );
   }
 }
+
+// For security, ensure only POST method is allowed
+export { POST };
 ```
 
 ### 3. Protected Routes
 
-```jsx
-// components/ProtectedRoute.jsx
-import { useRouter } from 'next/router';
+#### Authentication Middleware
+```typescript
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('auth_token')?.value;
+  
+  // If no token and trying to access protected route
+  if (!token && request.nextUrl.pathname.startsWith('/dashboard')) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('from', request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+  
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/dashboard/:path*'],
+};
+```
+
+#### Protected Page Example
+```tsx
+// app/dashboard/page.tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useStytchUser } from '@stytch/nextjs';
 
-export default function ProtectedRoute({ children }) {
+export default function DashboardPage() {
   const { user, isInitialized } = useStytchUser();
   const router = useRouter();
 
@@ -161,7 +235,12 @@ export default function ProtectedRoute({ children }) {
     return <div>Loading...</div>;
   }
 
-  return children;
+  return (
+    <div>
+      <h1>Welcome to your Dashboard</h1>
+      {/* Dashboard content */}
+    </div>
+  );
 }
 ```
 
