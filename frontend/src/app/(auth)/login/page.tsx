@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation'; 
 
@@ -11,9 +11,24 @@ export default function LoginPage() {
   const [isChecking, setIsChecking] = useState(false);
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const router = useRouter(); 
 
   const mockAuthEnabled = process.env.NEXT_PUBLIC_MOCK_AUTH === 'true';
+  
+  // Auto-redirect to magic link sent page after a delay
+  useEffect(() => {
+    if (emailSent) {
+      const redirectTimer = setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('auth:email', email);
+        }
+        router.push('/magic-link-sent');
+      }, 1500); // 1.5 second delay before redirecting
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [emailSent, email, router]);
 
   const handleEligibilityCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,27 +53,27 @@ export default function LoginPage() {
       if (!eligible) {
         setError('This email is not eligible for access. Please contact an administrator if you believe this is an error.');
         setIsEligible(false);
+        setIsChecking(false);
         return;
       }
       
-      // If eligible, store email in session storage and redirect
-      const success = await auth.login(email);
-      if (success) {
-        // Store email in session storage
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('auth:email', email);
-        }
-        router.push('/magic-link-sent');
-        return;
-      }
+      // Show email sent status immediately
+      setEmailSent(true);
       
-      // If we get here, something went wrong
-      setError('Failed to send magic link. Please try again.');
+      // Process the login in the background
+      auth.login(email).catch(err => {
+        console.error('Login error:', err);
+        // If there's an error, we'll handle it silently since the user already sees the success message
+        // In a production app, you might want to log this to a monitoring service
+      });
+      
+      // The useEffect will handle the redirect after a short delay
+      
     } catch (err) {
       setError('Failed to process your request. Please try again.');
       console.error('Login error:', err);
-    } finally {
       setIsChecking(false);
+      setEmailSent(false);
     }
   };
 
@@ -80,7 +95,25 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {!isEligible ? (
+        {emailSent ? (
+          <div className="mt-8 text-center">
+            <div className="rounded-md bg-green-50 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">Email sent!</h3>
+                  <div className="mt-2 text-sm text-green-700">
+                    <p>Check your inbox for a magic link to sign in.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : !isEligible ? (
           <div className="mt-8">
             <div className="rounded-md shadow-sm">
               <form onSubmit={handleEligibilityCheck} className="space-y-6">
@@ -99,6 +132,7 @@ export default function LoginPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-jlla-red focus:border-jlla-red sm:text-sm"
                       placeholder="your.email@example.com"
+                      disabled={isChecking}
                     />
                   </div>
                 </div>
