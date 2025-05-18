@@ -1,10 +1,10 @@
 # Authentication Implementation Checklist
 
 ## Phase 1: Project Setup
-- [ ] 1.1 Create `.env` with required environment variables
-- [ ] 1.2 Create `.env.example` with placeholder values
-- [ ] 1.3 Update `.gitignore` to exclude environment files
-- [ ] 1.4 Install Stytch dependencies
+- [x] 1.1 Create `.env` with required environment variables
+- [x] 1.2 Create `.env.example` with placeholder values
+- [x] 1.3 Update `.gitignore` to exclude environment files
+- [x] 1.4 Install Stytch dependencies
 
 ## Phase 2: Stytch Integration
 - [ ] 2.1 Create Stytch provider component
