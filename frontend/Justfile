@@ -1,0 +1,77 @@
+# Justfile for Tagline Frontend
+# Usage: just <command>
+
+# Show all available commands
+default:
+    just help
+
+setup:
+    #!/usr/bin/env bash
+    if [ ! -f "package-lock.json" ]; then npm install; fi
+    if [ ! -f ".env.local" ] && [ -f ".env.local.example" ]; then cp .env.local.example .env.local; fi
+    echo "Setup complete! Run 'just up' to start the frontend."
+
+format:
+    npx prettier --write .
+
+lint:
+    npx eslint . --fix
+
+test:
+    npm test
+
+all:
+    just format
+    just lint
+    # just test
+
+clean:
+    rm -rf node_modules .next
+    echo "Cleaned up node_modules and .next build output."
+
+rebuild:
+    just down
+    docker compose build --no-cache
+    just up
+    echo "Rebuilt and started fresh containers."
+
+update-deps:
+    npm update
+    echo "Dependencies updated."
+
+pre-commit:
+    npx prettier --check . && npx eslint .
+
+run:
+    npm run dev
+
+up:
+    docker compose up -d
+
+down:
+    docker compose down
+
+bounce:
+    just down
+    just up
+
+restart:
+    docker compose restart
+
+build:
+    docker compose build
+
+logs:
+    docker compose logs -f frontend
+
+shell:
+    docker exec -it tagline-frontend sh
+
+prune:
+    docker system prune -f
+
+help:
+    @echo "\nJustfile: Tagline Frontend Project Helper\n"
+    @just --list
+    @echo "\nRun 'just <command>' to execute a task."
+    @echo "For details: see README.md."

@@ -1,0 +1,30 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tagline-frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind mount the local directory for live reload
+      - .:/app
+      # Exclude node_modules from the bind mount to prevent permission issues
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    # Enable debugging
+    command: sh -c "npm run dev"
+    # For better performance in development
+    tmpfs:
+      - /tmp
+    # Auto-restart if the container crashes
+    restart: unless-stopped
+    # Set working directory
+    working_dir: /app
+    # Set default environment variables here if needed
+    # environment:
+    #   - NEXT_PUBLIC_API_URL=http://localhost:8000
+    #   - NEXTAUTH_URL=http://localhost:3000
