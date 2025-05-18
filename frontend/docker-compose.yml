@@ -2,8 +2,8 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    container_name: tagline-frontend-dev
+      dockerfile: Dockerfile
+    container_name: tagline-frontend
     ports:
       - "3000:3000"
     volumes:
@@ -15,6 +15,13 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8000
+      - BACKEND_URL=http://host.docker.internal:8000
+      - BACKEND_API_KEY=dev_api_key
+      - NEXTAUTH_SECRET=change-this-to-a-secure-random-string
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - STYTCH_PROJECT_ID=${STYTCH_PROJECT_ID}
+      - STYTCH_SECRET=${STYTCH_SECRET}
     # Enable debugging
     command: sh -c "npm run dev"
     # For better performance in development

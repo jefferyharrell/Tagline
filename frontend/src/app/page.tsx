@@ -40,9 +40,9 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        return { 
-          isEligible: false, 
-          error: error.error || 'Failed to check email eligibility' 
+        return {
+          isEligible: false,
+          error: error.error || 'Failed to check email eligibility'
         };
       }
 
@@ -50,9 +50,9 @@ export default function LoginPage() {
       return { isEligible: data.eligible };
     } catch (error) {
       console.error('Error checking email eligibility:', error);
-      return { 
-        isEligible: false, 
-        error: 'Failed to check email eligibility. Please try again.' 
+      return {
+        isEligible: false,
+        error: 'Failed to check email eligibility. Please try again.'
       };
     }
   };
@@ -67,7 +67,7 @@ export default function LoginPage() {
     try {
       // First check if email is eligible
       const { isEligible, error } = await checkEmailEligibility(email);
-      
+
       if (!isEligible) {
         setMessage(error || 'This email is not authorized to access the application.');
         setIsSuccess(false);
@@ -76,8 +76,8 @@ export default function LoginPage() {
 
       // If email is eligible, proceed with magic link
       await stytch.magicLinks.email.loginOrCreate(email, {
-        login_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
-        signup_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
+        login_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
+        signup_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
         login_expiration_minutes: 10,
         signup_expiration_minutes: 10,
       });

@@ -13,16 +13,16 @@
 - [x] 2.4 Test Stytch magic link flow
 
 ## Phase 3: Backend Integration
-- [ ] 3.1 Create API route for authentication callback
+- [x] 3.1 Create API route for authentication callback
 - [x] 3.2 Implement email verification against whitelist
-- [ ] 3.3 Set up JWT cookie handling
-- [ ] 3.4 Test full authentication flow
+- [x] 3.3 Set up JWT cookie handling
+- [x] 3.4 Test full authentication flow
 
 ## Phase 4: Route Protection
-- [ ] 4.1 Create authentication middleware
-- [ ] 4.2 Set up protected route component
-- [ ] 4.3 Create basic dashboard page
-- [ ] 4.4 Test route protection
+- [x] 4.1 Create authentication middleware
+- [x] 4.2 Set up protected route component
+- [x] 4.3 Create basic dashboard page
+- [x] 4.4 Test route protection
 
 ## Phase 5: Testing
 - [ ] 5.1 Set up Jest and React Testing Library
