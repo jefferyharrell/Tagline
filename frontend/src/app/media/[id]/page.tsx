@@ -2,6 +2,7 @@ import React from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import PageHeader from '../../components/PageHeader';
 import MediaDetailClient from './media-detail-client';
 
 // This will handle fetching the media object on the server side
@@ -54,19 +55,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Media Details</h1>
-          <nav className="flex space-x-4">
-            <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
-              Dashboard
-            </Link>
-            <Link href="/media" className="text-gray-600 hover:text-gray-900">
-              Gallery
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <PageHeader title="Media Details" />
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           <div className="bg-white p-8 rounded-lg shadow">
