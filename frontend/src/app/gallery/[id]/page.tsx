@@ -37,14 +37,16 @@ async function getMediaObject(id: string) {
 }
 
 export default async function MediaDetailPage({ params }: { params: { id: string } }) {
+  // Await both dynamic APIs
   const cookieStore = await cookies();
+  const { id } = await params;
   const authToken = cookieStore.get('auth_token');
 
   if (!authToken) {
     redirect('/');
   }
 
-  const mediaObject = await getMediaObject(params.id);
+  const mediaObject = await getMediaObject(id);
 
   if (!mediaObject) {
     redirect('/gallery');

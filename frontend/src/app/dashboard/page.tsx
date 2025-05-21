@@ -11,6 +11,7 @@ export default async function Dashboard({
   // In a real implementation, we would verify the JWT and get user data
   // For now, we'll just check if the auth_token cookie exists
   const cookieStore = await cookies();
+  const params = await searchParams;
   const authToken = cookieStore.get('auth_token');
 
   if (!authToken) {
@@ -18,8 +19,8 @@ export default async function Dashboard({
   }
   
   // Get error or success messages from URL parameters
-  const errorMessage = typeof searchParams.error === 'string' ? searchParams.error : undefined;
-  const successMessage = typeof searchParams.success === 'string' ? searchParams.success : undefined;
+  const errorMessage = typeof params.error === 'string' ? params.error : undefined;
+  const successMessage = typeof params.success === 'string' ? params.success : undefined;
 
   return (
     <div className="min-h-screen bg-gray-50">
