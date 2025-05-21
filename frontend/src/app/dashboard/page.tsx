@@ -25,7 +25,7 @@ export default async function Dashboard({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader title="Tagline Dashboard" />
+      <PageHeader title="" />
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           {/* Display error message if present */}

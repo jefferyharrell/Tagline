@@ -55,7 +55,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <PageHeader title="Media Details" />
+      <PageHeader title="" />
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           <div className="bg-white p-8 rounded-lg shadow">
