@@ -22,7 +22,7 @@ export default async function Gallery() {
             <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
               Dashboard
             </Link>
-            <Link href="/gallery" className="text-indigo-600 font-medium">
+            <Link href="/media" className="text-indigo-600 font-medium">
               Gallery
             </Link>
           </nav>

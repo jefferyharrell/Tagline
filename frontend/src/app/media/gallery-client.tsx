@@ -128,7 +128,7 @@ export default function GalleryClient() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {/* This will render the media objects when we have them */}
           {mediaObjects.map((media) => (
-            <Link key={media.id} href={`/gallery/${media.id}`} className="block">
+            <Link key={media.id} href={`/media/${media.id}`} className="block">
               <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
                 <div className="h-48 bg-gray-200 flex items-center justify-center">
                   <img

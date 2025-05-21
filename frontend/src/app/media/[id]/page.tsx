@@ -49,7 +49,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
   const mediaObject = await getMediaObject(id);
 
   if (!mediaObject) {
-    redirect('/gallery');
+    redirect('/media');
   }
 
   return (
@@ -61,7 +61,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
             <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
               Dashboard
             </Link>
-            <Link href="/gallery" className="text-gray-600 hover:text-gray-900">
+            <Link href="/media" className="text-gray-600 hover:text-gray-900">
               Gallery
             </Link>
           </nav>
@@ -71,7 +71,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           <div className="bg-white p-8 rounded-lg shadow">
             <div className="mb-6">
-              <Link href="/gallery" className="text-indigo-600 hover:text-indigo-800">
+              <Link href="/media" className="text-indigo-600 hover:text-indigo-800">
                 &larr; Back to Gallery
               </Link>
             </div>

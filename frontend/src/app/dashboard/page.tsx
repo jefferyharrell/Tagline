@@ -31,7 +31,7 @@ export default async function Dashboard({
             <Link href="/dashboard" className="text-indigo-600 font-medium">
               Dashboard
             </Link>
-            <Link href="/gallery" className="text-gray-600 hover:text-gray-900">
+            <Link href="/media" className="text-gray-600 hover:text-gray-900">
               Gallery
             </Link>
           </nav>
@@ -66,7 +66,7 @@ export default async function Dashboard({
                   Browse, search, and manage your media objects with tags and metadata.
                 </p>
                 <Link 
-                  href="/gallery" 
+                  href="/media" 
                   className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
                 >
                   Go to Gallery
