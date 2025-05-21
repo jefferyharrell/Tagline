@@ -20,7 +20,7 @@ The backend implements a RESTful API with these key components:
 - **Authentication**: JWT-based with Stytch for magic link emails
 - **Database**: PostgreSQL with SQLAlchemy ORM
 
-### Frontend (Next.js)
+### Frontend (Next.js 15)
 
 The frontend provides:
 

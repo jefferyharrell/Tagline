@@ -10,7 +10,7 @@ export default async function Dashboard({
 }) {
   // In a real implementation, we would verify the JWT and get user data
   // For now, we'll just check if the auth_token cookie exists
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const authToken = cookieStore.get('auth_token');
 
   if (!authToken) {

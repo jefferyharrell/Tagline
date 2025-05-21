@@ -6,7 +6,7 @@ import MediaDetailClient from './media-detail-client';
 
 // This will handle fetching the media object on the server side
 async function getMediaObject(id: string) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const authToken = cookieStore.get('auth_token');
 
   if (!authToken) {
@@ -37,7 +37,7 @@ async function getMediaObject(id: string) {
 }
 
 export default async function MediaDetailPage({ params }: { params: { id: string } }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const authToken = cookieStore.get('auth_token');
 
   if (!authToken) {
