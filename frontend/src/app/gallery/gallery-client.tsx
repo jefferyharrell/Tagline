@@ -33,7 +33,28 @@ export default function GalleryClient() {
       }
       
       const data = await response.json();
-      setMediaObjects(data);
+      console.log('API response:', data); // Log the response for debugging
+      
+      // Handle different response formats
+      if (Array.isArray(data)) {
+        // Ensure each media object has a metadata field
+        const sanitizedData = data.map(item => ({
+          ...item,
+          metadata: item.metadata || {}
+        }));
+        setMediaObjects(sanitizedData);
+      } else if (data.items && Array.isArray(data.items)) {
+        // Handle paginated response format
+        const sanitizedItems = data.items.map(item => ({
+          ...item,
+          metadata: item.metadata || {}
+        }));
+        setMediaObjects(sanitizedItems);
+      } else {
+        // If no valid data format is found, set empty array
+        console.error('Unexpected data format:', data);
+        setMediaObjects([]);
+      }
     } catch (err) {
       console.error('Error fetching media objects:', err);
       setError('Failed to load media objects');
@@ -112,16 +133,16 @@ export default function GalleryClient() {
                 <div className="h-48 bg-gray-200 flex items-center justify-center">
                   <img
                     src={`/api/media/${media.id}/thumbnail`}
-                    alt={media.metadata.description || 'Media thumbnail'}
+                    alt={(media.metadata?.description) || 'Media thumbnail'}
                     className="object-cover w-full h-full"
                   />
                 </div>
                 <div className="p-4">
                   <p className="text-sm font-medium truncate">
-                    {media.metadata.description || 'No description'}
+                    {(media.metadata?.description) || 'No description'}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {media.metadata.keywords?.map((keyword, index) => (
+                    {media.metadata?.keywords?.map((keyword, index) => (
                       <span
                         key={index}
                         className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
