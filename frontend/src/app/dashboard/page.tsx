@@ -1,11 +1,12 @@
 import React from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 export default async function Dashboard() {
   // In a real implementation, we would verify the JWT and get user data
   // For now, we'll just check if the auth_token cookie exists
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const authToken = cookieStore.get('auth_token');
 
   if (!authToken) {
@@ -13,19 +14,58 @@ export default async function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center mb-6">Tagline Dashboard</h1>
-        <p className="text-center text-gray-600 mb-8">
-          Welcome to the Tagline media management system for the Junior League of Los Angeles.
-        </p>
-        <div className="flex justify-center">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">
-            <p>You are successfully logged in!</p>
-            <p className="mt-2">This is a temporary dashboard page. The full interface will be implemented soon.</p>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Tagline Dashboard</h1>
+          <nav className="flex space-x-4">
+            <Link href="/dashboard" className="text-indigo-600 font-medium">
+              Dashboard
+            </Link>
+            <Link href="/gallery" className="text-gray-600 hover:text-gray-900">
+              Gallery
+            </Link>
+          </nav>
+        </div>
+      </header>
+      <main>
+        <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-xl font-bold mb-6">Welcome to Tagline</h2>
+            <p className="text-gray-600 mb-8">
+              Tagline is a media management system for the Junior League of Los Angeles.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="border border-gray-200 rounded-lg p-6 hover:border-indigo-300 hover:shadow transition-all">
+                <h3 className="text-lg font-semibold mb-2">Media Gallery</h3>
+                <p className="text-gray-600 mb-4">
+                  Browse, search, and manage your media objects with tags and metadata.
+                </p>
+                <Link 
+                  href="/gallery" 
+                  className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
+                >
+                  Go to Gallery
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </Link>
+              </div>
+              
+              <div className="border border-gray-200 rounded-lg p-6 hover:border-indigo-300 hover:shadow transition-all">
+                <h3 className="text-lg font-semibold mb-2">User Management</h3>
+                <p className="text-gray-600 mb-4">
+                  Manage user accounts, permissions, and access controls (coming soon).
+                </p>
+                <span className="inline-flex items-center text-gray-400">
+                  Coming Soon
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

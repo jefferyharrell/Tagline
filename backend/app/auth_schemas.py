@@ -36,7 +36,7 @@ class Role(RoleBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # User schemas
@@ -55,7 +55,7 @@ class User(UserBase):
     roles: List[Role]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Authentication schemas
@@ -98,4 +98,4 @@ class EligibleEmail(EligibleEmailBase):
     batch_id: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
