@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { buttonVariants } from "@/components/ui/button"
 
 interface PageHeaderProps {
   title: string;
@@ -34,14 +35,14 @@ export default function PageHeader({ title }: PageHeaderProps) {
         </div>
         <nav className="flex space-x-4">
           <Link 
-            href="/dashboard" 
-            className={`${isActive('/dashboard') ? 'text-indigo-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            href="/dashboard"
+            className={`${isActive('/dashboard') ? buttonVariants({ variant: "default" }) : buttonVariants({ variant: "secondary" })}`}
           >
             Dashboard
           </Link>
           <Link 
             href="/media" 
-            className={`${isActive('/media') ? 'text-indigo-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`${isActive('/media') ? buttonVariants({ variant: "default" }) : buttonVariants({ variant: "secondary" })}`}
           >
             Media
           </Link>

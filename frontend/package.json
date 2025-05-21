@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.3",
     "@stytch/nextjs": "^21.5.0",
     "@stytch/vanilla-js": "^5.23.5",
     "class-variance-authority": "^0.7.1",
