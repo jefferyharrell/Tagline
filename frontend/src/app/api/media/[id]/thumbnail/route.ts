@@ -7,14 +7,14 @@ export async function GET(
 ) {
   try {
     // Get the auth token from cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const authToken = cookieStore.get('auth_token');
 
     if (!authToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = params.id;
+    const { id } = await params;
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
     const backendApiKey = process.env.BACKEND_API_KEY;
 

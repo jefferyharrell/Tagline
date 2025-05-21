@@ -5,7 +5,7 @@ import Link from 'next/link';
 import MediaDetailClient from './media-detail-client';
 
 // This will handle fetching the media object on the server side
-async function getMediaObject(id: string) {
+async function getMediaObject(mediaId: string) {
   const cookieStore = await cookies();
   const authToken = cookieStore.get('auth_token');
 
@@ -17,7 +17,7 @@ async function getMediaObject(id: string) {
   const backendApiKey = process.env.BACKEND_API_KEY;
 
   try {
-    const response = await fetch(`${backendUrl}/v1/media/${id}`, {
+    const response = await fetch(`${backendUrl}/v1/media/${mediaId}`, {
       headers: {
         'Authorization': `Bearer ${authToken.value}`,
         'X-API-Key': backendApiKey || '',

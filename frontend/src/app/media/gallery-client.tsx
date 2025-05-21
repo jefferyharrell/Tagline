@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
 interface MediaObject {
@@ -15,69 +15,103 @@ interface MediaObject {
   updated_at: string;
 }
 
+interface PaginatedResponse {
+  items: MediaObject[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export default function GalleryClient() {
   const [mediaObjects, setMediaObjects] = useState<MediaObject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadingRef = useRef<HTMLDivElement>(null);
+  
+  const ITEMS_PER_PAGE = 24;
 
-  const fetchMediaObjects = async () => {
+  const fetchMediaObjects = useCallback(async (reset: boolean = false) => {
+    if (isLoading || (!hasMore && !reset)) return;
+    
+    const currentOffset = reset ? 0 : offset;
     setIsLoading(true);
     setError(null);
     
     try {
-      const response = await fetch('/api/media');
+      const response = await fetch(`/api/media?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`);
       
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch media objects');
       }
       
-      const data = await response.json();
-      console.log('API response:', data); // Log the response for debugging
+      const data: PaginatedResponse = await response.json();
+      console.log('API response:', data);
       
-      // Handle different response formats
-      if (Array.isArray(data)) {
-        // Ensure each media object has a metadata field
-        const sanitizedData = data.map(item => ({
-          ...item,
-          metadata: item.metadata || {}
-        }));
-        setMediaObjects(sanitizedData);
-      } else if (data.items && Array.isArray(data.items)) {
-        // Handle paginated response format
-        const sanitizedItems = data.items.map(item => ({
-          ...item,
-          metadata: item.metadata || {}
-        }));
+      // Ensure each media object has a metadata field
+      const sanitizedItems = data.items.map(item => ({
+        ...item,
+        metadata: item.metadata || {}
+      }));
+      
+      if (reset) {
         setMediaObjects(sanitizedItems);
       } else {
-        // If no valid data format is found, set empty array
-        console.error('Unexpected data format:', data);
-        setMediaObjects([]);
+        setMediaObjects(prev => [...prev, ...sanitizedItems]);
       }
+      
+      // Check if we've loaded all items
+      setHasMore(currentOffset + data.items.length < data.total);
+      setOffset(currentOffset + data.items.length);
+      setInitialLoad(false);
     } catch (err) {
       console.error('Error fetching media objects:', err);
-      setError('Failed to load media objects');
+      setError((err as Error).message || 'Failed to fetch media objects');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [offset, isLoading, hasMore]);
 
+  // Initialize data load
   useEffect(() => {
-    fetchMediaObjects();
+    fetchMediaObjects(true);
   }, []);
+
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    if (loadingRef.current && !initialLoad) {
+      observerRef.current = new IntersectionObserver(entries => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMore && !isLoading) {
+          fetchMediaObjects();
+        }
+      }, { threshold: 0.5 });
+      
+      observerRef.current.observe(loadingRef.current);
+    }
+    
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [fetchMediaObjects, hasMore, isLoading, initialLoad]);
 
   return (
     <div className="bg-white p-8 rounded-lg shadow">
-      {isLoading ? (
+      {isLoading && mediaObjects.length === 0 ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
         </div>
-      ) : error ? (
+      ) : error && mediaObjects.length === 0 ? (
         <div className="text-center text-red-600 p-4">
           <p>{error}</p>
           <button
-            onClick={fetchMediaObjects}
+            onClick={() => fetchMediaObjects(true)}
             className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
           >
             Try Again
@@ -105,7 +139,7 @@ export default function GalleryClient() {
           </p>
           <div className="mt-6">
             <button
-              onClick={fetchMediaObjects}
+              onClick={() => fetchMediaObjects(true)}
               className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               <svg
@@ -125,37 +159,51 @@ export default function GalleryClient() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {/* This will render the media objects when we have them */}
-          {mediaObjects.map((media) => (
-            <Link key={media.id} href={`/media/${media.id}`} className="block">
-              <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                <div className="h-48 bg-gray-200 flex items-center justify-center">
-                  <img
-                    src={`/api/media/${media.id}/thumbnail`}
-                    alt={(media.metadata?.description) || 'Media thumbnail'}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-                <div className="p-4">
-                  <p className="text-sm font-medium truncate">
-                    {(media.metadata?.description) || 'No description'}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {media.metadata?.keywords?.map((keyword, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {mediaObjects.map((media) => (
+              <Link key={media.id} href={`/media/${media.id}`} className="block">
+                <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="h-48 bg-gray-200 flex items-center justify-center">
+                    <img
+                      src={`/api/media/${media.id}/thumbnail`}
+                      alt={(media.metadata?.description) || 'Media thumbnail'}
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm font-medium truncate">
+                      {(media.metadata?.description) || 'No description'}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {media.metadata?.keywords?.map((keyword, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+          
+          {/* Loading indicator for infinite scroll */}
+          <div 
+            ref={loadingRef} 
+            className="flex justify-center items-center py-4 mt-6"
+          >
+            {isLoading && (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            )}
+            {!hasMore && mediaObjects.length > 0 && (
+              <p className="text-gray-500 text-sm">No more media objects to load</p>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
