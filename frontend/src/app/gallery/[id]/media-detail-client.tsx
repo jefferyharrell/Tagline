@@ -74,7 +74,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
       <div>
         <div className="bg-gray-100 rounded-lg overflow-hidden">
           <img
-            src={`/api/media/${mediaObject.id}/thumbnail`}
+            src={`/api/media/${mediaObject.id}/proxy`}
             alt={mediaObject.metadata.description || 'Media thumbnail'}
             className="object-contain w-full h-full"
           />
