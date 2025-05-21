@@ -50,7 +50,6 @@ export default function GalleryClient() {
       }
       
       const data: PaginatedResponse = await response.json();
-      console.log('API response:', data);
       
       // Ensure each media object has a metadata field
       const sanitizedItems = data.items.map(item => ({
