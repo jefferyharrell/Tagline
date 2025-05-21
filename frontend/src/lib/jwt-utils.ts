@@ -37,7 +37,7 @@ export async function verifyJwtToken(token: string): Promise<JwtPayload | null> 
     
     const { payload } = await jwtVerify(
       token,
-      new TextEncoder().encode(process.env.NEXTAUTH_SECRET || '')
+      new TextEncoder().encode(process.env.JWT_SECRET || '')
     ) as JWTVerifyResult;
     
     return payload as unknown as JwtPayload;
