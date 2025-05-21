@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from enum import Enum
-from typing import Any
+from typing import Any, List
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,7 +38,12 @@ class Settings(BaseSettings):
 
     # Administrator access
     ADMINISTRATOR_EMAIL: str | None = None  # Email that always has access
-
+    
+    # Authentication bypass for development
+    ENV_MODE: str = "production"  # 'production', 'development', or 'test'
+    AUTH_BYPASS_EMAILS: str | None = None  # Comma-separated list of emails that can bypass auth
+    AUTH_BYPASS_ENABLED: str | None = None  # Set to 'true' to enable auth bypass
+    
     THUMBNAIL_FORMAT: str = "jpeg"
     THUMBNAIL_QUALITY: int = 85
     THUMBNAIL_SIZE: tuple[int, int] = (512, 512)

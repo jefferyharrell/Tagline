@@ -76,8 +76,8 @@ export default function LoginPage() {
 
       // If email is eligible, proceed with magic link
       await stytch.magicLinks.email.loginOrCreate(email, {
-        login_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
-        signup_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
+        login_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
+        signup_magic_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/authenticate`,
         login_expiration_minutes: 10,
         signup_expiration_minutes: 10,
       });
@@ -145,6 +145,58 @@ export default function LoginPage() {
               {isLoading ? 'Sending...' : 'Send Magic Link'}
             </button>
           </div>
+          
+          {/* Dev Login Button - Only visible in development with bypass enabled */}
+          {process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === 'true' && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  
+                  try {
+                    setIsLoading(true);
+                    const devEmail = email || process.env.NEXT_PUBLIC_AUTH_BYPASS_DEFAULT_EMAIL || '';
+                    
+                    if (!devEmail) {
+                      setMessage('Please enter an email address for dev login');
+                      setIsSuccess(false);
+                      setIsLoading(false);
+                      return;
+                    }
+                    
+                    const response = await fetch('/api/auth/dev-login', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ email: devEmail }),
+                    });
+                    
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(error.message || 'Development login failed');
+                    }
+                    
+                    // Redirect to dashboard
+                    router.push('/dashboard');
+                  } catch (error) {
+                    console.error('Dev login error:', error);
+                    setMessage((error as Error).message || 'Development login failed');
+                    setIsSuccess(false);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              >
+                ⚙️ Developer Login
+              </button>
+              <div className="mt-1 text-xs text-center text-gray-500">
+                Bypasses email verification in development environment
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>

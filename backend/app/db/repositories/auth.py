@@ -112,14 +112,7 @@ class EligibleEmailRepository:
 
     def is_eligible(self, email: str) -> bool:
         """Check if an email is eligible"""
-        # Check if this is the administrator email from settings
-        settings = get_settings()
-        admin_email = settings.ADMINISTRATOR_EMAIL
-        if admin_email and email.lower() == admin_email.lower():
-            logger.info(f"Admin email {email} automatically granted eligibility")
-            return True
-
-        # Otherwise check the database
+        # Check the database for eligible email
         return (
             self.db.query(EligibleEmail).filter(EligibleEmail.email == email).first()
             is not None

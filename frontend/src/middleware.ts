@@ -9,10 +9,20 @@ const publicPaths = [
   '/authenticate',
   '/api/auth/callback',
   '/api/auth/check-email',
+  '/debug-auth',
+  '/api/auth/dev-login',
 ];
+
+// Stytch magic link redirect pattern
+const STYTCH_REDIRECT_PATTERN = /test\.stytch\.com\/v1\/magic_links\/redirect/;
 
 // Check if the path is public
 function isPublicPath(path: string): boolean {
+  // Allow Stytch redirect URLs
+  if (STYTCH_REDIRECT_PATTERN.test(path)) {
+    return true;
+  }
+  
   return publicPaths.some(publicPath => 
     path === publicPath || 
     path.startsWith(`${publicPath}/`) ||
@@ -44,8 +54,11 @@ async function verifyJWT(token: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
+  console.log("Middleware checking path:", pathname, "Full URL:", request.url);
+  
   // Allow public paths
-  if (isPublicPath(pathname)) {
+  if (isPublicPath(pathname) || isPublicPath(request.url)) {
+    console.log("Public path detected, allowing");
     return NextResponse.next();
   }
   
