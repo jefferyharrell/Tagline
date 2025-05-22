@@ -159,31 +159,23 @@ export default function GalleryClient() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {mediaObjects.map((media) => (
               <Link key={media.id} href={`/media/${media.id}`} className="block">
-                <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="h-48 bg-gray-200 flex items-center justify-center">
+                <div className="border rounded-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="relative h-48 bg-gray-200 flex items-center justify-center">
                     <img
                       src={`/api/media/${media.id}/thumbnail`}
                       alt={(media.metadata?.description) || 'Media thumbnail'}
                       className="object-cover w-full h-full"
                     />
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm font-medium truncate">
-                      {(media.metadata?.description) || 'No description'}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {media.metadata?.keywords?.map((keyword, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                        >
-                          {keyword}
-                        </span>
-                      ))}
-                    </div>
+                    {media.metadata?.description && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-2">
+                        <p className="text-white text-sm font-medium line-clamp-2">
+                          {media.metadata.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>
