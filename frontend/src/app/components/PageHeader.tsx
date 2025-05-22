@@ -1,10 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { buttonVariants } from "@/components/ui/button"
 
 interface PageHeaderProps {
   title: string;
@@ -22,10 +21,32 @@ export default function PageHeader({
   searchPlaceholder = 'Search media...'
 }: PageHeaderProps) {
   const pathname = usePathname();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(`${path}/`);
   };
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   return (
     <header className="bg-white shadow">
@@ -75,21 +96,58 @@ export default function PageHeader({
           </div>
         )}
 
-        {/* Right: Navigation */}
-        <nav className="flex space-x-4 flex-shrink-0">
-          <Link 
-            href="/media" 
-            className={`${isActive('/media') ? buttonVariants({ variant: "default" }) : buttonVariants({ variant: "secondary" })}`}
+        {/* Right: Hamburger Menu */}
+        <div className="relative flex-shrink-0" ref={menuRef}>
+          <button
+            onClick={toggleMenu}
+            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+            aria-expanded={isMenuOpen}
+            aria-haspopup="true"
           >
-            Media
-          </Link>
-          <Link 
-            href="/dashboard"
-            className={`${isActive('/dashboard') ? buttonVariants({ variant: "default" }) : buttonVariants({ variant: "secondary" })}`}
-          >
-            Dashboard
-          </Link>
-        </nav>
+            <span className="sr-only">Open menu</span>
+            <svg 
+              className="h-6 w-6" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 6h16M4 12h16M4 18h16" 
+              />
+            </svg>
+          </button>
+
+          {/* Dropdown Menu */}
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+              <div className="py-1" role="menu" aria-orientation="vertical">
+                <Link 
+                  href="/media" 
+                  className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
+                    isActive('/media') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                  }`}
+                  role="menuitem"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Media
+                </Link>
+                <Link 
+                  href="/dashboard"
+                  className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
+                    isActive('/dashboard') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                  }`}
+                  role="menuitem"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
