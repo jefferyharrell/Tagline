@@ -75,8 +75,9 @@ class StorageProviderBase(Protocol):
 - `GET /v1/media`: List all media objects with pagination
 - `GET /v1/media/{id}`: Get specific media object metadata
 - `PATCH /v1/media/{id}`: Update media object metadata
-- `GET /v1/media/{id}/data`: Stream the full media file
 - `GET /v1/media/{id}/thumbnail`: Get the thumbnail image
+- `GET /v1/media/{id}/proxy`: Stream the proxy file
+- `GET /v1/media/{id}/data`: Stream the full media file
 - `POST /v1/auth/authenticate`: Authenticate with Stytch
 - `POST /v1/auth/bypass`: Developer authentication bypass
 - `POST /v1/ingest`: Scan storage for new media files
@@ -171,3 +172,31 @@ Tagline is developed for the Junior League of Los Angeles to manage approximatel
 4. User-friendly interface for non-technical users
 
 Prior work includes a demo presented in April 2025, with ongoing development of the gallery and admin views planned for completion.
+
+## Miscellaneous Notes
+
+Both the backend and the frontend are containerized with Docker Compose. The `just` command is used for managing the development environment.
+
+- To start the backend:
+  ```bash
+  cd backend
+  just up
+  ```
+   
+- To start the frontend:
+  ```bash
+   cd frontend
+   just up
+  ```
+
+- To restart either service:
+  ```bash
+  cd [directory]
+  just restart
+  ```
+
+- To bounce (down, up) either service:
+  ```bash
+  cd [directory]
+  just bounce
+  ```
