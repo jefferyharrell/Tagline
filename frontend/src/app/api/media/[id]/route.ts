@@ -59,8 +59,13 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
+    console.log('API Route PATCH - Media ID:', id);
+    console.log('API Route PATCH - Request body:', body);
+    
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
     const backendApiKey = process.env.BACKEND_API_KEY;
+
+    console.log('API Route PATCH - Sending to backend:', `${backendUrl}/v1/media/${id}`);
 
     const response = await fetch(`${backendUrl}/v1/media/${id}`, {
       method: 'PATCH',
@@ -72,8 +77,11 @@ export async function PATCH(
       body: JSON.stringify(body),
     });
 
+    console.log('API Route PATCH - Backend response status:', response.status);
+
     if (!response.ok) {
       const error = await response.json();
+      console.log('API Route PATCH - Backend error:', error);
       return NextResponse.json(
         { error: error.detail || 'Failed to update media object' },
         { status: response.status }
@@ -81,9 +89,10 @@ export async function PATCH(
     }
 
     const data = await response.json();
+    console.log('API Route PATCH - Backend response data:', data);
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error updating media object:', error);
+    console.error('API Route PATCH - Error updating media object:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

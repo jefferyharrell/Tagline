@@ -30,7 +30,9 @@ async function getMediaObject(mediaId: string) {
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Server-side getMediaObject - Fetched data:', data);
+    return data;
   } catch (error) {
     console.error('Error fetching media object:', error);
     return null;
@@ -60,11 +62,11 @@ export default async function MediaDetailPage({ params }: { params: { id: string
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           <div className="bg-white rounded-lg shadow">
             <div className="p-8">
-              <div className="mb-6">
+              {/* <div className="mb-6">
                 <Link href="/media" className="text-indigo-600 hover:text-indigo-800">
                   &larr; Back to Library
                 </Link>
-              </div>
+              </div> */}
               <MediaDetailClient initialMediaObject={mediaObject} />
             </div>
           </div>

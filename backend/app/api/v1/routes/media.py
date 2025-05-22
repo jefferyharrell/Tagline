@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 # Import needed for get_media_thumbnail (placeholder logic)
 from app.db.repositories.media_object import MediaObjectNotFound, MediaObjectRepository
 from app.dependencies import get_media_object_repository
-from app.schemas import MediaObject, MediaObjectMetadata, PaginatedMediaResponse
+from app.schemas import MediaObject, MediaObjectMetadata, MediaObjectPatch, PaginatedMediaResponse
 from app.storage_provider import get_storage_provider
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,7 @@ def list_media_objects(
                     id=record.id,
                     object_key=record.object_key,
                     last_modified=record.last_modified,
+                    metadata=record.metadata,
                 )
             )
         else:
@@ -143,7 +144,7 @@ def get_media_object(
 @router.patch("/media/{id}", response_model=MediaObject, tags=["media"])
 def patch_media_object(
     id: UUID,
-    metadata_patch: MediaObjectMetadata,
+    patch_request: MediaObjectPatch,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
 ) -> MediaObject:
     """
@@ -154,15 +155,18 @@ def patch_media_object(
     if not record or record.id is None or record.object_key is None:
         raise HTTPException(status_code=404, detail="Media object not found")
 
-    # Defensive: ensure record.metadata is a dict
-    existing_metadata = record.metadata or {}
-    patch_dict = metadata_patch.model_dump(exclude_unset=True)
-    if not patch_dict:
-        # No changes requested, return current object
+    # Extract metadata from the patch request
+    patch_dict = patch_request.model_dump(exclude_unset=True)
+    if not patch_dict or "metadata" not in patch_dict:
+        # No metadata changes requested, return current object
         return record.to_pydantic()
 
-    # Merge patch into existing metadata
-    merged_metadata = {**existing_metadata, **patch_dict}
+    # Defensive: ensure record.metadata is a dict
+    existing_metadata = record.metadata or {}
+    new_metadata = patch_dict["metadata"]
+    
+    # Merge new metadata into existing metadata
+    merged_metadata = {**existing_metadata, **new_metadata}
     record.metadata = merged_metadata
 
     # Update last_modified timestamp

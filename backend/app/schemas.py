@@ -38,6 +38,14 @@ class MediaObject(BaseModel):
     metadata: Optional[dict] = None
 
 
+class MediaObjectPatch(BaseModel):
+    """Schema for PATCH requests to update media object metadata."""
+    
+    metadata: Optional[dict] = Field(
+        default=None, description="Metadata to merge into existing metadata."
+    )
+
+
 class PaginatedMediaResponse(BaseModel):
     """Schema for paginated list of MediaObjects."""
 

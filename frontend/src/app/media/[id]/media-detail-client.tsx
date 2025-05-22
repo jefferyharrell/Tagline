@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 interface MediaObject {
@@ -29,10 +29,32 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
   const [success, setSuccess] = useState<string | null>(null);
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
 
+  // Debug logging to check what data we're receiving
+  console.log('MediaDetailClient - Initial media object:', initialMediaObject);
+  console.log('MediaDetailClient - Description from metadata:', mediaObject.metadata.description);
+  console.log('MediaDetailClient - Current description state:', description);
+
+  // Sync description when mediaObject changes
+  useEffect(() => {
+    setDescription(mediaObject.metadata.description || '');
+  }, [mediaObject.metadata.description]);
+
   const handleSave = async () => {
     setIsLoading(true);
     setError(null);
     setSuccess(null);
+
+    console.log('PATCH - Starting save with description:', description);
+    console.log('PATCH - Current mediaObject.metadata:', mediaObject.metadata);
+
+    const requestBody = {
+      metadata: {
+        ...mediaObject.metadata,
+        description,
+      },
+    };
+    
+    console.log('PATCH - Request body:', requestBody);
 
     try {
       const response = await fetch(`/api/media/${mediaObject.id}`, {
@@ -40,25 +62,27 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          metadata: {
-            ...mediaObject.metadata,
-            description,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('PATCH - Response status:', response.status);
+      console.log('PATCH - Response ok:', response.ok);
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.log('PATCH - Error response:', errorData);
         throw new Error(errorData.error || 'Failed to update media object');
       }
 
       const updatedMediaObject = await response.json();
+      console.log('PATCH - Updated media object received:', updatedMediaObject);
+      console.log('PATCH - Updated description in response:', updatedMediaObject.metadata?.description);
+      
       setMediaObject(updatedMediaObject);
       setIsDescriptionLocked(true);
       setSuccess('Description updated successfully');
     } catch (err) {
-      console.error('Error updating media object:', err);
+      console.error('PATCH - Error updating media object:', err);
       setError((err as Error).message || 'Failed to update description');
     } finally {
       setIsLoading(false);
@@ -72,7 +96,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
   return (
     <div className="max-w-4xl mx-auto">
       {/* Photo Preview Section */}
-      <div className="bg-gray-100 rounded-lg overflow-hidden max-w-2xl mx-auto mb-8 relative h-96">
+      <div className="bg-gray-100 rounded-lg overflow-hidden max-w-3xl mx-auto mb-8 relative h-144">
         <Image
           src={`/api/media/${mediaObject.id}/proxy`}
           alt={mediaObject.metadata.description || 'Media preview'}
@@ -98,7 +122,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
           {/* Description Textarea with Padlock */}
           <div className="relative" style={{ width: '80%', margin: '0 auto' }}>
             <textarea
-              value={description}
+              value={description || ''}
               onChange={(e) => setDescription(e.target.value)}
               readOnly={isDescriptionLocked}
               rows={5}
@@ -107,7 +131,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
                   ? 'bg-gray-50 text-gray-700 cursor-default' 
                   : 'bg-white text-gray-900 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
-              placeholder={isDescriptionLocked ? '' : 'Enter a description for this media...'}
+              placeholder={isDescriptionLocked ? (description ? '' : 'No description provided') : 'Enter a description for this media...'}
             />
             
             {/* Padlock Icon */}
