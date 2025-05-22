@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { Textarea } from '@/components/ui/textarea';
 
 interface MediaObject {
   id: string;
@@ -106,15 +107,15 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
         <div className="max-w-2xl mx-auto">
           {/* Description Textarea with Padlock */}
           <div className="relative" style={{ width: '80%', margin: '0 auto' }}>
-            <textarea
+            <Textarea
               value={description || ''}
               onChange={(e) => setDescription(e.target.value)}
               readOnly={isDescriptionLocked}
               rows={5}
-              className={`w-full resize-none rounded-md border-gray-300 shadow-sm text-sm ${
+              className={`w-full resize-none ${
                 isDescriptionLocked 
                   ? 'bg-gray-50 text-gray-700 cursor-default' 
-                  : 'bg-white text-gray-900 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'bg-white text-gray-900'
               }`}
               placeholder={isDescriptionLocked ? (description ? '' : 'No description provided') : 'Enter a description for this media...'}
             />
