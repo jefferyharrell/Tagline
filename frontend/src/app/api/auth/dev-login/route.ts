@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Only available in development mode
 export async function POST(request: NextRequest) {
-  console.log('Dev login API route called');
   try {
-    // Security checks
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('AUTH_BYPASS_ENABLED:', process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED);
-    console.log('BACKEND_URL:', process.env.BACKEND_URL);
-    console.log('BACKEND_API_KEY:', process.env.BACKEND_API_KEY ? '[SET]' : '[NOT SET]');
     
     if (process.env.NODE_ENV === 'production') {
       return NextResponse.json(
@@ -36,7 +30,6 @@ export async function POST(request: NextRequest) {
 
     // Call backend bypass endpoint
     const backendUrl = `${process.env.BACKEND_URL}/v1/auth/bypass`;
-    console.log('Calling backend at:', backendUrl);
     
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
@@ -48,11 +41,9 @@ export async function POST(request: NextRequest) {
     });
     
     if (!backendResponse.ok) {
-      console.log('Backend response not OK:', backendResponse.status);
       let errorMessage = 'Authentication failed';
       try {
         const errorData = await backendResponse.json();
-        console.log('Backend error data:', errorData);
         errorMessage = errorData.detail || errorData.message || errorMessage;
       } catch (e) {
         console.error('Could not parse backend error response');

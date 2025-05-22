@@ -31,7 +31,6 @@ async function getMediaObject(mediaId: string) {
     }
 
     const data = await response.json();
-    console.log('Server-side getMediaObject - Fetched data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching media object:', error);

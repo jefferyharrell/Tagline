@@ -54,11 +54,9 @@ async function verifyJWT(token: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  console.log("Middleware checking path:", pathname, "Full URL:", request.url);
   
   // Allow public paths
   if (isPublicPath(pathname) || isPublicPath(request.url)) {
-    console.log("Public path detected, allowing");
     return NextResponse.next();
   }
   

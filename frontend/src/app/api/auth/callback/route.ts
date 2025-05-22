@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 
 export async function POST(request: NextRequest) {
-  console.log('Callback API endpoint called');
   
   try {
     const { token } = await request.json();
     
-    console.log('Token received:', token ? 'Present' : 'Missing');
     
     if (!token) {
       return NextResponse.json(
@@ -20,8 +18,6 @@ export async function POST(request: NextRequest) {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
     const apiKey = process.env.BACKEND_API_KEY || '';
     
-    console.log('Using backend URL:', backendUrl);
-    console.log('API Key present:', apiKey ? 'Yes' : 'No');
     
     // Call backend directly with the token - backend will handle Stytch verification
     const backendResponse = await fetch(`${backendUrl}/v1/auth/authenticate`, {
@@ -35,7 +31,6 @@ export async function POST(request: NextRequest) {
       }),
     });
     
-    console.log('Backend response status:', backendResponse.status);
     
     if (!backendResponse.ok) {
       let errorData;
@@ -55,7 +50,6 @@ export async function POST(request: NextRequest) {
     }
     
     const userResponse = await backendResponse.json();
-    console.log('Authentication successful, user roles:', userResponse.user_roles);
     
     // Create response with JWT
     const response = NextResponse.json({

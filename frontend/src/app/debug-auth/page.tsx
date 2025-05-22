@@ -37,7 +37,6 @@ export default function DebugAuth() {
       });
       
       const data = await response.json();
-      console.log('Dev login response:', data);
       
       // Check cookies again
       setCookies(document.cookie);

@@ -13,7 +13,6 @@ export function loadStytch(): stytch.Client {
         : stytch.envs.test,
     });
     
-    console.log('Stytch client initialized with project ID:', process.env.STYTCH_PROJECT_ID);
   }
 
   return stytchClient;

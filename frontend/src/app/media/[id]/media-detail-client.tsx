@@ -29,10 +29,6 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
   const [success, setSuccess] = useState<string | null>(null);
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
 
-  // Debug logging to check what data we're receiving
-  console.log('MediaDetailClient - Initial media object:', initialMediaObject);
-  console.log('MediaDetailClient - Description from metadata:', mediaObject.metadata.description);
-  console.log('MediaDetailClient - Current description state:', description);
 
   // Sync description when mediaObject changes
   useEffect(() => {
@@ -44,17 +40,12 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
     setError(null);
     setSuccess(null);
 
-    console.log('PATCH - Starting save with description:', description);
-    console.log('PATCH - Current mediaObject.metadata:', mediaObject.metadata);
-
     const requestBody = {
       metadata: {
         ...mediaObject.metadata,
         description,
       },
     };
-    
-    console.log('PATCH - Request body:', requestBody);
 
     try {
       const response = await fetch(`/api/media/${mediaObject.id}`, {
@@ -65,18 +56,12 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
         body: JSON.stringify(requestBody),
       });
 
-      console.log('PATCH - Response status:', response.status);
-      console.log('PATCH - Response ok:', response.ok);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.log('PATCH - Error response:', errorData);
         throw new Error(errorData.error || 'Failed to update media object');
       }
 
       const updatedMediaObject = await response.json();
-      console.log('PATCH - Updated media object received:', updatedMediaObject);
-      console.log('PATCH - Updated description in response:', updatedMediaObject.metadata?.description);
       
       setMediaObject(updatedMediaObject);
       setIsDescriptionLocked(true);

@@ -18,7 +18,6 @@ export default function AuthenticatePage() {
         const token = searchParams.get('token');
         const tokenType = searchParams.get('stytch_token_type');
         
-        console.log('Processing auth with token type:', tokenType);
         
         if (!token) {
           setError('No authentication token found');
@@ -26,10 +25,8 @@ export default function AuthenticatePage() {
           return;
         }
 
-        console.log('Processing Stytch token on authenticate page');
         
         // Send token to our backend API
-        console.log('Sending token to callback API');
         const response = await fetch('/api/auth/callback', {
           method: 'POST',
           headers: {
@@ -40,12 +37,10 @@ export default function AuthenticatePage() {
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          console.error('Callback API error:', data);
           throw new Error(data.message || `Authentication failed with status ${response.status}`);
         }
 
         const authData = await response.json();
-        console.log('Authentication successful!');
         
         // Redirect to dashboard on success
         router.push('/dashboard');
