@@ -106,7 +106,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
 
         <div className="max-w-2xl mx-auto">
           {/* Description Textarea with Padlock */}
-          <div className="relative" style={{ width: '80%', margin: '0 auto' }}>
+          <div className="relative" style={{ width: '80%', margin: '0 auto', transform: 'scale(1.5)', transformOrigin: 'center' }}>
             <Textarea
               value={description || ''}
               onChange={(e) => setDescription(e.target.value)}
