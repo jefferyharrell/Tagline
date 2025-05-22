@@ -32,7 +32,7 @@ export default function GalleryClient() {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   
-  const ITEMS_PER_PAGE = 24;
+  const ITEMS_PER_PAGE = 36;
 
   const fetchMediaObjects = useCallback(async (reset: boolean = false) => {
     if (isLoading || (!hasMore && !reset)) return;
