@@ -191,12 +191,18 @@ Both the backend and the frontend are containerized with Docker Compose. The `ju
 
 - To restart either service:
   ```bash
-  cd [directory]
+  cd [backend|frontend]
   just restart
   ```
 
 - To bounce (down, up) either service:
   ```bash
-  cd [directory]
+  cd [backend|frontend]
   just bounce
+  ```
+
+- To view logs:
+  ```bash
+  cd [backend|frontend]
+  docker compose logs
   ```
