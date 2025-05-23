@@ -19,7 +19,7 @@ export default function LoginPage() {
       try {
         const session = await stytch.session.getSync();
         if (session) {
-          router.push("/dashboard");
+          router.push("/library");
         }
       } catch (error) {
         console.error("Error checking session:", error);
@@ -109,6 +109,7 @@ export default function LoginPage() {
               width={200}
               height={200}
               className="w-[100px] h-[100px]"
+              priority={true}
             />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -200,8 +201,8 @@ export default function LoginPage() {
                         );
                       }
 
-                      // Redirect to dashboard
-                      router.push("/dashboard");
+                      // Redirect to library
+                      router.push("/library");
                     } catch (error) {
                       console.error("Dev login error:", error);
                       setMessage(

@@ -25,29 +25,29 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      // If there's an error, redirect back to dashboard with error parameter
+      // If there's an error, redirect back to library with error parameter
       const error = await response.json();
       const errorMessage = encodeURIComponent(
         error.detail || "Failed to start ingest task",
       );
       return NextResponse.redirect(
-        new URL(`/dashboard?error=${errorMessage}`, request.url),
+        new URL(`/library?error=${errorMessage}`, request.url),
       );
     }
 
-    // On success, redirect back to dashboard with success message
+    // On success, redirect back to library with success message
     return NextResponse.redirect(
       new URL(
-        "/dashboard?success=Ingest task started successfully",
+        "/library?success=Ingest task started successfully",
         request.url,
       ),
     );
   } catch (error) {
     console.error("Error starting ingest task:", error);
-    // On exception, redirect back to dashboard with error
+    // On exception, redirect back to library with error
     const errorMessage = encodeURIComponent("Internal server error");
     return NextResponse.redirect(
-      new URL(`/dashboard?error=${errorMessage}`, request.url),
+      new URL(`/library?error=${errorMessage}`, request.url),
     );
   }
 }

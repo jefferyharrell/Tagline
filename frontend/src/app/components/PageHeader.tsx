@@ -141,7 +141,7 @@ export default function PageHeader({
                   Library
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href="/library"
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
                     isActive("/dashboard")
                       ? "bg-indigo-50 text-indigo-700"

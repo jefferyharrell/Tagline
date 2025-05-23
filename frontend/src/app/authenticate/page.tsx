@@ -43,8 +43,8 @@ export default function AuthenticatePage() {
 
         await response.json();
 
-        // Redirect to dashboard on success
-        router.push("/dashboard");
+        // Redirect to library on success
+        router.push("/library");
       } catch (error) {
         console.error("Authentication error:", error);
         setError((error as Error).message || "Authentication failed");

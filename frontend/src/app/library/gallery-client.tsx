@@ -84,7 +84,8 @@ export default function GalleryClient() {
   // Initialize data load
   useEffect(() => {
     fetchMediaObjects(true);
-  }, [fetchMediaObjects]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Setup intersection observer for infinite scroll
   useEffect(() => {
