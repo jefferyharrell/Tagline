@@ -70,17 +70,50 @@ export default function MediaDetailClient({
 
       setMediaObject(updatedMediaObject);
       setIsDescriptionLocked(true);
-      setSuccess("Description updated successfully");
+      setSuccess("Description saved successfully");
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error("PATCH - Error updating media object:", err);
-      setError((err as Error).message || "Failed to update description");
+      setError((err as Error).message || "Failed to save description");
+      // Keep unlocked on error so user can try again
     } finally {
       setIsLoading(false);
     }
   };
 
-  const toggleDescriptionLock = () => {
-    setIsDescriptionLocked(!isDescriptionLocked);
+  const handleCancel = () => {
+    setDescription(mediaObject.metadata.description || "");
+    setIsDescriptionLocked(true);
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Handle Escape key to cancel editing
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isDescriptionLocked) {
+        handleCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDescriptionLocked, mediaObject.metadata.description]);
+
+  const toggleDescriptionLock = async () => {
+    // If currently unlocked and about to lock, trigger auto-save
+    if (!isDescriptionLocked) {
+      await handleSave();
+    } else {
+      // Just unlock without saving
+      setIsDescriptionLocked(false);
+      setError(null);
+      setSuccess(null);
+    }
   };
 
   return (
@@ -141,14 +174,23 @@ export default function MediaDetailClient({
             {/* Padlock Icon */}
             <button
               onClick={toggleDescriptionLock}
-              className="absolute top-2 right-2 p-1 rounded hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={isLoading}
+              className={`absolute top-2 right-2 p-1 rounded focus:outline-none focus:ring-2 focus:ring-jl-red-500 ${
+                isLoading
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-gray-100"
+              }`}
               title={
-                isDescriptionLocked
+                isLoading
+                  ? "Saving..."
+                  : isDescriptionLocked
                   ? "Click to edit description"
-                  : "Click to lock description"
+                  : "Click to save and lock description"
               }
             >
-              {isDescriptionLocked ? (
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red-600"></div>
+              ) : isDescriptionLocked ? (
                 <svg
                   className="h-4 w-4 text-gray-500"
                   fill="none"
@@ -164,7 +206,7 @@ export default function MediaDetailClient({
                 </svg>
               ) : (
                 <svg
-                  className="h-4 w-4 text-gray-500"
+                  className="h-4 w-4 text-jl-red-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -180,28 +222,22 @@ export default function MediaDetailClient({
             </button>
           </div>
 
-          {/* Save/Cancel buttons when unlocked */}
+          {/* Helper text when editing */}
           {!isDescriptionLocked && (
-            <div className="mt-4 flex justify-center space-x-3">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isLoading}
-                className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              >
-                {isLoading ? "Saving..." : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDescription(mediaObject.metadata.description || "");
-                  setIsDescriptionLocked(true);
-                }}
-                disabled={isLoading}
-                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              >
-                Cancel
-              </button>
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-500">
+                Click the lock icon to save changes, or press Escape to cancel
+              </p>
+            </div>
+          )}
+
+          {/* Loading indicator when saving */}
+          {isLoading && (
+            <div className="mt-4 flex justify-center">
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red-600 mr-2"></div>
+                Saving description...
+              </div>
             </div>
           )}
         </div>
