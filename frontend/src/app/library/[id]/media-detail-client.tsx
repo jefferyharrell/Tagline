@@ -49,7 +49,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
     };
 
     try {
-      const response = await fetch(`/api/media/${mediaObject.id}`, {
+      const response = await fetch(`/api/library/${mediaObject.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -84,7 +84,7 @@ export default function MediaDetailClient({ initialMediaObject }: MediaDetailCli
       {/* Photo Preview Section */}
       <div className="bg-gray-100 rounded-lg overflow-hidden max-w-3xl mx-auto mb-8 relative h-144">
         <Image
-          src={`/api/media/${mediaObject.id}/proxy`}
+          src={`/api/library/${mediaObject.id}/proxy`}
           alt={mediaObject.metadata.description || 'Media preview'}
           fill
           className="object-contain"

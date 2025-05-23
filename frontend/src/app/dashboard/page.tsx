@@ -55,7 +55,7 @@ export default async function Dashboard({
                   Browse, search, and manage your media objects with tags and metadata.
                 </p>
                 <Link 
-                  href="/media" 
+                  href="/library" 
                   className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
                 >
                   Go to Gallery

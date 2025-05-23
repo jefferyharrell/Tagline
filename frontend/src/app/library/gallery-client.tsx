@@ -42,7 +42,7 @@ export default function GalleryClient() {
     setError(null);
     
     try {
-      const response = await fetch(`/api/media?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`);
+      const response = await fetch(`/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -161,11 +161,11 @@ export default function GalleryClient() {
         <>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {mediaObjects.map((media) => (
-              <Link key={media.id} href={`/media/${media.id}`} className="block">
+              <Link key={media.id} href={`/library/${media.id}`} className="block">
                 <div className="border rounded-sm overflow-hidden hover:shadow-md transition-shadow">
                   <div className="relative h-48 bg-gray-200 flex items-center justify-center">
                     <img
-                      src={`/api/media/${media.id}/thumbnail`}
+                      src={`/api/library/${media.id}/thumbnail`}
                       alt={(media.metadata?.description) || 'Media thumbnail'}
                       className="object-cover w-full h-full"
                     />

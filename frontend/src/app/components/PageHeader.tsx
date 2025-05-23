@@ -18,7 +18,7 @@ export default function PageHeader({
   showSearch = true, 
   searchValue = '', 
   onSearchChange,
-  searchPlaceholder = 'Search media...'
+  searchPlaceholder = 'Search library...'
 }: PageHeaderProps) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -125,14 +125,14 @@ export default function PageHeader({
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
               <div className="py-1" role="menu" aria-orientation="vertical">
                 <Link 
-                  href="/media" 
+                  href="/library" 
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
-                    isActive('/media') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                    isActive('/library') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
                   }`}
                   role="menuitem"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Media
+                  Library
                 </Link>
                 <Link 
                   href="/dashboard"

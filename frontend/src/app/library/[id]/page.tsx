@@ -51,7 +51,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
   const mediaObject = await getMediaObject(id);
 
   if (!mediaObject) {
-    redirect('/media');
+    redirect('/library');
   }
 
   return (
@@ -62,7 +62,7 @@ export default async function MediaDetailPage({ params }: { params: { id: string
           <div className="bg-white rounded-lg shadow">
             <div className="p-8">
               {/* <div className="mb-6">
-                <Link href="/media" className="text-indigo-600 hover:text-indigo-800">
+                <Link href="/library" className="text-indigo-600 hover:text-indigo-800">
                   &larr; Back to Library
                 </Link>
               </div> */}
