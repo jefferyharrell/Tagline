@@ -148,7 +148,7 @@ export default function MediaDetailClient({
                 onChange={(e) => setDescription(e.target.value)}
                 readOnly={isDescriptionLocked}
                 rows={3}
-                className={`!text-lg w-full resize-none bg-white/90 backdrop-blur-sm border-0 rounded-lg shadow-lg pr-12 ${
+                className={`!text-lg w-full resize-none bg-white/50 backdrop-blur-sm border-0 rounded-lg shadow-lg pr-12 ${
                   isDescriptionLocked
                     ? "text-gray-700 cursor-default"
                     : "text-gray-900"

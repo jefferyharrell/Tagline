@@ -188,7 +188,7 @@ export default function GalleryClient() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                     />
                     {media.metadata?.description && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-2">
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-2">
                         <p className="text-white text-sm font-medium line-clamp-2">
                           {media.metadata.description}
                         </p>
