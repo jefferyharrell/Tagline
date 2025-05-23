@@ -132,7 +132,7 @@ export default function MediaDetailClient({
             {/* Top Right Controls */}
             <div className="absolute top-4 right-4 flex gap-2">
               <SheetTrigger asChild>
-                <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-jl-red">
                   <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -166,7 +166,7 @@ export default function MediaDetailClient({
               <button
                 onClick={toggleDescriptionLock}
                 disabled={isLoading}
-                className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red ${
                   isLoading
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:bg-white/90"
@@ -180,7 +180,7 @@ export default function MediaDetailClient({
                 }
               >
                 {isLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
                 ) : isDescriptionLocked ? (
                   <svg
                     className="h-4 w-4 text-gray-600"
@@ -197,7 +197,7 @@ export default function MediaDetailClient({
                   </svg>
                 ) : (
                   <svg
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-jl-red"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -246,9 +246,9 @@ export default function MediaDetailClient({
           <div className="mt-6 space-y-6">
             {/* User Info Header */}
             <div className="flex items-center">
-              <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+              <div className="h-10 w-10 bg-jl-red-100 rounded-full flex items-center justify-center mr-3">
                 <svg
-                  className="h-6 w-6 text-indigo-600"
+                  className="h-6 w-6 text-jl-red"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -350,13 +350,13 @@ export default function MediaDetailClient({
                   <span className="text-sm font-medium text-gray-500">Tags:</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  <span className="inline-flex items-center rounded-full bg-jl-red-50 px-2.5 py-0.5 text-xs font-medium text-jl-red-700">
                     Portrait
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  <span className="inline-flex items-center rounded-full bg-jl-red-50 px-2.5 py-0.5 text-xs font-medium text-jl-red-700">
                     Street
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  <span className="inline-flex items-center rounded-full bg-jl-red-50 px-2.5 py-0.5 text-xs font-medium text-jl-red-700">
                     2025
                   </span>
                 </div>

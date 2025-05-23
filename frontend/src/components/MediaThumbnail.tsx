@@ -20,23 +20,26 @@ interface MediaThumbnailProps {
 
 export default function MediaThumbnail({ media }: MediaThumbnailProps) {
   return (
-    <Link href={`/library/${media.id}`} className="block">
-      <div className="border rounded-sm overflow-hidden hover:shadow-md transition-shadow">
-        <div className="relative h-48 bg-gray-200 flex items-center justify-center">
+    <Link href={`/library/${media.id}`} className="block group">
+      <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
+        <div className="relative h-64 bg-gray-100 flex items-center justify-center">
           <Image
             src={`/api/library/${media.id}/thumbnail`}
             alt={media.metadata?.description || "Media thumbnail"}
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           />
           {media.metadata?.description && (
-            <div className="absolute bottom-0 left-0 right-0 bg-white/50 backdrop-blur-sm p-2">
-              <p className="text-black text-sm font-medium line-clamp-2">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+              <p className="text-white text-sm font-medium line-clamp-2 leading-relaxed">
                 {media.metadata.description}
               </p>
             </div>
           )}
+          
+          {/* Subtle hover overlay */}
+          <div className="absolute inset-0 bg-jl-red/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       </div>
     </Link>

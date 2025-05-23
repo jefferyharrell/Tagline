@@ -14,10 +14,10 @@ export default async function Gallery() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-500">
+    <div className="min-h-screen bg-gray-50">
       <PageHeader title="" />
       <main>
-        <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1600px] py-8">
           <GalleryClient />
         </div>
       </main>

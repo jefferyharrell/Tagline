@@ -110,23 +110,23 @@ export default function GalleryClient() {
   }, [fetchMediaObjects, hasMore, isLoading, initialLoad]);
 
   return (
-    <div className="bg-white p-8 rounded-lg shadow">
+    <div className="bg-white">
       {isLoading && mediaObjects.length === 0 ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="flex justify-center items-center h-64 mx-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-jl-red"></div>
         </div>
       ) : error && mediaObjects.length === 0 ? (
         <div className="text-center text-red-600 p-4">
           <p>{error}</p>
           <button
             onClick={() => fetchMediaObjects(true)}
-            className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="mt-4 inline-flex items-center rounded-lg bg-jl-red px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-jl-red-700 transition-colors duration-200"
           >
             Try Again
           </button>
         </div>
       ) : mediaObjects.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+        <div className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center mx-8 my-12">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
             fill="none"
@@ -150,7 +150,7 @@ export default function GalleryClient() {
           <div className="mt-6">
             <button
               onClick={() => fetchMediaObjects(true)}
-              className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="inline-flex items-center rounded-lg bg-jl-red px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-jl-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jl-red transition-colors duration-200"
             >
               <svg
                 className="-ml-0.5 mr-1.5 h-5 w-5"
@@ -170,7 +170,7 @@ export default function GalleryClient() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 px-8 py-12">
             {mediaObjects.map((media) => (
               <MediaThumbnail key={media.id} media={media} />
             ))}
@@ -179,10 +179,10 @@ export default function GalleryClient() {
           {/* Loading indicator for infinite scroll */}
           <div
             ref={loadingRef}
-            className="flex justify-center items-center py-4 mt-6"
+            className="flex justify-center items-center py-8 mt-12"
           >
             {isLoading && (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-jl-red"></div>
             )}
             {!hasMore && mediaObjects.length > 0 && (
               <p className="text-gray-500 text-sm">

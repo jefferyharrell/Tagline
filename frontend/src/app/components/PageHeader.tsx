@@ -49,22 +49,22 @@ export default function PageHeader({
   }, [isMenuOpen]);
 
   return (
-    <header className="bg-white shadow">
-      <div className="mx-auto max-w-7xl px-1 py-2 sm:px-6 lg:px-8 flex items-center justify-between">
+    <header className="bg-white shadow-sm border-b border-gray-100">
+      <div className="mx-auto max-w-[1600px] px-6 py-4 lg:px-8 flex items-center justify-between">
         {/* Left: Logo and Title */}
         <div className="flex items-center flex-shrink-0">
-          <div className="h-10 w-auto mr-4">
+          <div className="w-auto mr-4">
             <Image
-              src="/JLLA.png"
+              src="/JLLA_combo_stacked.png"
               alt="Junior League of Los Angeles"
-              width={200}
-              height={200}
+              width={1024}
+              height={156}
               priority={true}
-              className="h-full w-auto object-contain"
+              className="h-[2rem] w-auto object-contain"
             />
           </div>
           {title && (
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
               {title}
             </h1>
           )}
@@ -93,7 +93,7 @@ export default function PageHeader({
                 type="text"
                 value={searchValue}
                 onChange={(e) => onSearchChange?.(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-jl-red focus:border-jl-red transition-colors duration-200"
                 placeholder={searchPlaceholder}
               />
             </div>
@@ -104,7 +104,7 @@ export default function PageHeader({
         <div className="relative flex-shrink-0" ref={menuRef}>
           <button
             onClick={toggleMenu}
-            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+            className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-jl-red transition-colors duration-200"
             aria-expanded={isMenuOpen}
             aria-haspopup="true"
           >
@@ -132,7 +132,7 @@ export default function PageHeader({
                   href="/library"
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
                     isActive("/library")
-                      ? "bg-indigo-50 text-indigo-700"
+                      ? "bg-jl-red-50 text-jl-red-700"
                       : "text-gray-700"
                   }`}
                   role="menuitem"
@@ -144,7 +144,7 @@ export default function PageHeader({
                   href="/dashboard"
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
                     isActive("/dashboard")
-                      ? "bg-indigo-50 text-indigo-700"
+                      ? "bg-jl-red-50 text-jl-red-700"
                       : "text-gray-700"
                   }`}
                   role="menuitem"
