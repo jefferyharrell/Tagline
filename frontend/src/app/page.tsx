@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useStytch } from '@stytch/nextjs';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useStytch } from "@stytch/nextjs";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const stytch = useStytch();
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
@@ -19,22 +19,24 @@ export default function LoginPage() {
       try {
         const session = await stytch.session.getSync();
         if (session) {
-          router.push('/dashboard');
+          router.push("/dashboard");
         }
       } catch (error) {
-        console.error('Error checking session:', error);
+        console.error("Error checking session:", error);
       }
     };
 
     checkAuth();
   }, [stytch, router]);
 
-  const checkEmailEligibility = async (email: string): Promise<{ isEligible: boolean; error?: string }> => {
+  const checkEmailEligibility = async (
+    email: string,
+  ): Promise<{ isEligible: boolean; error?: string }> => {
     try {
-      const response = await fetch('/api/auth/check-email', {
-        method: 'POST',
+      const response = await fetch("/api/auth/check-email", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email }),
       });
@@ -43,17 +45,17 @@ export default function LoginPage() {
         const error = await response.json();
         return {
           isEligible: false,
-          error: error.error || 'Failed to check email eligibility'
+          error: error.error || "Failed to check email eligibility",
         };
       }
 
       const data = await response.json();
       return { isEligible: data.eligible };
     } catch (error) {
-      console.error('Error checking email eligibility:', error);
+      console.error("Error checking email eligibility:", error);
       return {
         isEligible: false,
-        error: 'Failed to check email eligibility. Please try again.'
+        error: "Failed to check email eligibility. Please try again.",
       };
     }
   };
@@ -63,14 +65,16 @@ export default function LoginPage() {
     if (!email) return;
 
     setIsLoading(true);
-    setMessage('');
+    setMessage("");
 
     try {
       // First check if email is eligible
       const { isEligible, error } = await checkEmailEligibility(email);
 
       if (!isEligible) {
-        setMessage(error || 'This email is not authorized to access the application.');
+        setMessage(
+          error || "This email is not authorized to access the application.",
+        );
         setIsSuccess(false);
         return;
       }
@@ -83,11 +87,11 @@ export default function LoginPage() {
         signup_expiration_minutes: 10,
       });
 
-      setMessage('Check your email for a magic link to sign in.');
+      setMessage("Check your email for a magic link to sign in.");
       setIsSuccess(true);
     } catch (error) {
-      console.error('Error sending magic link:', error);
-      setMessage('Failed to send magic link. Please try again.');
+      console.error("Error sending magic link:", error);
+      setMessage("Failed to send magic link. Please try again.");
       setIsSuccess(false);
     } finally {
       setIsLoading(false);
@@ -116,7 +120,9 @@ export default function LoginPage() {
         </div>
 
         {message && (
-          <div className={`mt-4 p-4 rounded-md ${isSuccess ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          <div
+            className={`mt-4 p-4 rounded-md ${isSuccess ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}
+          >
             {message}
           </div>
         )}
@@ -148,69 +154,78 @@ export default function LoginPage() {
               disabled={isLoading || !email}
               className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
                 isLoading || !email
-                  ? 'bg-indigo-300'
-                  : 'bg-indigo-600 hover:bg-indigo-700'
+                  ? "bg-indigo-300"
+                  : "bg-indigo-600 hover:bg-indigo-700"
               } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
             >
-              {isLoading ? 'Sending...' : 'Send Magic Link'}
+              {isLoading ? "Sending..." : "Send Magic Link"}
             </button>
           </div>
-          
+
           {/* Dev Login Button - Only visible in development with bypass enabled */}
-          {process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === 'true' && (
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={async () => {
-                  
-                  try {
-                    setIsLoading(true);
-                    const devEmail = email || process.env.NEXT_PUBLIC_AUTH_BYPASS_DEFAULT_EMAIL || '';
-                    
-                    if (!devEmail) {
-                      setMessage('Please enter an email address for dev login');
+          {process.env.NODE_ENV !== "production" &&
+            process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true" && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setIsLoading(true);
+                      const devEmail =
+                        email ||
+                        process.env.NEXT_PUBLIC_AUTH_BYPASS_DEFAULT_EMAIL ||
+                        "";
+
+                      if (!devEmail) {
+                        setMessage(
+                          "Please enter an email address for dev login",
+                        );
+                        setIsSuccess(false);
+                        setIsLoading(false);
+                        return;
+                      }
+
+                      const response = await fetch("/api/auth/dev-login", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ email: devEmail }),
+                      });
+
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(
+                          error.message || "Development login failed",
+                        );
+                      }
+
+                      // Redirect to dashboard
+                      router.push("/dashboard");
+                    } catch (error) {
+                      console.error("Dev login error:", error);
+                      setMessage(
+                        (error as Error).message || "Development login failed",
+                      );
                       setIsSuccess(false);
+                    } finally {
                       setIsLoading(false);
-                      return;
                     }
-                    
-                    const response = await fetch('/api/auth/dev-login', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({ email: devEmail }),
-                    });
-                    
-                    if (!response.ok) {
-                      const error = await response.json();
-                      throw new Error(error.message || 'Development login failed');
-                    }
-                    
-                    // Redirect to dashboard
-                    router.push('/dashboard');
-                  } catch (error) {
-                    console.error('Dev login error:', error);
-                    setMessage((error as Error).message || 'Development login failed');
-                    setIsSuccess(false);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                disabled={isLoading || !email}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                  isLoading || !email
-                    ? 'bg-purple-300'
-                    : 'bg-purple-600 hover:bg-purple-700'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500`}
-              >
-                ⚙️ Developer Login
-              </button>
-              <div className="mt-1 text-xs text-center text-gray-500">
-                Bypasses email verification in development environment
+                  }}
+                  disabled={isLoading || !email}
+                  className={`w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                    isLoading || !email
+                      ? "bg-purple-300"
+                      : "bg-purple-600 hover:bg-purple-700"
+                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500`}
+                >
+                  ⚙️ Developer Login
+                </button>
+                <div className="mt-1 text-xs text-center text-gray-500">
+                  Bypasses email verification in development environment
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </form>
       </div>
     </div>

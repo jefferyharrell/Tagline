@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers';
-import { NextRequest } from 'next/server';
-import type { JWTVerifyResult } from 'jose';
+import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
+import type { JWTVerifyResult } from "jose";
 
 // JWT token interface
 export interface JwtPayload {
@@ -15,34 +15,36 @@ export interface JwtPayload {
  */
 export function getJwtToken(request: NextRequest): string | null {
   // Try to get from cookie first
-  const token = request.cookies.get('auth_token')?.value;
+  const token = request.cookies.get("auth_token")?.value;
   if (token) return token;
-  
+
   // Try to get from Authorization header
-  const authHeader = request.headers.get('Authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.substring(7);
   }
-  
+
   return null;
 }
 
 /**
  * Verify a JWT token and return the payload
  */
-export async function verifyJwtToken(token: string): Promise<JwtPayload | null> {
+export async function verifyJwtToken(
+  token: string,
+): Promise<JwtPayload | null> {
   try {
     // Dynamically import jose to avoid build issues
-    const { jwtVerify } = await import('jose');
-    
-    const { payload } = await jwtVerify(
+    const { jwtVerify } = await import("jose");
+
+    const { payload } = (await jwtVerify(
       token,
-      new TextEncoder().encode(process.env.JWT_SECRET || '')
-    ) as JWTVerifyResult;
-    
+      new TextEncoder().encode(process.env.JWT_SECRET || ""),
+    )) as JWTVerifyResult;
+
     return payload as unknown as JwtPayload;
   } catch (error) {
-    console.error('JWT verification failed:', error);
+    console.error("JWT verification failed:", error);
     return null;
   }
 }
@@ -53,14 +55,14 @@ export async function verifyJwtToken(token: string): Promise<JwtPayload | null> 
 export async function getCurrentUser(request: NextRequest) {
   const token = getJwtToken(request);
   if (!token) return null;
-  
+
   const payload = await verifyJwtToken(token);
   if (!payload) return null;
-  
+
   return {
     id: payload.user_id,
     email: payload.email,
-    roles: payload.roles
+    roles: payload.roles,
   };
 }
 
@@ -70,11 +72,11 @@ export async function getCurrentUser(request: NextRequest) {
 export async function setAuthCookie(token: string) {
   // In Next.js 15, cookies() is async and needs to be awaited
   const cookieStore = await cookies();
-  cookieStore.set('auth_token', token, {
+  cookieStore.set("auth_token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
     maxAge: 60 * 60 * 24 * 7, // 1 week
   });
 }
@@ -84,5 +86,5 @@ export async function setAuthCookie(token: string) {
  */
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete('auth_token');
+  cookieStore.delete("auth_token");
 }

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useStytch } from '@stytch/nextjs';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useStytch } from "@stytch/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function AuthenticatePage() {
   const stytch = useStytch();
@@ -15,38 +15,39 @@ export default function AuthenticatePage() {
     const authenticateWithToken = async () => {
       try {
         // Get token and type from URL params
-        const token = searchParams.get('token');
-        const tokenType = searchParams.get('stytch_token_type');
-        
-        
+        const token = searchParams.get("token");
+        searchParams.get("stytch_token_type");
+
         if (!token) {
-          setError('No authentication token found');
+          setError("No authentication token found");
           setIsLoading(false);
           return;
         }
 
-        
         // Send token to our backend API
-        const response = await fetch('/api/auth/callback', {
-          method: 'POST',
+        const response = await fetch("/api/auth/callback", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ token }),
         });
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.message || `Authentication failed with status ${response.status}`);
+          throw new Error(
+            data.message ||
+              `Authentication failed with status ${response.status}`,
+          );
         }
 
-        const authData = await response.json();
-        
+        await response.json();
+
         // Redirect to dashboard on success
-        router.push('/dashboard');
+        router.push("/dashboard");
       } catch (error) {
-        console.error('Authentication error:', error);
-        setError((error as Error).message || 'Authentication failed');
+        console.error("Authentication error:", error);
+        setError((error as Error).message || "Authentication failed");
         setIsLoading(false);
       }
     };
@@ -69,10 +70,12 @@ export default function AuthenticatePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-md">
-          <h1 className="text-2xl font-semibold text-red-600 mb-4">Authentication Error</h1>
+          <h1 className="text-2xl font-semibold text-red-600 mb-4">
+            Authentication Error
+          </h1>
           <p className="text-gray-700 mb-4">{error}</p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push("/")}
             className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Return to Login

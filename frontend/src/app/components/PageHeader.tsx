@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 interface PageHeaderProps {
   title: string;
@@ -13,12 +13,12 @@ interface PageHeaderProps {
   searchPlaceholder?: string;
 }
 
-export default function PageHeader({ 
-  title, 
-  showSearch = true, 
-  searchValue = '', 
+export default function PageHeader({
+  title,
+  showSearch = true,
+  searchValue = "",
   onSearchChange,
-  searchPlaceholder = 'Search library...'
+  searchPlaceholder = "Search library...",
 }: PageHeaderProps) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -40,11 +40,11 @@ export default function PageHeader({
     };
 
     if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMenuOpen]);
 
@@ -54,16 +54,20 @@ export default function PageHeader({
         {/* Left: Logo and Title */}
         <div className="flex items-center flex-shrink-0">
           <div className="h-10 w-auto mr-4">
-            <Image 
-              src="/JLLA.png" 
-              alt="Junior League of Los Angeles" 
+            <Image
+              src="/JLLA.png"
+              alt="Junior League of Los Angeles"
               width={200}
               height={200}
               priority={true}
               className="h-full w-auto object-contain"
             />
           </div>
-          {title && <h1 className="text-3xl font-bold tracking-tight text-gray-900">{title}</h1>}
+          {title && (
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              {title}
+            </h1>
+          )}
         </div>
 
         {/* Center: Search (if enabled) */}
@@ -71,17 +75,17 @@ export default function PageHeader({
           <div className="flex-1 max-w-lg mx-8">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg 
-                  className="h-5 w-5 text-gray-400" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
                 </svg>
               </div>
@@ -105,17 +109,17 @@ export default function PageHeader({
             aria-haspopup="true"
           >
             <span className="sr-only">Open menu</span>
-            <svg 
-              className="h-6 w-6" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M4 6h16M4 12h16M4 18h16" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
               />
             </svg>
           </button>
@@ -124,20 +128,24 @@ export default function PageHeader({
           {isMenuOpen && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
               <div className="py-1" role="menu" aria-orientation="vertical">
-                <Link 
-                  href="/library" 
+                <Link
+                  href="/library"
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
-                    isActive('/library') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                    isActive("/library")
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-gray-700"
                   }`}
                   role="menuitem"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Library
                 </Link>
-                <Link 
+                <Link
                   href="/dashboard"
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
-                    isActive('/dashboard') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                    isActive("/dashboard")
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-gray-700"
                   }`}
                   role="menuitem"
                   onClick={() => setIsMenuOpen(false)}
