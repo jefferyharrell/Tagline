@@ -106,8 +106,8 @@ export default function LoginPage() {
             <Image
               src="/JLLA.png"
               alt="Junior League of Los Angeles"
-              width={100}
-              height={100}
+              width={200}
+              height={200}
               className="w-[100px] h-[100px]"
             />
           </div>
