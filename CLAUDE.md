@@ -4,10 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tagline is a web application for the Junior League of Los Angeles (JLLA) that organizes and manages their photo collection stored on Dropbox. The application uses a two-silo architecture:
+Tagline is a web application for the Junior League of Los Angeles (JLLA) that organizes and manages their vast photo collection stored on Dropbox. The application uses a two-silo architecture inspired by StudioCentral:
 
 1. **Content Silo**: Storage providers (Dropbox, filesystem) house the actual media files
 2. **Metadata Silo**: PostgreSQL database stores metadata, thumbnails, and proxy images
+
+**Current Status**: Several solid days away from MVP. Backend was recently rewritten (completed ~May 4, 2025) and frontend updated to communicate with new architecture. Initial demo was presented to stakeholders on April 30, 2025.
+
+**Active Development Focus**:
+- Metadata detail view enhancements
+- Data entry interface improvements
+- Tagging and search functionality refinement
+
+**Note that** right now backend is considered more developed than frontend. If backend does something one way and frontend does it differently, check with the human but lean toward making frontend conform to backend.
 
 ## Repository Structure
 
@@ -182,7 +191,7 @@ Authentication Flow:
 ### Backend Variables
 
 - `API_KEY`: For X-API-Key header authentication
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URL`: PostgreSQL connection string (using Neon managed Postgres)
 - `JWT_SECRET`: Secret for JWT token signing
 - `STYTCH_PROJECT_ID`, `STYTCH_SECRET`: Stytch authentication
 - `STORAGE_PROVIDER`: "filesystem" or "dropbox"
@@ -206,6 +215,10 @@ Authentication Flow:
 - Run e2e tests with `just e2e-tests` in the backend directory
 - Generate coverage report with `just coverage`
 
+**Known Issues**:
+- Playwright parallel testing can cause capacity problems on local development (likely connection pooling related)
+- Consider investigating connection pooling configuration if running into database connection issues during testing
+
 ## Docker Compose Setup
 
 The application runs in Docker containers orchestrated with Docker Compose.
@@ -222,3 +235,22 @@ The application runs in Docker containers orchestrated with Docker Compose.
 
 - Next.js development server
 - Volume mounts for hot reloading
+
+## Development Preferences & Conventions
+
+- Use `just` commands rather than direct docker-compose for consistency
+- Backend follows Python best practices with type hints
+- Frontend uses TypeScript and follows React best practices
+- Prefer functional components and hooks over class components
+- Use Tailwind utility classes for styling
+- Keep components focused and compose them together
+- Write tests for new functionality
+- Use meaningful commit messages and create PRs for review
+
+## Stakeholder Context
+
+- Primary users are Junior League of Los Angeles members
+- Photo organization and discovery are key use cases
+- Demo-by-screenshot capability was important for initial stakeholder presentation
+- Future demos and stakeholder feedback sessions are planned
+- Focus on practical usability over complex features for MVP
