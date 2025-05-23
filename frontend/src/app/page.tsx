@@ -197,8 +197,12 @@ export default function LoginPage() {
                     setIsLoading(false);
                   }
                 }}
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                disabled={isLoading || !email}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                  isLoading || !email
+                    ? 'bg-purple-300'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500`}
               >
                 ⚙️ Developer Login
               </button>
