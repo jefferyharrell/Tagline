@@ -135,7 +135,7 @@ export default function MediaDetailClient({
         {/* Photo Section with Overlaid Description */}
         <div className="flex-1 lg:flex-[2] relative">
           {/* Large Photo */}
-          <div className="bg-gray-900 rounded-lg overflow-hidden relative aspect-[4/3] lg:aspect-auto lg:h-[80vh] min-h-[400px]">
+          <div className="bg-gray-500 rounded-lg overflow-hidden relative aspect-[4/3] lg:aspect-auto lg:h-[80vh] min-h-[400px]">
             <Image
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}

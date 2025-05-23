@@ -58,7 +58,7 @@ export default async function MediaDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-500">
       <PageHeader title="" />
       <main className="p-6">
         <MediaDetailClient initialMediaObject={mediaObject} />

@@ -14,7 +14,7 @@ export default async function Gallery() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-500">
       <PageHeader title="" />
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
