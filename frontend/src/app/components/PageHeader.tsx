@@ -50,7 +50,7 @@ export default function PageHeader({
 
   return (
     <header className="bg-white shadow">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
+      <div className="mx-auto max-w-7xl px-1 py-2 sm:px-6 lg:px-8 flex items-center justify-between">
         {/* Left: Logo and Title */}
         <div className="flex items-center flex-shrink-0">
           <div className="h-10 w-auto mr-4">
@@ -141,7 +141,7 @@ export default function PageHeader({
                   Library
                 </Link>
                 <Link
-                  href="/library"
+                  href="/dashboard"
                   className={`block px-4 py-2 text-sm hover:bg-gray-100 ${
                     isActive("/dashboard")
                       ? "bg-indigo-50 text-indigo-700"
