@@ -3,6 +3,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface MediaObject {
   id: string;
@@ -34,6 +42,7 @@ export default function MediaDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
+  const [isMetadataOpen, setIsMetadataOpen] = useState(false);
 
   // Sync description when mediaObject changes
   useEffect(() => {
@@ -130,12 +139,11 @@ export default function MediaDetailClient({
         </div>
       )}
 
-      {/* Main Layout - Desktop: Photo left, metadata right | Mobile: Stacked */}
-      <div className="flex flex-col lg:flex-row gap-6 h-full">
-        {/* Photo Section with Overlaid Description */}
-        <div className="flex-1 lg:flex-[2] relative">
+      {/* Full Width Photo Section */}
+      <div className="relative">
+        <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
           {/* Large Photo */}
-          <div className="bg-gray-500 overflow-hidden relative aspect-[4/3] lg:aspect-auto lg:h-[80vh] min-h-[400px]">
+          <div className="bg-gray-500 overflow-hidden relative lg:h-[80vh] min-h-full">
             <Image
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
@@ -143,135 +151,150 @@ export default function MediaDetailClient({
               className="object-contain object-top"
             />
             
-            {/* Description Textarea Overlaid on Bottom */}
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className="relative">
-                <Textarea
-                  value={description || ""}
-                  onChange={(e) => setDescription(e.target.value)}
-                  readOnly={isDescriptionLocked}
-                  rows={3}
-                  className={`w-full resize-none bg-white/90 backdrop-blur-sm border-0 rounded-lg shadow-lg ${
-                    isDescriptionLocked
-                      ? "text-gray-700 cursor-default"
-                      : "text-gray-900"
-                  }`}
-                  placeholder={
-                    isDescriptionLocked
-                      ? description
-                        ? ""
-                        : "Add a description..."
-                      : "Enter a description for this media..."
-                  }
-                />
-
-                {/* Padlock Icon */}
-                <button
-                  onClick={toggleDescriptionLock}
-                  disabled={isLoading}
-                  className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    isLoading
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-white/90"
-                  }`}
-                  title={
-                    isLoading
-                      ? "Saving..."
-                      : isDescriptionLocked
-                      ? "Click to edit description"
-                      : "Click to save and lock description"
-                  }
-                >
-                  {isLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  ) : isDescriptionLocked ? (
-                    <svg
-                      className="h-4 w-4 text-gray-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="h-4 w-4 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                      />
-                    </svg>
-                  )}
+            {/* Top Right Controls */}
+            <div className="absolute top-4 right-4 flex gap-2">
+              <SheetTrigger asChild>
+                <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                 </button>
-              </div>
-
-              {/* Helper text when editing */}
-              {!isDescriptionLocked && (
-                <div className="mt-2">
-                  <p className="text-xs text-white/80 bg-black/20 backdrop-blur-sm rounded px-2 py-1 inline-block">
-                    Click the lock icon to save changes, or press Escape to cancel
-                  </p>
-                </div>
-              )}
-
-              {/* Loading indicator when saving */}
-              {isLoading && (
-                <div className="mt-2">
-                  <div className="flex items-center text-xs text-white/80 bg-black/20 backdrop-blur-sm rounded px-2 py-1 inline-block">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                    Saving description...
-                  </div>
-                </div>
-              )}
+              </SheetTrigger>
             </div>
-          </div>
-        </div>
+          
+          {/* Description Textarea Overlaid on Bottom */}
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="relative">
+              <Textarea
+                value={description || ""}
+                onChange={(e) => setDescription(e.target.value)}
+                readOnly={isDescriptionLocked}
+                rows={3}
+                className={`!text-lg w-full resize-none bg-white/90 backdrop-blur-sm border-0 rounded-lg shadow-lg pr-12 ${
+                  isDescriptionLocked
+                    ? "text-gray-700 cursor-default"
+                    : "text-gray-900"
+                }`}
+                placeholder={
+                  isDescriptionLocked
+                    ? description
+                      ? ""
+                      : "Add a description..."
+                    : "Enter a description for this media..."
+                }
+              />
 
-        {/* Metadata Sidebar */}
-        <div className="lg:flex-1 lg:max-w-sm">
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden h-fit">
-            {/* User Info Header */}
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center">
-                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+              {/* Padlock Icon */}
+              <button
+                onClick={toggleDescriptionLock}
+                disabled={isLoading}
+                className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isLoading
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-white/90"
+                }`}
+                title={
+                  isLoading
+                    ? "Saving..."
+                    : isDescriptionLocked
+                    ? "Click to edit description"
+                    : "Click to save and lock description"
+                }
+              >
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                ) : isDescriptionLocked ? (
                   <svg
-                    className="h-6 w-6 text-indigo-600"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
+                    className="h-4 w-4 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
                     <path
-                      fillRule="evenodd"
-                      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                      clipRule="evenodd"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                     />
                   </svg>
+                ) : (
+                  <svg
+                    className="h-4 w-4 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
+
+            {/* Helper text when editing */}
+            {!isDescriptionLocked && (
+              <div className="mt-2">
+                <p className="text-xs text-white/80 bg-black/20 backdrop-blur-sm rounded px-2 py-1 inline-block">
+                  Click the lock icon to save changes, or press Escape to cancel
+                </p>
+              </div>
+            )}
+
+            {/* Loading indicator when saving */}
+            {isLoading && (
+              <div className="mt-2">
+                <div className="flex items-center text-xs text-white/80 bg-black/20 backdrop-blur-sm rounded px-2 py-1 inline-block">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                  Saving description...
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">System Upload</div>
-                  <div className="text-xs text-gray-500">
-                    Uploaded: {new Date(mediaObject.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                    })}
-                  </div>
+              </div>
+            )}
+          </div>
+          </div>
+
+          {/* Metadata Sheet */}
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Photo Details</SheetTitle>
+            <SheetDescription>
+              View and edit metadata for this photo
+            </SheetDescription>
+          </SheetHeader>
+          
+          <div className="mt-6 space-y-6">
+            {/* User Info Header */}
+            <div className="flex items-center">
+              <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                <svg
+                  className="h-6 w-6 text-indigo-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900">System Upload</div>
+                <div className="text-xs text-gray-500">
+                  Uploaded: {new Date(mediaObject.created_at).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  })}
                 </div>
               </div>
             </div>
 
             {/* Technical Metadata */}
-            <div className="px-6 py-4 space-y-4">
+            <div className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <svg className="h-4 w-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,7 +343,7 @@ export default function MediaDetailClient({
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Filename</span>
-                  <span className="text-gray-900 font-mono text-xs">
+                  <span className="text-gray-900 font-mono text-xs break-all">
                     {mediaObject.object_key}
                   </span>
                 </div>
@@ -377,7 +400,8 @@ export default function MediaDetailClient({
               </div>
             </div>
           </div>
-        </div>
+        </SheetContent>
+      </Sheet>
       </div>
     </div>
   );
