@@ -104,7 +104,7 @@ export default function LoginPage() {
               alt="Junior League of Los Angeles"
               width={100}
               height={100}
-              className="h-auto"
+              className="w-[100px] h-[100px]"
             />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
