@@ -154,9 +154,9 @@ export default function LoginPage() {
               disabled={isLoading || !email}
               className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
                 isLoading || !email
-                  ? "bg-indigo-300"
-                  : "bg-indigo-600 hover:bg-indigo-700"
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                  ? "bg-jl-red-300"
+                  : "bg-jl-red-600 hover:bg-jl-red-700"
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-jl-red-500`}
             >
               {isLoading ? "Sending..." : "Send Magic Link"}
             </button>
