@@ -4,14 +4,13 @@ import { useStytch } from "@stytch/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const stytch = useStytch();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     // Check for existing authentication
@@ -65,17 +64,15 @@ export default function LoginPage() {
     if (!email) return;
 
     setIsLoading(true);
-    setMessage("");
 
     try {
       // First check if email is eligible
       const { isEligible, error } = await checkEmailEligibility(email);
 
       if (!isEligible) {
-        setMessage(
+        toast.error(
           error || "This email is not authorized to access the application.",
         );
-        setIsSuccess(false);
         return;
       }
 
@@ -87,12 +84,10 @@ export default function LoginPage() {
         signup_expiration_minutes: 10,
       });
 
-      setMessage("Check your email for a magic link to sign in.");
-      setIsSuccess(true);
+      toast.success("Check your email for a magic link to sign in.");
     } catch (error) {
       console.error("Error sending magic link:", error);
-      setMessage("Failed to send magic link. Please try again.");
-      setIsSuccess(false);
+      toast.error("Failed to send magic link. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -120,13 +115,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {message && (
-          <div
-            className={`mt-4 p-4 rounded-md ${isSuccess ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}
-          >
-            {message}
-          </div>
-        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
@@ -178,10 +166,9 @@ export default function LoginPage() {
                         "";
 
                       if (!devEmail) {
-                        setMessage(
+                        toast.error(
                           "Please enter an email address for dev login",
                         );
-                        setIsSuccess(false);
                         setIsLoading(false);
                         return;
                       }
@@ -205,10 +192,9 @@ export default function LoginPage() {
                       router.push("/library");
                     } catch (error) {
                       console.error("Dev login error:", error);
-                      setMessage(
+                      toast.error(
                         (error as Error).message || "Development login failed",
                       );
-                      setIsSuccess(false);
                     } finally {
                       setIsLoading(false);
                     }

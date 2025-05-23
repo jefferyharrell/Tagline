@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { toast } from "sonner";
 
 interface MediaObject {
   id: string;
@@ -39,8 +40,6 @@ export default function MediaDetailClient({
     mediaObject.metadata.description || "",
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
 
@@ -51,8 +50,6 @@ export default function MediaDetailClient({
 
   const handleSave = async () => {
     setIsLoading(true);
-    setError(null);
-    setSuccess(null);
 
     const requestBody = {
       metadata: {
@@ -79,13 +76,10 @@ export default function MediaDetailClient({
 
       setMediaObject(updatedMediaObject);
       setIsDescriptionLocked(true);
-      setSuccess("Description saved successfully");
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success("Description saved successfully");
     } catch (err) {
       console.error("PATCH - Error updating media object:", err);
-      setError((err as Error).message || "Failed to save description");
+      toast.error((err as Error).message || "Failed to save description");
       // Keep unlocked on error so user can try again
     } finally {
       setIsLoading(false);
@@ -95,8 +89,6 @@ export default function MediaDetailClient({
   const handleCancel = useCallback(() => {
     setDescription(mediaObject.metadata.description || "");
     setIsDescriptionLocked(true);
-    setError(null);
-    setSuccess(null);
   }, [mediaObject.metadata.description]);
 
   // Handle Escape key to cancel editing
@@ -120,25 +112,11 @@ export default function MediaDetailClient({
     } else {
       // Just unlock without saving
       setIsDescriptionLocked(false);
-      setError(null);
-      setSuccess(null);
     }
   };
 
   return (
     <div className="min-h-screen">
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="mb-4 p-4 rounded-md bg-red-50 text-red-700">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="mb-4 p-4 rounded-md bg-green-50 text-green-700">
-          {success}
-        </div>
-      )}
-
       {/* Full Width Photo Section */}
       <div className="relative">
         <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>

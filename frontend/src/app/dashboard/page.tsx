@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import PageHeader from "../components/PageHeader";
 import Link from "next/link";
+import DashboardClient from "./dashboard-client";
 
 export default async function Dashboard({
   searchParams,
@@ -27,23 +28,13 @@ export default async function Dashboard({
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardClient 
+        errorMessage={errorMessage} 
+        successMessage={successMessage} 
+      />
       <PageHeader title="" />
       <main>
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-          {/* Display error message if present */}
-          {errorMessage && (
-            <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
-              {errorMessage}
-            </div>
-          )}
-
-          {/* Display success message if present */}
-          {successMessage && (
-            <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-md">
-              {successMessage}
-            </div>
-          )}
-
           <div className="bg-white rounded-lg shadow-lg p-8">
             <h2 className="text-xl font-bold mb-6">Welcome to Tagline</h2>
             <p className="text-gray-600 mb-8">
