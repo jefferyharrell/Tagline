@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { Lock, Unlock } from "lucide-react";
 
 interface MediaObject {
   id: string;
@@ -42,6 +43,7 @@ export default function MediaDetailClient({
   const [isLoading, setIsLoading] = useState(false);
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
   // Sync description when mediaObject changes
   useEffect(() => {
@@ -106,13 +108,23 @@ export default function MediaDetailClient({
   }, [isDescriptionLocked, handleCancel]);
 
   const toggleDescriptionLock = async () => {
-    // If currently unlocked and about to lock, trigger auto-save
+    // If currently unlocked and about to lock, show confirmation
     if (!isDescriptionLocked) {
-      await handleSave();
+      setShowSaveConfirmation(true);
     } else {
       // Just unlock without saving
       setIsDescriptionLocked(false);
     }
+  };
+
+  const confirmSave = async () => {
+    setShowSaveConfirmation(false);
+    await handleSave();
+  };
+
+  const cancelSave = () => {
+    setShowSaveConfirmation(false);
+    handleCancel();
   };
 
   return (
@@ -184,33 +196,9 @@ export default function MediaDetailClient({
                   {isLoading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
                   ) : isDescriptionLocked ? (
-                    <svg
-                      className="h-4 w-4 text-gray-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
+                    <Lock className="h-4 w-4 text-gray-600" />
                   ) : (
-                    <svg
-                      className="h-4 w-4 text-jl-red"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                      />
-                    </svg>
+                    <Unlock className="h-4 w-4 text-jl-red" />
                   )}
                 </button>
 
@@ -236,6 +224,35 @@ export default function MediaDetailClient({
             </div>
           </div>
         </div>
+
+        {/* Save Confirmation Dialog */}
+        {showSaveConfirmation && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Save Changes?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to save the changes to this description? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={cancelSave}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmSave}
+                  disabled={isLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-jl-red rounded-md hover:bg-jl-red-700 focus:outline-none focus:ring-2 focus:ring-jl-red disabled:opacity-50"
+                >
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Metadata Sheet */}
         <SheetContent side="right" className="w-full sm:max-w-md">
