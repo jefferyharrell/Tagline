@@ -1,7 +1,7 @@
 import React from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import PageHeader from "../../components/PageHeader";
+import PageHeader from "@/components/PageHeader";
 import MediaDetailClient from "./media-detail-client";
 
 // This will handle fetching the media object on the server side
