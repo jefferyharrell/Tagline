@@ -1,21 +1,68 @@
-# Use the official Node.js image with the same version as your development environment
-FROM node:20-alpine
+# Multi-stage build for Next.js 15 production deployment
+FROM node:20-alpine AS base
 
-# Set working directory
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
-# Install dependencies first for better caching
+# Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN \
+    if [ -f package-lock.json ]; then npm ci --only=production; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
 
-# Copy the rest of the application
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Install any additional dependencies (like Next.js)
-RUN npm install
+# Environment variables must be present at build time
+# https://github.com/vercel/next.js/discussions/14030
+ARG NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_AUTH_BYPASS_ENABLED
 
-# Expose the port the app runs on
+# Disable telemetry during the build
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# Build the application
+RUN npm run build
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# Create a non-root user to run the application
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy the standalone build
+COPY --from=builder /app/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# Start the development server with debugging enabled
-CMD ["npm", "run", "dev"]
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/next-config-js/output
+CMD ["node", "server.js"]

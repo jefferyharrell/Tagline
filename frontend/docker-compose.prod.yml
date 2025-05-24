@@ -1,0 +1,36 @@
+# Production docker-compose configuration
+services:
+  frontend:
+    build:
+      context: .
+      target: runner
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN=${NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+        - NEXT_PUBLIC_AUTH_BYPASS_ENABLED=${NEXT_PUBLIC_AUTH_BYPASS_ENABLED}
+    container_name: tagline-frontend-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      # Runtime environment variables
+      - BACKEND_URL=${BACKEND_URL}
+      - BACKEND_API_KEY=${BACKEND_API_KEY}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    user: "1001:1001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      timeout: 10s
+      interval: 30s
+      retries: 3
+      start_period: 40s

@@ -1,17 +1,24 @@
+# Development docker-compose configuration  
 services:
   frontend:
-    build: .
-    container_name: tagline-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tagline-frontend-dev
     ports:
       - "3000:3000"
     env_file:
       - .env
     volumes:
+      # Bind mount the entire directory but use named volumes for performance
       - .:/app
-      - /app/node_modules
-      - /app/.next
+      - node_modules:/app/node_modules
+      - nextjs_cache:/app/.next
     environment:
       - NODE_ENV=development
-    command: sh -c "npm run dev"
+      - NEXT_TELEMETRY_DISABLED=1
     restart: unless-stopped
-    working_dir: /app
+
+volumes:
+  node_modules:
+  nextjs_cache:
