@@ -121,27 +121,28 @@ export default function MediaDetailClient({
       <div className="relative">
         <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
           {/* Large Photo */}
-          <div className="bg-gray-500 overflow-hidden relative lg:h-[80vh] min-h-full">
-            <Image
-              src={`/api/library/${mediaObject.id}/proxy`}
-              alt={mediaObject.metadata.description || "Media preview"}
-              fill
-              className="object-contain object-top"
-            />
-            
-            {/* Top Right Controls */}
-            <div className="absolute top-4 right-4 flex gap-2">
-              <SheetTrigger asChild>
-                <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-jl-red">
-                  <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
-              </SheetTrigger>
-            </div>
-          
-          {/* Description Textarea Overlaid on Bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-4">
+          <div className="overflow-hidden relative h-[80vh] min-h-full flex items-start justify-center">
+            <div className="relative w-full h-full">
+              <Image
+                src={`/api/library/${mediaObject.id}/proxy`}
+                alt={mediaObject.metadata.description || "Media preview"}
+                fill
+                className="object-contain object-center"
+              />
+              
+              {/* Top Right Controls */}
+              <div className="absolute top-4 right-4 flex gap-2 z-10">
+                <SheetTrigger asChild>
+                  <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-jl-red">
+                    <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                </SheetTrigger>
+              </div>
+              
+              {/* Description Textarea Overlaid on Bottom of Image */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
             <div className="relative">
               <Textarea
                 value={description || ""}
@@ -231,7 +232,8 @@ export default function MediaDetailClient({
                 </div>
               </div>
             )}
-          </div>
+              </div>
+            </div>
           </div>
 
           {/* Metadata Sheet */}
