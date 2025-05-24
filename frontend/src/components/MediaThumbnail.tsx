@@ -21,7 +21,7 @@ interface MediaThumbnailProps {
 export default function MediaThumbnail({ media }: MediaThumbnailProps) {
   return (
     <Link href={`/library/${media.id}`} className="block group">
-      <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
+      <div className="bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
         <div className="relative h-64 bg-gray-100 flex items-center justify-center">
           <Image
             src={`/api/library/${media.id}/thumbnail`}
