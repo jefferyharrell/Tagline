@@ -118,14 +118,17 @@ export default function MediaDetailClient({
   return (
     <div className="min-h-screen">
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
-        {/* Photo Section */}
-        <div className="relative">
-          <div className="overflow-hidden relative h-[60vh] md:h-[70vh] lg:h-[80vh] flex items-start justify-center">
+        {/* Photo Section with Positioned Description */}
+        <div className="relative flex justify-center">
+          <div className="relative">
             <Image
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              fill
-              className="object-contain object-top"
+              width={800}
+              height={600}
+              className="max-w-full h-auto"
+              style={{ maxHeight: '80vh' }}
+              priority
             />
             
             {/* Top Right Controls */}
@@ -138,99 +141,99 @@ export default function MediaDetailClient({
                 </button>
               </SheetTrigger>
             </div>
-          </div>
-        </div>
 
-        {/* Description Section - Below Photo */}
-        <div className="p-4">
-          <div className="relative">
-            <Textarea
-              value={description || ""}
-              onChange={(e) => setDescription(e.target.value)}
-              readOnly={isDescriptionLocked}
-              rows={3}
-              className={`!text-lg w-full resize-none bg-white border border-gray-200 rounded-lg shadow-sm pr-12 ${
-                isDescriptionLocked
-                  ? "text-gray-700 cursor-default"
-                  : "text-gray-900"
-              }`}
-              placeholder={
-                isDescriptionLocked
-                  ? description
-                    ? ""
-                    : "Add a description..."
-                  : "Enter a description for this media..."
-              }
-            />
+            {/* Description Section - Positioned at Bottom of Photo */}
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className="relative">
+                <Textarea
+                  value={description || ""}
+                  onChange={(e) => setDescription(e.target.value)}
+                  readOnly={isDescriptionLocked}
+                  rows={3}
+                  className={`!text-lg w-full resize-none bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 ${
+                    isDescriptionLocked
+                      ? "text-gray-700 cursor-default"
+                      : "text-gray-900"
+                  }`}
+                  placeholder={
+                    isDescriptionLocked
+                      ? description
+                        ? ""
+                        : "Add a description..."
+                      : "Enter a description for this media..."
+                  }
+                />
 
-            {/* Padlock Icon */}
-            <button
-              onClick={toggleDescriptionLock}
-              disabled={isLoading}
-              className={`absolute top-2 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red ${
-                isLoading
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-              title={
-                isLoading
-                  ? "Saving..."
-                  : isDescriptionLocked
-                  ? "Click to edit description"
-                  : "Click to save and lock description"
-              }
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
-              ) : isDescriptionLocked ? (
-                <svg
-                  className="h-4 w-4 text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                {/* Padlock Icon */}
+                <button
+                  onClick={toggleDescriptionLock}
+                  disabled={isLoading}
+                  className={`absolute top-2 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red ${
+                    isLoading
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                  title={
+                    isLoading
+                      ? "Saving..."
+                      : isDescriptionLocked
+                      ? "Click to edit description"
+                      : "Click to save and lock description"
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="h-4 w-4 text-jl-red"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                  />
-                </svg>
-              )}
-            </button>
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
+                  ) : isDescriptionLocked ? (
+                    <svg
+                      className="h-4 w-4 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-4 w-4 text-jl-red"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                      />
+                    </svg>
+                  )}
+                </button>
 
-            {/* Helper text when editing */}
-            {!isDescriptionLocked && (
-              <div className="mt-2">
-                <p className="text-xs text-gray-500">
-                  Click the lock icon to save changes, or press Escape to cancel
-                </p>
-              </div>
-            )}
+                {/* Helper text when editing */}
+                {!isDescriptionLocked && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
+                      Click the lock icon to save changes, or press Escape to cancel
+                    </p>
+                  </div>
+                )}
 
-            {/* Loading indicator when saving */}
-            {isLoading && (
-              <div className="mt-2">
-                <div className="flex items-center text-xs text-gray-500">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-jl-red mr-2"></div>
-                  Saving description...
-                </div>
+                {/* Loading indicator when saving */}
+                {isLoading && (
+                  <div className="mt-2">
+                    <div className="flex items-center text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-jl-red mr-2"></div>
+                      Saving description...
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
