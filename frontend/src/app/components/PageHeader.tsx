@@ -54,14 +54,16 @@ export default function PageHeader({
         {/* Left: Logo and Title */}
         <div className="flex items-center flex-shrink-0">
           <div className="w-auto mr-4">
-            <Image
-              src="/JLLA_combo_stacked.png"
-              alt="Junior League of Los Angeles"
-              width={1024}
-              height={156}
-              priority={true}
-              className="h-[2rem] w-auto object-contain"
-            />
+            <Link href="/library">
+              <Image
+                src="/JLLA_combo_stacked.png"
+                alt="Junior League of Los Angeles"
+                width={1024}
+                height={156}
+                priority={true}
+                className="h-[2rem] w-auto object-contain"
+              />
+            </Link>
           </div>
           {title && (
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
