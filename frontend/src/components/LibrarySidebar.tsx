@@ -1,7 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
 
 interface SidebarSection {
   title: string;
@@ -43,38 +55,43 @@ export default function LibrarySidebar() {
   ];
 
   return (
-    <div className="w-64 bg-gray-800 text-white h-full flex flex-col">
-      <div className="flex-1 py-4 px-3 space-y-6">
+    <Sidebar>
+      <SidebarHeader>
+        <Link href="/library">
+          <Image
+            src="/JLLA_combo_stacked.svg"
+            alt="Junior League of Los Angeles"
+            width={1024}
+            height={156}
+            priority={true}
+            className="h-[2rem] w-auto object-contain"
+          />
+        </Link>
+      </SidebarHeader>
+      <SidebarContent>
         {sections.map((section, sectionIndex) => (
-          <div key={sectionIndex}>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">
-              {section.title}
-            </h3>
-            <ul className="space-y-1">
-              {section.items.map((item, itemIndex) => (
-                <li key={itemIndex}>
-                  {item.href && item.href !== "#" ? (
-                    <Link
-                      href={item.href}
-                      className={`block px-3 py-2 text-sm rounded-md transition-colors duration-200 ${
-                        item.isActive
-                          ? "bg-gray-700 text-white"
-                          : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                      }`}
-                    >
-                      {item.title}
-                    </Link>
-                  ) : (
-                    <div className="block px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors duration-200 cursor-pointer">
-                      {item.title}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <SidebarGroup key={sectionIndex}>
+            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item, itemIndex) => (
+                  <SidebarMenuItem key={itemIndex}>
+                    {item.href && item.href !== "#" ? (
+                      <SidebarMenuButton asChild isActive={item.isActive}>
+                        <Link href={item.href}>{item.title}</Link>
+                      </SidebarMenuButton>
+                    ) : (
+                      <SidebarMenuButton disabled>
+                        {item.title}
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         ))}
-      </div>
-    </div>
+      </SidebarContent>
+    </Sidebar>
   );
 }
