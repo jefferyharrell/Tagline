@@ -56,7 +56,7 @@ export default function PageHeader({
           <div className="w-auto mr-4">
             <Link href="/library">
               <Image
-                src="/JLLA_combo_stacked.png"
+                src="/JLLA_combo_stacked.svg"
                 alt="Junior League of Los Angeles"
                 width={1024}
                 height={156}

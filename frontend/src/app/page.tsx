@@ -99,11 +99,11 @@ export default function LoginPage() {
         <div>
           <div className="flex justify-center mb-6">
             <Image
-              src="/JLLA.png"
+              src="/JLLA_stacked_vert.svg"
               alt="Junior League of Los Angeles"
               width={200}
               height={200}
-              className="w-[100px] h-[100px]"
+              className="w-[400px] h-auto"
               priority={true}
             />
           </div>
