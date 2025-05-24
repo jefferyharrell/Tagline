@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.7",
     "@stytch/nextjs": "^21.5.0",
     "@stytch/vanilla-js": "^5.23.5",
     "class-variance-authority": "^0.7.1",
