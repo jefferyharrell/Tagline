@@ -4,6 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
+  Images,
+  Calendar,
+  LayoutDashboard,
+  User,
+} from "lucide-react";
+import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
@@ -25,6 +31,7 @@ interface SidebarItem {
   title: string;
   href?: string;
   isActive?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 export default function LibrarySidebar() {
@@ -34,23 +41,23 @@ export default function LibrarySidebar() {
     {
       title: "Library",
       items: [
-        { title: "Photos", href: "/library", isActive: pathname === "/library" },
+        { title: "Photos", href: "/library", isActive: pathname === "/library", icon: Images },
       ],
     },
     {
       title: "By League Year",
       items: [
-        { title: "2025-2026", href: "#" },
-        { title: "2024-2025", href: "#" },
-        { title: "2023-2024", href: "#" },
-        { title: "2022-2023", href: "#" },
-        { title: "2021-2022", href: "#" },
+        { title: "2025-2026", href: "#", icon: Calendar },
+        { title: "2024-2025", href: "#", icon: Calendar },
+        { title: "2023-2024", href: "#", icon: Calendar },
+        { title: "2022-2023", href: "#", icon: Calendar },
+        { title: "2021-2022", href: "#", icon: Calendar },
       ],
     },
     {
       title: "Me",
       items: [
-        { title: "Dashboard", href: "/dashboard", isActive: pathname === "/dashboard" },
+        { title: "Dashboard", href: "/dashboard", isActive: pathname === "/dashboard", icon: LayoutDashboard },
       ],
     },
   ];
@@ -79,11 +86,15 @@ export default function LibrarySidebar() {
                   <SidebarMenuItem key={itemIndex}>
                     {item.href && item.href !== "#" ? (
                       <SidebarMenuButton asChild isActive={item.isActive}>
-                        <Link href={item.href}>{item.title}</Link>
+                        <Link href={item.href}>
+                          {item.icon && <item.icon />}
+                          <span>{item.title}</span>
+                        </Link>
                       </SidebarMenuButton>
                     ) : (
                       <SidebarMenuButton disabled>
-                        {item.title}
+                        {item.icon && <item.icon />}
+                        <span>{item.title}</span>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
