@@ -1,7 +1,8 @@
 import React from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import LibrarySidebar from "@/components/LibrarySidebar";
 import MediaDetailClient from "./media-detail-client";
 
 // This will handle fetching the media object on the server side
@@ -58,11 +59,13 @@ export default async function MediaDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-500">
-      <PageHeader title="" />
-      <main className="p-6">
-        <MediaDetailClient initialMediaObject={mediaObject} />
-      </main>
-    </div>
+    <SidebarProvider>
+      <LibrarySidebar />
+      <SidebarInset className="min-h-screen bg-gray-50">
+        <main className="p-6">
+          <MediaDetailClient initialMediaObject={mediaObject} />
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
