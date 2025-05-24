@@ -22,17 +22,6 @@ export default function LibrarySidebar() {
       title: "Library",
       items: [
         { title: "Photos", href: "/library", isActive: pathname === "/library" },
-        { title: "Lorem", href: "#" },
-        { title: "Ipsum", href: "#" },
-      ],
-    },
-    {
-      title: "Events",
-      items: [
-        { title: "Touch a Truck 2025", href: "#" },
-        { title: "Dolor", href: "#" },
-        { title: "Sit", href: "#" },
-        { title: "Amet", href: "#" },
       ],
     },
     {
@@ -40,7 +29,9 @@ export default function LibrarySidebar() {
       items: [
         { title: "2025-2026", href: "#" },
         { title: "2024-2025", href: "#" },
-        { title: "...", href: "#" },
+        { title: "2023-2024", href: "#" },
+        { title: "2022-2023", href: "#" },
+        { title: "2021-2022", href: "#" },
       ],
     },
     {
