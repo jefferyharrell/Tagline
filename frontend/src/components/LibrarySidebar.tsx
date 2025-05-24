@@ -64,7 +64,7 @@ export default function LibrarySidebar() {
             width={1024}
             height={156}
             priority={true}
-            className="h-[2rem] w-auto object-contain"
+            className="object-contain p-2"
           />
         </Link>
       </SidebarHeader>
