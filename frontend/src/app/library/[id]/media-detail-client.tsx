@@ -117,107 +117,106 @@ export default function MediaDetailClient({
 
   return (
     <div className="min-h-screen">
-      {/* Full Width Photo Section */}
-      <div className="relative">
-        <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
-          {/* Large Photo */}
-          <div className="overflow-hidden relative h-[80vh] min-h-full flex items-start justify-center">
-            <div className="relative w-full h-full">
-              <Image
-                src={`/api/library/${mediaObject.id}/proxy`}
-                alt={mediaObject.metadata.description || "Media preview"}
-                fill
-                className="object-contain object-center"
-              />
-              
-              {/* Top Right Controls */}
-              <div className="absolute top-4 right-4 flex gap-2 z-10">
-                <SheetTrigger asChild>
-                  <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-jl-red">
-                    <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
-                </SheetTrigger>
-              </div>
-              
-              {/* Description Textarea Overlaid on Bottom of Image */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
-            <div className="relative">
-              <Textarea
-                value={description || ""}
-                onChange={(e) => setDescription(e.target.value)}
-                readOnly={isDescriptionLocked}
-                rows={3}
-                className={`!text-lg w-full resize-none bg-white/50 backdrop-blur-sm border-0 rounded-lg shadow-lg pr-12 ${
-                  isDescriptionLocked
-                    ? "text-gray-700 cursor-default"
-                    : "text-gray-900"
-                }`}
-                placeholder={
-                  isDescriptionLocked
-                    ? description
-                      ? ""
-                      : "Add a description..."
-                    : "Enter a description for this media..."
-                }
-              />
-
-              {/* Padlock Icon */}
-              <button
-                onClick={toggleDescriptionLock}
-                disabled={isLoading}
-                className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red ${
-                  isLoading
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-white/90"
-                }`}
-                title={
-                  isLoading
-                    ? "Saving..."
-                    : isDescriptionLocked
-                    ? "Click to edit description"
-                    : "Click to save and lock description"
-                }
-              >
-                {isLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
-                ) : isDescriptionLocked ? (
-                  <svg
-                    className="h-4 w-4 text-gray-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
+      <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
+        {/* Photo Section */}
+        <div className="relative">
+          <div className="overflow-hidden relative h-[60vh] md:h-[70vh] lg:h-[80vh] flex items-start justify-center">
+            <Image
+              src={`/api/library/${mediaObject.id}/proxy`}
+              alt={mediaObject.metadata.description || "Media preview"}
+              fill
+              className="object-contain object-top"
+            />
+            
+            {/* Top Right Controls */}
+            <div className="absolute top-4 right-4 flex gap-2 z-10">
+              <SheetTrigger asChild>
+                <button className="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-jl-red">
+                  <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                ) : (
-                  <svg
-                    className="h-4 w-4 text-jl-red"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                    />
-                  </svg>
-                )}
-              </button>
+                </button>
+              </SheetTrigger>
             </div>
+          </div>
+        </div>
+
+        {/* Description Section - Below Photo */}
+        <div className="p-4">
+          <div className="relative">
+            <Textarea
+              value={description || ""}
+              onChange={(e) => setDescription(e.target.value)}
+              readOnly={isDescriptionLocked}
+              rows={3}
+              className={`!text-lg w-full resize-none bg-white border border-gray-200 rounded-lg shadow-sm pr-12 ${
+                isDescriptionLocked
+                  ? "text-gray-700 cursor-default"
+                  : "text-gray-900"
+              }`}
+              placeholder={
+                isDescriptionLocked
+                  ? description
+                    ? ""
+                    : "Add a description..."
+                  : "Enter a description for this media..."
+              }
+            />
+
+            {/* Padlock Icon */}
+            <button
+              onClick={toggleDescriptionLock}
+              disabled={isLoading}
+              className={`absolute top-2 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red ${
+                isLoading
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+              title={
+                isLoading
+                  ? "Saving..."
+                  : isDescriptionLocked
+                  ? "Click to edit description"
+                  : "Click to save and lock description"
+              }
+            >
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
+              ) : isDescriptionLocked ? (
+                <svg
+                  className="h-4 w-4 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="h-4 w-4 text-jl-red"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                  />
+                </svg>
+              )}
+            </button>
 
             {/* Helper text when editing */}
             {!isDescriptionLocked && (
               <div className="mt-2">
-                <p className="text-xs text-white/80 bg-black/20 backdrop-blur-sm rounded px-2 py-1 inline-block">
+                <p className="text-xs text-gray-500">
                   Click the lock icon to save changes, or press Escape to cancel
                 </p>
               </div>
@@ -226,17 +225,16 @@ export default function MediaDetailClient({
             {/* Loading indicator when saving */}
             {isLoading && (
               <div className="mt-2">
-                <div className="flex items-center text-xs text-white/80 bg-black/20 backdrop-blur-sm rounded px-2 py-1 inline-block">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                <div className="flex items-center text-xs text-gray-500">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-jl-red mr-2"></div>
                   Saving description...
                 </div>
               </div>
             )}
-              </div>
-            </div>
           </div>
+        </div>
 
-          {/* Metadata Sheet */}
+        {/* Metadata Sheet */}
         <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Photo Details</SheetTitle>
@@ -382,7 +380,6 @@ export default function MediaDetailClient({
           </div>
         </SheetContent>
       </Sheet>
-      </div>
     </div>
   );
 }
