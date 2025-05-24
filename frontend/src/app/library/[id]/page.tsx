@@ -40,7 +40,7 @@ async function getMediaObject(mediaId: string) {
 export default async function MediaDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   // Await both dynamic APIs
   const cookieStore = await cookies();

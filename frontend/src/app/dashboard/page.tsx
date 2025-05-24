@@ -8,7 +8,7 @@ import DashboardClient from "./dashboard-client";
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   // In a real implementation, we would verify the JWT and get user data
   // For now, we'll just check if the auth_token cookie exists

@@ -110,13 +110,13 @@ export default function GalleryClient() {
   }, [fetchMediaObjects, hasMore, isLoading, initialLoad]);
 
   return (
-    <div className="bg-white">
+    <div className="h-full bg-white">
       {isLoading && mediaObjects.length === 0 ? (
-        <div className="flex justify-center items-center h-64 mx-8">
+        <div className="flex justify-center items-center h-64 px-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-jl-red"></div>
         </div>
       ) : error && mediaObjects.length === 0 ? (
-        <div className="text-center text-red-600 p-4">
+        <div className="text-center text-red-600 p-8">
           <p>{error}</p>
           <button
             onClick={() => fetchMediaObjects(true)}
@@ -170,7 +170,7 @@ export default function GalleryClient() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 px-8 py-12">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 p-6">
             {mediaObjects.map((media) => (
               <MediaThumbnail key={media.id} media={media} />
             ))}
@@ -179,7 +179,7 @@ export default function GalleryClient() {
           {/* Loading indicator for infinite scroll */}
           <div
             ref={loadingRef}
-            className="flex justify-center items-center py-8 mt-12"
+            className="flex justify-center items-center py-8"
           >
             {isLoading && (
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-jl-red"></div>

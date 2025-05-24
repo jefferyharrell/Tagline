@@ -2,6 +2,7 @@ import React from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import PageHeader from "../components/PageHeader";
+import LibrarySidebar from "@/components/LibrarySidebar";
 import GalleryClient from "./gallery-client";
 
 export default async function Gallery() {
@@ -16,11 +17,12 @@ export default async function Gallery() {
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader title="" />
-      <main>
-        <div className="mx-auto max-w-[1600px] py-8">
+      <div className="flex h-[calc(100vh-4rem)]">
+        <LibrarySidebar />
+        <main className="flex-1 overflow-y-auto">
           <GalleryClient />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
