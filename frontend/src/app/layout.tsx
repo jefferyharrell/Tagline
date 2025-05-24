@@ -26,6 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://use.typekit.net/vxg4wbp.css" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
         <StytchProvider>{children}</StytchProvider>
         <Toaster position="top-right" />
