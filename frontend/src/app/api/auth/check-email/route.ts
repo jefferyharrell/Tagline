@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     }
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/auth/verify-email`,
+      `${process.env.BACKEND_URL}/v1/auth/verify-email`,
       {
         method: "POST",
         headers: {

@@ -23,6 +23,12 @@ function isPublicPath(path: string): boolean {
     return true;
   }
 
+  // Check if it's a static file
+  const isStaticFile = /\.(svg|png|jpg|jpeg|gif|ico|css|js|woff|woff2|ttf|eot)$/i.test(path);
+  if (isStaticFile) {
+    return true;
+  }
+
   return publicPaths.some(
     (publicPath) =>
       path === publicPath ||
