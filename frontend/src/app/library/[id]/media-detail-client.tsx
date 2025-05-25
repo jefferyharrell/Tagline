@@ -29,7 +29,11 @@ interface MediaObject {
     keywords?: string[];
     file_size?: string;
     dimensions?: string;
-    [key: string]: string | string[] | undefined;
+    intrinsic?: {
+      width: number;
+      height: number;
+    };
+    [key: string]: string | string[] | object | undefined;
   };
   created_at: string;
   updated_at: string;
@@ -139,14 +143,20 @@ export default function MediaDetailClient({
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
         <div className="relative flex justify-center">
-          <div className="relative">
+          <div 
+            className="relative w-full max-w-4xl"
+            style={{ 
+              maxHeight: '80vh',
+              aspectRatio: mediaObject.metadata.intrinsic 
+                ? `${mediaObject.metadata.intrinsic.width} / ${mediaObject.metadata.intrinsic.height}`
+                : '4 / 3'
+            }}
+          >
             <Image
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              width={800}
-              height={600}
-              className="max-w-full h-auto"
-              style={{ maxHeight: '80vh' }}
+              fill
+              className="object-contain"
               priority
             />
             
