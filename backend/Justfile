@@ -61,7 +61,7 @@ pre-commit:
 # Docker Compose
 up:
     # Start all containers in the background
-    docker compose up --wait
+    docker compose up --wait --wait-timeout 60
     just migrate
 
 down:
