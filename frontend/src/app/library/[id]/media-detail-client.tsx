@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { Lock, Unlock } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface MediaObject {
   id: string;
@@ -223,6 +230,74 @@ export default function MediaDetailClient({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Raw Metadata Card */}
+        <div className="max-w-4xl mx-auto p-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Raw Metadata</CardTitle>
+              <CardDescription>
+                All available metadata for this media object
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Basic Properties */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-700 mb-2">Basic Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">ID:</span>
+                        <span className="font-mono text-xs">{mediaObject.id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Object Key:</span>
+                        <span className="font-mono text-xs break-all">{mediaObject.object_key}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Created:</span>
+                        <span className="text-xs">{new Date(mediaObject.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Updated:</span>
+                        <span className="text-xs">{new Date(mediaObject.updated_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-700 mb-2">Metadata Properties</h4>
+                    <div className="space-y-2 text-sm">
+                      {Object.entries(mediaObject.metadata).length > 0 ? (
+                        Object.entries(mediaObject.metadata).map(([key, value]) => (
+                          <div key={key} className="flex justify-between">
+                            <span className="text-gray-600 capitalize">{key.replace(/_/g, ' ')}:</span>
+                            <span className="font-mono text-xs text-right ml-2 max-w-[200px] break-all">
+                              {Array.isArray(value) ? value.join(', ') : String(value || 'N/A')}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-gray-500 text-xs italic">No metadata properties available</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Raw JSON */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium text-sm text-gray-700 mb-2">Raw JSON</h4>
+                  <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
+                    <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                      {JSON.stringify(mediaObject, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Save Confirmation Dialog */}
