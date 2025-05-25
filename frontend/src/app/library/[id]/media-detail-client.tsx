@@ -29,14 +29,15 @@ interface MediaObject {
     keywords?: string[];
     file_size?: string;
     dimensions?: string;
+    created?: string;
     intrinsic?: {
       width: number;
       height: number;
     };
     [key: string]: string | string[] | object | undefined;
   };
-  created: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface MediaDetailClientProps {
@@ -163,6 +164,16 @@ export default function MediaDetailClient({
             {/* Description Section - Positioned at Bottom of Photo */}
             <div className="absolute bottom-0 left-0 right-0 p-4">
               <div className="relative">
+                {/* Custom placeholder overlay */}
+                {!description && isDescriptionLocked && (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+                    style={{ paddingRight: '3rem' }} // Account for lock button
+                  >
+                    <span className="text-jl-red font-bold text-lg">Describe this…</span>
+                  </div>
+                )}
+                
                 <Textarea
                   value={description || ""}
                   onChange={(e) => setDescription(e.target.value)}
@@ -175,11 +186,14 @@ export default function MediaDetailClient({
                   }`}
                   placeholder={
                     isDescriptionLocked
-                      ? description
-                        ? ""
-                        : "Add a description..."
+                      ? ""
                       : "Enter a description for this media..."
                   }
+                  onClick={() => {
+                    if (isDescriptionLocked && !description) {
+                      toggleDescriptionLock();
+                    }
+                  }}
                 />
 
                 {/* Padlock Icon */}
@@ -254,7 +268,7 @@ export default function MediaDetailClient({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Created:</span>
-                        <span className="text-xs">{new Date(mediaObject.created).toLocaleString()}</span>
+                        <span className="text-xs">{mediaObject.metadata.created ? new Date(mediaObject.metadata.created).toLocaleString(undefined, { timeZoneName: 'short' }) : 'N/A'}</span>
                       </div>
                     </div>
                   </div>
