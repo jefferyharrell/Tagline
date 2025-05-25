@@ -7,7 +7,6 @@ import {
   Images,
   Calendar,
   LayoutDashboard,
-  User,
 } from "lucide-react";
 import {
   Sidebar,

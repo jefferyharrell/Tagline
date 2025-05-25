@@ -16,14 +16,21 @@ RUN pip install uv
 # Set workdir
 WORKDIR /app
 
+# Copy the dependency files
+COPY pyproject.toml uv.lock ./
+
+# Copy the Alembic migration files
+COPY alembic.ini ./alembic.ini
+COPY alembic/ ./alembic/
+
 # Copy the rest of the application
 COPY app/ ./app/
 
-# Install dependencies with uv
-RUN uv pip install --system app
+# Install Python dependencies using uv
+RUN uv sync
 
-# Expose port
-EXPOSE 8000
+# Expose the PORT env variable
+EXPOSE ${PORT:-8000}
 
-# Start the application with auto-reload for development
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start the application - bind to :: and use the PORT environment variable
+CMD ["sh", "-c", "uv run uvicorn app.main:app --host '' --port ${PORT:-8000}"]

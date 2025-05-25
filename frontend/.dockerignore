@@ -13,6 +13,7 @@ dist/
 build/
 
 # Environment files
+.env
 .env*.local
 .env.test
 
@@ -54,7 +55,6 @@ LICENSE
 .editorconfig
 .eslintrc*
 .prettierrc*
-tsconfig.json
 jest.config.js
 next-env.d.ts
 

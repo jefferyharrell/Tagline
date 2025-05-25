@@ -2,10 +2,10 @@
 
 import { useStytch } from "@stytch/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function AuthenticatePage() {
+function AuthenticateContent() {
   const stytch = useStytch();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,4 +97,22 @@ export default function AuthenticatePage() {
   }
 
   return null;
+}
+
+export default function AuthenticatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-sm">
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-3/4 mx-auto" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6 mx-auto" />
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthenticateContent />
+    </Suspense>
+  );
 }
