@@ -260,15 +260,10 @@ export default function MediaDetailClient({
                 {/* Basic Properties */}
                 <div className="">
                   <div>
-                    <h4 className="font-medium text-sm text-gray-700 mb-2">Basic Information</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Object Key:</span>
                         <span className="font-mono text-xs break-all">{mediaObject.object_key}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Created:</span>
-                        <span className="text-xs">{mediaObject.metadata.created ? new Date(mediaObject.metadata.created).toLocaleString(undefined, { timeZoneName: 'short' }) : 'N/A'}</span>
                       </div>
                     </div>
                   </div>
