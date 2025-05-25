@@ -22,7 +22,7 @@ class StorageProviderType(str, Enum):
 
 
 class Settings(BaseSettings):
-    API_KEY: str
+    BACKEND_API_KEY: str
     LOG_LEVEL: int = logging.INFO
     DATABASE_URL: str
     UNIT_TEST_DATABASE_URL: str | None = None  # Optional, for unit tests

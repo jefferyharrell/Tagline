@@ -3,7 +3,7 @@
 **Version:** 1.0.0
 **Last Updated:** 2025-04-30
 
-This document provides a complete, detailed schema for the Tagline REST API. All endpoints require authentication via the `X-API-Key` header, which is set via the `API_KEY` environment variable.
+This document provides a complete, detailed schema for the Tagline REST API. All endpoints require authentication via the `X-API-Key` header, which is set via the `BACKEND_API_KEY` environment variable.
 
 ---
 
@@ -122,7 +122,7 @@ Standard error response for all endpoints.
 ### API Key Requirements
 - All requests MUST include `X-API-Key` header
 - API key MUST be a cryptographically secure random string
-- API key is set via the `API_KEY` environment variable
+- API key is set via the `BACKEND_API_KEY` environment variable
 - Key rotation is supported without system downtime (TBD)
 
 ### Common Error Codes

@@ -23,7 +23,7 @@ class APIKeyStrategy:
     The API key is loaded from the environment at authentication time to support dynamic environments (e.g., testing).
     """
 
-    def __init__(self, api_key_env: str = "API_KEY"):
+    def __init__(self, api_key_env: str = "BACKEND_API_KEY"):
         self.api_key_env = api_key_env
 
     async def authenticate(self, api_key: str) -> dict:

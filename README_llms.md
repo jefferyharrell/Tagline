@@ -92,7 +92,7 @@ class StorageProviderBase(Protocol):
 
 ### Backend Environment Variables
 
-- `API_KEY`: For X-API-Key header authentication
+- `BACKEND_API_KEY`: For X-API-Key header authentication
 - `DATABASE_URL`: PostgreSQL connection string
 - `JWT_SECRET`: Secret for JWT token signing
 - `STYTCH_PROJECT_ID`, `STYTCH_SECRET`: Stytch authentication

@@ -9,7 +9,7 @@ def set_test_env_vars():
     os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
     # API settings
-    os.environ.setdefault("API_KEY", "dummy-api-key")
+    os.environ.setdefault("BACKEND_API_KEY", "dummy-api-key")
 
     # Storage settings
     os.environ.setdefault("STORAGE_PROVIDER", "filesystem")
