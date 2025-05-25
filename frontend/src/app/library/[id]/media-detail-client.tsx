@@ -56,19 +56,46 @@ export default function MediaDetailClient({
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  
+  // Track the last saved description for reverting on error
+  const [lastSavedDescription, setLastSavedDescription] = useState(
+    mediaObject.metadata.description || "",
+  );
+  
+  // Track if we're in an optimistic update state
+  const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
 
   // Sync description when mediaObject changes
   useEffect(() => {
     setDescription(mediaObject.metadata.description || "");
+    setLastSavedDescription(mediaObject.metadata.description || "");
   }, [mediaObject.metadata.description]);
 
   const handleSave = async () => {
+    // Start optimistic update
     setIsLoading(true);
+    setIsOptimisticUpdate(true);
+    
+    // Save the current description as the new "last saved" optimistically
+    const optimisticDescription = description;
+    setLastSavedDescription(optimisticDescription);
+    
+    // Optimistically update the media object
+    setMediaObject(prev => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        description: optimisticDescription,
+      },
+    }));
+    
+    // Lock the field immediately
+    setIsDescriptionLocked(true);
 
     const requestBody = {
       metadata: {
         ...mediaObject.metadata,
-        description,
+        description: optimisticDescription,
       },
     };
 
@@ -88,22 +115,41 @@ export default function MediaDetailClient({
 
       const updatedMediaObject = await response.json();
 
+      // Server confirmed - update with server response
       setMediaObject(updatedMediaObject);
-      setIsDescriptionLocked(true);
+      setDescription(updatedMediaObject.metadata.description || "");
+      setLastSavedDescription(updatedMediaObject.metadata.description || "");
+      
+      // Show success message after server confirms
       toast.success("Description saved successfully");
     } catch (err) {
       console.error("PATCH - Error updating media object:", err);
+      
+      // Revert on error
+      setMediaObject(prev => ({
+        ...prev,
+        metadata: {
+          ...prev.metadata,
+          description: mediaObject.metadata.description || "",
+        },
+      }));
+      setDescription(mediaObject.metadata.description || "");
+      setLastSavedDescription(mediaObject.metadata.description || "");
+      
+      // Unlock on error so user can try again
+      setIsDescriptionLocked(false);
+      
       toast.error((err as Error).message || "Failed to save description");
-      // Keep unlocked on error so user can try again
     } finally {
       setIsLoading(false);
+      setIsOptimisticUpdate(false);
     }
   };
 
   const handleCancel = useCallback(() => {
-    setDescription(mediaObject.metadata.description || "");
+    setDescription(lastSavedDescription);
     setIsDescriptionLocked(true);
-  }, [mediaObject.metadata.description]);
+  }, [lastSavedDescription]);
 
   // Handle Escape key to cancel editing
   useEffect(() => {
@@ -170,11 +216,11 @@ export default function MediaDetailClient({
                   onChange={(e) => setDescription(e.target.value)}
                   readOnly={isDescriptionLocked}
                   rows={3}
-                  className={`!text-lg font-medium w-full resize-none bg-white/50 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 ${
+                  className={`!text-lg font-medium w-full resize-none bg-white/50 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 transition-opacity duration-200 ${
                     isDescriptionLocked
                       ? "text-gray-900 cursor-default"
                       : "text-gray-900"
-                  }`}
+                  } ${isOptimisticUpdate ? "opacity-70" : ""}`}
                   placeholder={
                     isDescriptionLocked
                       ? ""
@@ -191,7 +237,7 @@ export default function MediaDetailClient({
                 <button
                   onClick={toggleDescriptionLock}
                   disabled={isLoading}
-                  className={`absolute top-2 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red ${
+                  className={`absolute top-2 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
                     isLoading
                       ? "opacity-50 cursor-not-allowed"
                       : ""
@@ -214,7 +260,7 @@ export default function MediaDetailClient({
                 </button>
 
                 {/* Helper text when editing */}
-                {!isDescriptionLocked && (
+                {!isDescriptionLocked && !isOptimisticUpdate && (
                   <div className="mt-2">
                     <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
                       Click the lock icon to save changes, or press Escape to cancel
@@ -222,12 +268,14 @@ export default function MediaDetailClient({
                   </div>
                 )}
 
-                {/* Loading indicator when saving */}
-                {isLoading && (
+                {/* Subtle loading indicator for optimistic updates */}
+                {isOptimisticUpdate && (
                   <div className="mt-2">
-                    <div className="flex items-center text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-jl-red mr-2"></div>
-                      Saving description...
+                    <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
+                      <svg className="animate-pulse h-3 w-3 mr-1.5 text-jl-red" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Saving...
                     </div>
                   </div>
                 )}
