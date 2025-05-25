@@ -3,6 +3,7 @@
 import { useStytch } from "@stytch/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AuthenticatePage() {
   const stytch = useStytch();
@@ -58,9 +59,19 @@ export default function AuthenticatePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-4">Authenticating...</h1>
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-sm">
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-3/4 mx-auto" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6 mx-auto" />
+            <div className="pt-4 flex justify-center">
+              <div className="flex space-x-2">
+                <Skeleton className="h-2 w-2 rounded-full animate-pulse" />
+                <Skeleton className="h-2 w-2 rounded-full animate-pulse delay-75" />
+                <Skeleton className="h-2 w-2 rounded-full animate-pulse delay-150" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

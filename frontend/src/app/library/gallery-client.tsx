@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import MediaThumbnail from "@/components/MediaThumbnail";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface MediaObject {
   id: string;
@@ -112,8 +113,20 @@ export default function GalleryClient() {
   return (
     <div className="h-full bg-white">
       {isLoading && mediaObjects.length === 0 ? (
-        <div className="flex justify-center items-center h-64 px-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-jl-red"></div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 p-6">
+          {/* Show skeleton placeholders for initial load */}
+          {Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
+            <div key={`skeleton-${index}`} className="bg-white overflow-hidden shadow-sm">
+              <div className="relative aspect-square">
+                <Skeleton className="absolute inset-0" />
+                {/* Skeleton for description overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 mt-2" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : error && mediaObjects.length === 0 ? (
         <div className="text-center text-red-600 p-8">
@@ -177,15 +190,26 @@ export default function GalleryClient() {
           </div>
 
           {/* Loading indicator for infinite scroll */}
-          <div
-            ref={loadingRef}
-            className="flex justify-center items-center py-8"
-          >
-            {isLoading && (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-jl-red"></div>
-            )}
+          {isLoading && mediaObjects.length > 0 && (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 px-6 pb-6">
+              {/* Show 12 skeleton items when loading more */}
+              {Array.from({ length: 12 }).map((_, index) => (
+                <div key={`skeleton-more-${index}`} className="bg-white overflow-hidden shadow-sm">
+                  <div className="relative aspect-square">
+                    <Skeleton className="absolute inset-0" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2 mt-2" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div ref={loadingRef} className="py-8">
             {!hasMore && mediaObjects.length > 0 && (
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-500 text-sm text-center">
                 No more media objects to load
               </p>
             )}
