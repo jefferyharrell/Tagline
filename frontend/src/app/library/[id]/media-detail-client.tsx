@@ -211,6 +211,26 @@ export default function MediaDetailClient({
             <div className="absolute bottom-0 left-0 right-0 p-4">
               <div className="relative">
                 
+                {/* Helper text and status - positioned above textarea */}
+                <div className="flex justify-end mb-2 h-6">
+                  {/* Helper text when editing */}
+                  {!isDescriptionLocked && !isOptimisticUpdate && (
+                    <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
+                      Click the lock icon to save changes, or press Escape to cancel
+                    </p>
+                  )}
+
+                  {/* Subtle loading indicator for optimistic updates */}
+                  {isOptimisticUpdate && (
+                    <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
+                      <svg className="animate-pulse h-3 w-3 mr-1.5 text-jl-red" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Saving...
+                    </div>
+                  )}
+                </div>
+                
                 <Textarea
                   value={description || ""}
                   onChange={(e) => setDescription(e.target.value)}
@@ -237,7 +257,7 @@ export default function MediaDetailClient({
                 <button
                   onClick={toggleDescriptionLock}
                   disabled={isLoading}
-                  className={`absolute top-2 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
+                  className={`absolute top-10 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
                     isLoading
                       ? "opacity-50 cursor-not-allowed"
                       : ""
@@ -258,27 +278,6 @@ export default function MediaDetailClient({
                     <Unlock className="h-4 w-4 text-jl-red" />
                   )}
                 </button>
-
-                {/* Helper text when editing */}
-                {!isDescriptionLocked && !isOptimisticUpdate && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
-                      Click the lock icon to save changes, or press Escape to cancel
-                    </p>
-                  </div>
-                )}
-
-                {/* Subtle loading indicator for optimistic updates */}
-                {isOptimisticUpdate && (
-                  <div className="mt-2">
-                    <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1 inline-block">
-                      <svg className="animate-pulse h-3 w-3 mr-1.5 text-jl-red" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Saving...
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
