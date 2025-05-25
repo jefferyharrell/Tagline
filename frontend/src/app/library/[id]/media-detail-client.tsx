@@ -164,15 +164,6 @@ export default function MediaDetailClient({
             {/* Description Section - Positioned at Bottom of Photo */}
             <div className="absolute bottom-0 left-0 right-0 p-4">
               <div className="relative">
-                {/* Custom placeholder overlay */}
-                {!description && isDescriptionLocked && (
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
-                    style={{ paddingRight: '3rem' }} // Account for lock button
-                  >
-                    <span className="text-jl-red font-bold text-lg">Describe this…</span>
-                  </div>
-                )}
                 
                 <Textarea
                   value={description || ""}
