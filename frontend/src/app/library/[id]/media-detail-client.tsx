@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
@@ -55,8 +55,12 @@ export default function MediaDetailClient({
     next: MediaObject | null;
   }>({ previous: null, next: null });
   const [isNavigating, setIsNavigating] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(true);
   
   const router = useRouter();
+  
+  // Cache for media data to avoid re-fetching
+  const mediaCache = useRef<Map<string, MediaObject>>(new Map());
   
   // Track the last saved description for reverting on error
   const [lastSavedDescription, setLastSavedDescription] = useState(
@@ -65,6 +69,11 @@ export default function MediaDetailClient({
   
   // Track if we're in an optimistic update state
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
+  
+  // Cache the initial media object
+  useEffect(() => {
+    mediaCache.current.set(initialMediaObject.id, initialMediaObject);
+  }, [initialMediaObject]);
 
   // Sync description when mediaObject changes
   useEffect(() => {
@@ -72,15 +81,26 @@ export default function MediaDetailClient({
     setLastSavedDescription(mediaObject.metadata.description || "");
   }, [mediaObject.metadata.description]);
   
-  // Fetch media data client-side
+  // Fetch media data client-side with caching
   const fetchMediaData = useCallback(async (mediaId: string) => {
+    // Check cache first
+    const cached = mediaCache.current.get(mediaId);
+    if (cached) {
+      return cached;
+    }
+    
     try {
       const response = await fetch(`/api/library/${mediaId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch media");
       }
       const data = await response.json();
-      return data as MediaObject;
+      const mediaObject = data as MediaObject;
+      
+      // Cache the result
+      mediaCache.current.set(mediaId, mediaObject);
+      
+      return mediaObject;
     } catch (error) {
       console.error("Error fetching media data:", error);
       toast.error("Failed to load media");
@@ -97,6 +117,7 @@ export default function MediaDetailClient({
       
       if (mediaId && mediaId !== mediaObject.id) {
         setIsNavigating(true);
+        setImageLoaded(false);
         const newMediaData = await fetchMediaData(mediaId);
         if (newMediaData) {
           setMediaObject(newMediaData);
@@ -120,6 +141,30 @@ export default function MediaDetailClient({
         if (response.ok) {
           const data = await response.json();
           setAdjacentMedia(data);
+          
+          // Preload adjacent images for faster navigation
+          if (data.previous) {
+            const prevImg = new window.Image();
+            prevImg.src = `/api/library/${data.previous.id}/proxy`;
+            // Prefetch and cache the media data too
+            fetch(`/api/library/${data.previous.id}`)
+              .then(res => res.json())
+              .then(mediaData => {
+                mediaCache.current.set(data.previous.id, mediaData);
+              })
+              .catch(() => {});
+          }
+          if (data.next) {
+            const nextImg = new window.Image();
+            nextImg.src = `/api/library/${data.next.id}/proxy`;
+            // Prefetch and cache the media data too
+            fetch(`/api/library/${data.next.id}`)
+              .then(res => res.json())
+              .then(mediaData => {
+                mediaCache.current.set(data.next.id, mediaData);
+              })
+              .catch(() => {});
+          }
         }
       } catch (error) {
         console.error("Error fetching adjacent media:", error);
@@ -127,7 +172,7 @@ export default function MediaDetailClient({
     };
     
     fetchAdjacentMedia();
-  }, [mediaObject.id]);
+  }, [mediaObject.id, mediaCache]);
 
   // Navigation functions
   const navigateToMedia = useCallback(async (media: MediaObject | null) => {
@@ -140,6 +185,7 @@ export default function MediaDetailClient({
     }
     
     setIsNavigating(true);
+    setImageLoaded(false);
     
     // Fetch the new media data
     const newMediaData = await fetchMediaData(media.id);
@@ -314,14 +360,16 @@ export default function MediaDetailClient({
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
               fill
-              className={`object-contain transition-opacity duration-200 ${isNavigating ? "opacity-50" : "opacity-100"}`}
+              className={`object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               priority
+              onLoad={() => setImageLoaded(true)}
+              sizes="(max-width: 1024px) 100vw, 1024px"
             />
             
             {/* Loading overlay */}
-            {isNavigating && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            {(isNavigating || !imageLoaded) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
               </div>
             )}
             

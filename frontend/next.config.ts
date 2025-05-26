@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: [],
+  images: {
+    unoptimized: true,
+  },
   // Fix Docker file watching issues
   webpack: (config, { dev }) => {
     if (dev) {
