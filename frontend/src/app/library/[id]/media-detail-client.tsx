@@ -72,6 +72,46 @@ export default function MediaDetailClient({
     setLastSavedDescription(mediaObject.metadata.description || "");
   }, [mediaObject.metadata.description]);
   
+  // Fetch media data client-side
+  const fetchMediaData = useCallback(async (mediaId: string) => {
+    try {
+      const response = await fetch(`/api/library/${mediaId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch media");
+      }
+      const data = await response.json();
+      return data as MediaObject;
+    } catch (error) {
+      console.error("Error fetching media data:", error);
+      toast.error("Failed to load media");
+      return null;
+    }
+  }, []);
+  
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = async () => {
+      // Extract media ID from URL
+      const pathParts = window.location.pathname.split('/');
+      const mediaId = pathParts[pathParts.length - 1];
+      
+      if (mediaId && mediaId !== mediaObject.id) {
+        setIsNavigating(true);
+        const newMediaData = await fetchMediaData(mediaId);
+        if (newMediaData) {
+          setMediaObject(newMediaData);
+          setDescription(newMediaData.metadata.description || "");
+          setLastSavedDescription(newMediaData.metadata.description || "");
+          setIsDescriptionLocked(true);
+        }
+        setIsNavigating(false);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [mediaObject.id, fetchMediaData]);
+  
   // Fetch adjacent media when component mounts or mediaObject changes
   useEffect(() => {
     const fetchAdjacentMedia = async () => {
@@ -88,9 +128,9 @@ export default function MediaDetailClient({
     
     fetchAdjacentMedia();
   }, [mediaObject.id]);
-  
+
   // Navigation functions
-  const navigateToMedia = useCallback((media: MediaObject | null) => {
+  const navigateToMedia = useCallback(async (media: MediaObject | null) => {
     if (!media || isNavigating) return;
     
     // Check if there are unsaved changes
@@ -100,8 +140,24 @@ export default function MediaDetailClient({
     }
     
     setIsNavigating(true);
-    router.push(`/library/${media.id}`);
-  }, [isDescriptionLocked, description, lastSavedDescription, isNavigating, router]);
+    
+    // Fetch the new media data
+    const newMediaData = await fetchMediaData(media.id);
+    if (newMediaData) {
+      // Update the URL without full page reload
+      window.history.pushState({}, '', `/library/${media.id}`);
+      
+      // Update the media object state
+      setMediaObject(newMediaData);
+      
+      // Reset description states
+      setDescription(newMediaData.metadata.description || "");
+      setLastSavedDescription(newMediaData.metadata.description || "");
+      setIsDescriptionLocked(true);
+    }
+    
+    setIsNavigating(false);
+  }, [isDescriptionLocked, description, lastSavedDescription, isNavigating, fetchMediaData]);
   
   const handlePrevious = useCallback(() => {
     navigateToMedia(adjacentMedia.previous);
@@ -258,9 +314,16 @@ export default function MediaDetailClient({
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
               fill
-              className="object-contain"
+              className={`object-contain transition-opacity duration-200 ${isNavigating ? "opacity-50" : "opacity-100"}`}
               priority
             />
+            
+            {/* Loading overlay */}
+            {isNavigating && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+              </div>
+            )}
             
             {/* Navigation Buttons */}
             <button
