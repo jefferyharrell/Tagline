@@ -239,11 +239,6 @@ async def bypass_auth(
     """
     settings = get_settings()
 
-    # Log debugging info
-    logger.info(f"Auth bypass requested for: {email_data.email}")
-    logger.info(f"AUTH_BYPASS_ENABLED: {settings.AUTH_BYPASS_ENABLED}")
-    logger.info(f"AUTH_BYPASS_EMAILS: {settings.AUTH_BYPASS_EMAILS}")
-
     # Security check
     if settings.AUTH_BYPASS_ENABLED != "true":
         raise HTTPException(
