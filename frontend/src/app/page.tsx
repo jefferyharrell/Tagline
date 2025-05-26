@@ -2,7 +2,7 @@
 
 import { useStytch } from "@stytch/nextjs";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 
@@ -11,6 +11,10 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [authStatus, setAuthStatus] = useState<"idle" | "error" | "success">("idle");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isAnimating, setIsAnimating] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Check for existing authentication
@@ -70,9 +74,20 @@ export default function LoginPage() {
       const { isEligible, error } = await checkEmailEligibility(email);
 
       if (!isEligible) {
-        toast.error(
-          error || "This email is not authorized to access the application.",
-        );
+        // Start fade animation
+        setIsAnimating(true);
+        setTimeout(() => {
+          setAuthStatus("error");
+          setStatusMessage(error || "Please contact the Junior League of Los Angeles for access.");
+          setIsAnimating(false);
+          // Select the email text after animation
+          setTimeout(() => {
+            if (emailInputRef.current) {
+              emailInputRef.current.focus();
+              emailInputRef.current.select();
+            }
+          }, 100);
+        }, 125);
         return;
       }
 
@@ -84,10 +99,22 @@ export default function LoginPage() {
         signup_expiration_minutes: 10,
       });
 
-      toast.success("Check your email for a magic link to sign in.");
+      // Start fade animation
+      setIsAnimating(true);
+      setTimeout(() => {
+        setAuthStatus("success");
+        setStatusMessage("We've sent you a magic link. It should arrive within a minute.");
+        setIsAnimating(false);
+      }, 125);
     } catch (error) {
       console.error("Error sending magic link:", error);
-      toast.error("Failed to send magic link. Please try again.");
+      // Start fade animation
+      setIsAnimating(true);
+      setTimeout(() => {
+        setAuthStatus("error");
+        setStatusMessage("Something went wrong. Please try again or contact support.");
+        setIsAnimating(false);
+      }, 125);
     } finally {
       setIsLoading(false);
     }
@@ -107,14 +134,17 @@ export default function LoginPage() {
               priority={true}
             />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email to receive a magic link
-          </p>
+          <div className={`transition-opacity duration-[125ms] ${isAnimating ? 'opacity-0' : 'opacity-100'}`}>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              {authStatus === "error" ? "This email is not authorized" : 
+               authStatus === "success" ? "Check your email" : 
+               "Sign in to your account"}
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              {authStatus === "idle" ? "Enter your email to receive a magic link" : statusMessage}
+            </p>
+          </div>
         </div>
-
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
@@ -123,13 +153,18 @@ export default function LoginPage() {
                 Email address
               </label>
               <input
+                ref={emailInputRef}
                 id="email-address"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setAuthStatus("idle");
+                  setStatusMessage("");
+                }}
                 className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 disabled={isLoading}
