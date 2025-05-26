@@ -40,7 +40,7 @@ class MediaObject(BaseModel):
 
 class MediaObjectPatch(BaseModel):
     """Schema for PATCH requests to update media object metadata."""
-    
+
     metadata: Optional[dict] = Field(
         default=None, description="Metadata to merge into existing metadata."
     )

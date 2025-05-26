@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 # Import needed for get_media_thumbnail (placeholder logic)
 from app.db.repositories.media_object import MediaObjectNotFound, MediaObjectRepository
 from app.dependencies import get_media_object_repository
-from app.schemas import MediaObject, MediaObjectMetadata, MediaObjectPatch, PaginatedMediaResponse
+from app.schemas import MediaObject, MediaObjectPatch, PaginatedMediaResponse
 from app.storage_provider import get_storage_provider
 
 logger = logging.getLogger(__name__)
@@ -164,7 +164,7 @@ def patch_media_object(
     # Defensive: ensure record.metadata is a dict
     existing_metadata = record.metadata or {}
     new_metadata = patch_dict["metadata"]
-    
+
     # Merge new metadata into existing metadata
     merged_metadata = {**existing_metadata, **new_metadata}
     record.metadata = merged_metadata

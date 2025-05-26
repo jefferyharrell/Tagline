@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app import auth_schemas as schemas
 from app.auth_utils import create_access_token, get_current_admin, get_current_user
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db.repositories.auth import (
     EligibleEmailRepository,
     RoleRepository,
@@ -44,11 +44,13 @@ def get_stytch_client():
 
 @router.post("/verify-email", response_model=schemas.EmailVerifyResponse)
 async def verify_email(
-    email_data: schemas.EmailVerifyRequest, db: Session = Depends(get_db)
+    email_data: schemas.EmailVerifyRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """Check if an email is eligible for registration"""
     email_repo = EligibleEmailRepository(db)
-    is_eligible = email_repo.is_eligible(email_data.email)
+    is_eligible = email_repo.is_eligible(email_data.email, settings)
     return {"eligible": is_eligible}
 
 
@@ -57,11 +59,12 @@ async def authenticate_user(
     auth_data: schemas.StytchAuthRequest,
     db: Session = Depends(get_db),
     stytch_client=Depends(get_stytch_client),
+    settings: Settings = Depends(get_settings),
 ):
     """Authenticate a user with a Stytch token"""
     # Log debugging info
     logger.info(f"Authenticating with token: {auth_data.token[:10]}...")
-    
+
     # Validate the Stytch token
     try:
         # Attempt to authenticate with magic links first
@@ -97,20 +100,20 @@ async def authenticate_user(
 
     # Check if email is eligible
     email_repo = EligibleEmailRepository(db)
-    if not email_repo.is_eligible(email):
+    if not email_repo.is_eligible(email, settings):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email not eligible for access",
         )
 
-    # Check if user exists by Stytch ID or email 
+    # Check if user exists by Stytch ID or email
     user_repo = UserRepository(db)
     user = user_repo.get_by_stytch_id(auth_response.user_id)
-    
+
     if not user:
         # Try to find by email in case we have a user but with different Stytch ID
         user = user_repo.get_by_email(email)
-        
+
         if user:
             # Update existing user with new Stytch ID
             logger.info(f"Updating existing user {email} with new Stytch ID")
@@ -229,7 +232,7 @@ async def bypass_auth(
 ):
     """
     Development-only endpoint for authentication bypass.
-    
+
     This endpoint allows bypassing the normal authentication flow for development
     and testing purposes. It is only available when:
     1. The ENV_MODE setting is not 'production'
@@ -237,32 +240,32 @@ async def bypass_auth(
     3. The provided email is in the AUTH_BYPASS_EMAILS list
     """
     settings = get_settings()
-    
+
     # Log debugging info
     logger.info(f"Auth bypass requested for: {email_data.email}")
     logger.info(f"ENV_MODE: {settings.ENV_MODE}")
     logger.info(f"AUTH_BYPASS_ENABLED: {settings.AUTH_BYPASS_ENABLED}")
     logger.info(f"AUTH_BYPASS_EMAILS: {settings.AUTH_BYPASS_EMAILS}")
-    
+
     # Security checks
     if settings.ENV_MODE == "production":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Auth bypass is not available in production mode",
         )
-    
+
     if settings.AUTH_BYPASS_ENABLED != "true":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Auth bypass is not enabled",
         )
-    
+
     if not settings.AUTH_BYPASS_EMAILS:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No bypass emails configured",
         )
-    
+
     # Check if email is in the allowed list
     allowed_emails = [email.strip() for email in settings.AUTH_BYPASS_EMAILS.split(",")]
     if email_data.email not in allowed_emails:
@@ -270,21 +273,23 @@ async def bypass_auth(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email not authorized for bypass",
         )
-    
+
     # Get or create user
     user_repo = UserRepository(db)
     user = user_repo.get_by_email(email_data.email)
-    
+
     if not user:
         # Check if email is eligible
         email_repo = EligibleEmailRepository(db)
-        if not email_repo.is_eligible(email_data.email):
+        if not email_repo.is_eligible(email_data.email, settings):
             # Auto-add to eligible emails for development
             email_repo.add(email_data.email, "dev-bypass")
-        
+
         # Create user
-        user = user_repo.create(email=email_data.email, stytch_user_id=f"dev-{email_data.email}")
-        
+        user = user_repo.create(
+            email=email_data.email, stytch_user_id=f"dev-{email_data.email}"
+        )
+
         # Assign default member role
         if user:
             role_repo = RoleRepository(db)
@@ -293,7 +298,7 @@ async def bypass_auth(
                 user.roles.append(member_role)
                 db.commit()
                 db.refresh(user)
-    
+
     # Create JWT with user info and roles
     user_roles = [role.name for role in user.roles]
     jwt_payload = {
@@ -302,10 +307,10 @@ async def bypass_auth(
         "roles": user_roles,
         "session_token": "dev-session",  # Dummy session token for dev
     }
-    
+
     # Create access token
     access_token = create_access_token(data=jwt_payload)
-    
+
     return {
         "access_token": access_token,
         "token_type": "bearer",

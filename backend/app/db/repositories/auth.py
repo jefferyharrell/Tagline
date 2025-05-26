@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth_models import EligibleEmail, Role, User
-from app.config import get_settings
+from app.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +110,13 @@ class EligibleEmailRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def is_eligible(self, email: str) -> bool:
+    def is_eligible(self, email: str, settings: Optional["Settings"] = None) -> bool:
         """Check if an email is eligible"""
+        # If settings provided and email matches administrator email, always grant access
+        if settings and settings.ADMINISTRATOR_EMAIL:
+            if email.lower() == settings.ADMINISTRATOR_EMAIL.lower():
+                return True
+
         # Check the database for eligible email
         return (
             self.db.query(EligibleEmail).filter(EligibleEmail.email == email).first()
