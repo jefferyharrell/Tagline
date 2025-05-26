@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
@@ -356,14 +355,11 @@ export default function MediaDetailClient({
                 : '4 / 3'
             }}
           >
-            <Image
+            <img
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              fill
-              className={`object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-              priority
+              className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               onLoad={() => setImageLoaded(true)}
-              sizes="(max-width: 1024px) 100vw, 1024px"
             />
             
             {/* Loading overlay */}

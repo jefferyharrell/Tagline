@@ -13,6 +13,12 @@ const publicPaths = [
   "/api/auth/dev-login",
 ];
 
+// Paths that are handled by API routes (they do their own auth)
+const apiPaths = [
+  "/api/library",
+  "/api/ingest",
+];
+
 // Stytch magic link redirect pattern
 const STYTCH_REDIRECT_PATTERN = /test\.stytch\.com\/v1\/magic_links\/redirect/;
 
@@ -63,6 +69,11 @@ export async function middleware(request: NextRequest) {
 
   // Allow public paths
   if (isPublicPath(pathname) || isPublicPath(request.url)) {
+    return NextResponse.next();
+  }
+  
+  // Allow API paths (they handle their own auth)
+  if (apiPaths.some(apiPath => pathname.startsWith(apiPath))) {
     return NextResponse.next();
   }
 
