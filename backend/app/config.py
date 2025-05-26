@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     ADMINISTRATOR_EMAIL: str | None = None  # Email that always has access
 
     # Authentication bypass for development
-    ENV_MODE: str = "production"  # 'production', 'development', or 'test'
     AUTH_BYPASS_EMAILS: str | None = (
         None  # Comma-separated list of emails that can bypass auth
     )

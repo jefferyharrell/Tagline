@@ -231,29 +231,20 @@ async def bypass_auth(
     db: Session = Depends(get_db),
 ):
     """
-    Development-only endpoint for authentication bypass.
+    Authentication bypass endpoint for development and testing.
 
-    This endpoint allows bypassing the normal authentication flow for development
-    and testing purposes. It is only available when:
-    1. The ENV_MODE setting is not 'production'
-    2. AUTH_BYPASS_ENABLED is set to 'true'
-    3. The provided email is in the AUTH_BYPASS_EMAILS list
+    This endpoint allows bypassing the normal authentication flow when:
+    1. AUTH_BYPASS_ENABLED is set to 'true'
+    2. The provided email is in the AUTH_BYPASS_EMAILS list
     """
     settings = get_settings()
 
     # Log debugging info
     logger.info(f"Auth bypass requested for: {email_data.email}")
-    logger.info(f"ENV_MODE: {settings.ENV_MODE}")
     logger.info(f"AUTH_BYPASS_ENABLED: {settings.AUTH_BYPASS_ENABLED}")
     logger.info(f"AUTH_BYPASS_EMAILS: {settings.AUTH_BYPASS_EMAILS}")
 
-    # Security checks
-    if settings.ENV_MODE == "production":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Auth bypass is not available in production mode",
-        )
-
+    # Security check
     if settings.AUTH_BYPASS_ENABLED != "true":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

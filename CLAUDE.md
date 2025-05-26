@@ -154,8 +154,8 @@ Tagline uses two authentication methods:
 
 2. **Development Authentication Bypass**:
    - Special endpoint for bypassing magic links during testing
-   - Controlled by environment variables and whitelists
-   - Only available in development mode
+   - Controlled by AUTH_BYPASS_ENABLED and AUTH_BYPASS_EMAILS
+   - Available when AUTH_BYPASS_ENABLED is set to 'true'
 
 Authentication Flow:
 1. User enters email on login page
@@ -195,7 +195,6 @@ Authentication Flow:
 - `JWT_SECRET`: Secret for JWT token signing
 - `STYTCH_PROJECT_ID`, `STYTCH_SECRET`: Stytch authentication
 - `STORAGE_PROVIDER`: "filesystem" or "dropbox"
-- `ENV_MODE`: "production", "development", or "test"
 - `AUTH_BYPASS_EMAILS`: Comma-separated list of emails for bypass
 - `AUTH_BYPASS_ENABLED`: Enable/disable auth bypass
 

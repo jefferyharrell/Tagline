@@ -186,9 +186,8 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Dev Login Button - Only visible in development with bypass enabled */}
-          {process.env.NODE_ENV !== "production" &&
-            process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true" && (
+          {/* Dev Login Button - Only visible when bypass is enabled */}
+          {process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true" && (
               <div className="mt-4">
                 <button
                   type="button"
@@ -244,7 +243,7 @@ export default function LoginPage() {
                   ⚙️ Developer Login
                 </button>
                 <div className="mt-1 text-xs text-center text-gray-500">
-                  Bypasses email verification in development environment
+                  Bypasses email verification (admin use only)
                 </div>
               </div>
             )}
