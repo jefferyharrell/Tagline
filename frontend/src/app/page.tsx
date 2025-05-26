@@ -103,7 +103,7 @@ export default function LoginPage() {
               alt="Junior League of Los Angeles"
               width={200}
               height={200}
-              className="w-[400px] h-auto"
+              className="w-[400px] h-[300px]"
               priority={true}
             />
           </div>
