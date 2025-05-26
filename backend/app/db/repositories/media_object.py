@@ -281,3 +281,43 @@ class MediaObjectRepository:
             return 0
         finally:
             session.close()
+    
+    def get_adjacent(self, id) -> tuple[Optional[MediaObjectRecord], Optional[MediaObjectRecord]]:
+        """Gets the previous and next MediaObjectRecords relative to the given id.
+        
+        Returns a tuple of (previous, next) MediaObjectRecords.
+        Either or both may be None if at the beginning/end of the collection.
+        """
+        session = self.SessionLocal()
+        try:
+            # Get the current media object to find its position
+            current = session.query(ORMMediaObject).filter_by(id=id).first()
+            if not current:
+                return (None, None)
+            
+            # Get the previous media object (most recent one before current)
+            previous_obj = (
+                session.query(ORMMediaObject)
+                .filter(ORMMediaObject.created_at < current.created_at)
+                .order_by(ORMMediaObject.created_at.desc())
+                .first()
+            )
+            
+            # Get the next media object (earliest one after current)
+            next_obj = (
+                session.query(ORMMediaObject)
+                .filter(ORMMediaObject.created_at > current.created_at)
+                .order_by(ORMMediaObject.created_at)
+                .first()
+            )
+            
+            # Convert to domain objects
+            previous = MediaObjectRecord.from_orm(previous_obj) if previous_obj else None
+            next = MediaObjectRecord.from_orm(next_obj) if next_obj else None
+            
+            return (previous, next)
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting adjacent MediaObjects for id {id}: {e}")
+            return (None, None)
+        finally:
+            session.close()

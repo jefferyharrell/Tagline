@@ -216,3 +216,33 @@ def get_media_proxy(id: UUID):
         getattr(media_object, "proxy_mimetype", None) or "application/octet-stream"
     )
     return Response(content=media_object.proxy, media_type=mimetype)
+
+
+class AdjacentMediaResponse(BaseModel):
+    """Response model for adjacent media objects."""
+
+    previous: MediaObject | None = None
+    next: MediaObject | None = None
+
+
+@router.get("/media/{id}/adjacent", response_model=AdjacentMediaResponse, tags=["media"])
+def get_adjacent_media(
+    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
+) -> AdjacentMediaResponse:
+    """
+    Get the previous and next media objects relative to the given media object.
+    Used for implementing photo navigation without returning to the gallery.
+    """
+    # First, verify the current media object exists
+    current = repo.get_by_id(id)
+    if not current or current.id is None or current.object_key is None:
+        raise HTTPException(status_code=404, detail="Media object not found")
+    
+    # Get adjacent media objects
+    previous_obj, next_obj = repo.get_adjacent(id)
+    
+    # Convert to pydantic models if they exist
+    previous = previous_obj.to_pydantic() if previous_obj else None
+    next = next_obj.to_pydantic() if next_obj else None
+    
+    return AdjacentMediaResponse(previous=previous, next=next)

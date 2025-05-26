@@ -5,7 +5,8 @@ import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Lock, Unlock } from "lucide-react";
+import { Lock, Unlock, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -49,6 +50,13 @@ export default function MediaDetailClient({
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [adjacentMedia, setAdjacentMedia] = useState<{
+    previous: MediaObject | null;
+    next: MediaObject | null;
+  }>({ previous: null, next: null });
+  const [isNavigating, setIsNavigating] = useState(false);
+  
+  const router = useRouter();
   
   // Track the last saved description for reverting on error
   const [lastSavedDescription, setLastSavedDescription] = useState(
@@ -63,6 +71,45 @@ export default function MediaDetailClient({
     setDescription(mediaObject.metadata.description || "");
     setLastSavedDescription(mediaObject.metadata.description || "");
   }, [mediaObject.metadata.description]);
+  
+  // Fetch adjacent media when component mounts or mediaObject changes
+  useEffect(() => {
+    const fetchAdjacentMedia = async () => {
+      try {
+        const response = await fetch(`/api/library/${mediaObject.id}/adjacent`);
+        if (response.ok) {
+          const data = await response.json();
+          setAdjacentMedia(data);
+        }
+      } catch (error) {
+        console.error("Error fetching adjacent media:", error);
+      }
+    };
+    
+    fetchAdjacentMedia();
+  }, [mediaObject.id]);
+  
+  // Navigation functions
+  const navigateToMedia = useCallback((media: MediaObject | null) => {
+    if (!media || isNavigating) return;
+    
+    // Check if there are unsaved changes
+    if (!isDescriptionLocked && description !== lastSavedDescription) {
+      const confirmed = window.confirm("You have unsaved changes. Do you want to leave without saving?");
+      if (!confirmed) return;
+    }
+    
+    setIsNavigating(true);
+    router.push(`/library/${media.id}`);
+  }, [isDescriptionLocked, description, lastSavedDescription, isNavigating, router]);
+  
+  const handlePrevious = useCallback(() => {
+    navigateToMedia(adjacentMedia.previous);
+  }, [adjacentMedia.previous, navigateToMedia]);
+  
+  const handleNext = useCallback(() => {
+    navigateToMedia(adjacentMedia.next);
+  }, [adjacentMedia.next, navigateToMedia]);
 
   const handleSave = async () => {
     // Start optimistic update
@@ -144,11 +191,26 @@ export default function MediaDetailClient({
     setIsDescriptionLocked(true);
   }, [lastSavedDescription]);
 
-  // Handle Escape key to cancel editing
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Escape key to cancel editing
       if (event.key === "Escape" && !isDescriptionLocked) {
         handleCancel();
+        return;
+      }
+      
+      // Don't navigate if user is typing in textarea
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.tagName === "TEXTAREA") {
+        return;
+      }
+      
+      // Arrow keys for navigation
+      if (event.key === "ArrowLeft") {
+        handlePrevious();
+      } else if (event.key === "ArrowRight") {
+        handleNext();
       }
     };
 
@@ -156,7 +218,7 @@ export default function MediaDetailClient({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isDescriptionLocked, handleCancel]);
+  }, [isDescriptionLocked, handleCancel, handlePrevious, handleNext]);
 
   const toggleDescriptionLock = async () => {
     // If currently unlocked and about to lock, show confirmation
@@ -199,6 +261,33 @@ export default function MediaDetailClient({
               className="object-contain"
               priority
             />
+            
+            {/* Navigation Buttons */}
+            <button
+              onClick={handlePrevious}
+              disabled={!adjacentMedia.previous || isNavigating}
+              className={`absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 ${
+                !adjacentMedia.previous || isNavigating
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:scale-110"
+              }`}
+              title="Previous photo (←)"
+            >
+              <ChevronLeft className="h-6 w-6 text-gray-700" />
+            </button>
+            
+            <button
+              onClick={handleNext}
+              disabled={!adjacentMedia.next || isNavigating}
+              className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 ${
+                !adjacentMedia.next || isNavigating
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:scale-110"
+              }`}
+              title="Next photo (→)"
+            >
+              <ChevronRight className="h-6 w-6 text-gray-700" />
+            </button>
             
             {/* Description Section - Positioned at Bottom of Photo */}
             <div className="absolute bottom-0 left-0 right-0 p-4">
