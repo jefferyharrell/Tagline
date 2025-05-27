@@ -3,11 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: [],
-  images: {
-    // Enable Next.js Image Optimization
-    formats: ['image/avif', 'image/webp'],
-    remotePatterns: [],
-  },
   // Fix Docker file watching issues
   webpack: (config, { dev }) => {
     if (dev) {
