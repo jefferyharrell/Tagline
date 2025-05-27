@@ -187,15 +187,17 @@ def get_media_thumbnail(
 ):
     """
     Returns the thumbnail bytes for a media object by UUID, or 404 if not found or no thumbnail exists.
-    Always returns as image/jpeg per API spec.
     """
     media_object = repo.get_by_id(id)
-    if not media_object or not getattr(media_object, "thumbnail", None):
+    if not media_object:
+        raise HTTPException(status_code=404, detail="Media object not found")
+    
+    thumbnail_data = repo.get_thumbnail(id)
+    if not thumbnail_data:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
-    mimetype = (
-        getattr(media_object, "thumbnail_mimetype", None) or "application/octet-stream"
-    )
-    return Response(content=media_object.thumbnail, media_type=mimetype)
+    
+    data, mimetype = thumbnail_data
+    return Response(content=data, media_type=mimetype)
 
 
 @router.get("/media/{id}/proxy", response_class=Response, tags=["media"])
@@ -205,15 +207,17 @@ def get_media_proxy(
 ):
     """
     Returns the proxy bytes for a media object by UUID, or 404 if not found or no proxy exists.
-    Returns with the stored proxy mimetype, or application/octet-stream if missing.
     """
     media_object = repo.get_by_id(id)
-    if not media_object or not getattr(media_object, "proxy", None):
+    if not media_object:
+        raise HTTPException(status_code=404, detail="Media object not found")
+    
+    proxy_data = repo.get_proxy(id)
+    if not proxy_data:
         raise HTTPException(status_code=404, detail="Proxy not found")
-    mimetype = (
-        getattr(media_object, "proxy_mimetype", None) or "application/octet-stream"
-    )
-    return Response(content=media_object.proxy, media_type=mimetype)
+    
+    data, mimetype = proxy_data
+    return Response(content=data, media_type=mimetype)
 
 
 class AdjacentMediaResponse(BaseModel):

@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, defer
 
 from app.domain_media_object import MediaObjectRecord
-from app.models import ORMMediaObject
+from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ class MediaObjectRepository:
     def update_thumbnail(
         self, object_key: str, thumbnail_bytes: bytes, thumbnail_mimetype: str
     ) -> bool:
-        """Updates the thumbnail and its mimetype for a MediaObject identified by its object_key.
+        """Updates the thumbnail for a MediaObject by creating/updating a MediaBinary record.
 
         Args:
             object_key: The unique key of the MediaObject to update.
@@ -120,8 +120,27 @@ class MediaObjectRepository:
                 )
                 return False
 
-            media_object.thumbnail = thumbnail_bytes  # type: ignore[assignment] # ORM handles assignment to Column attribute
-            media_object.thumbnail_mimetype = thumbnail_mimetype  # type: ignore[assignment] # ORM handles assignment to Column attribute
+            # Check if thumbnail binary already exists
+            existing_binary = (
+                self.db.query(ORMMediaBinary)
+                .filter_by(media_object_id=media_object.id, type=MediaBinaryType.THUMBNAIL)
+                .first()
+            )
+            
+            if existing_binary:
+                # Update existing
+                existing_binary.data = thumbnail_bytes  # type: ignore[assignment]
+                existing_binary.mimetype = thumbnail_mimetype  # type: ignore[assignment]
+            else:
+                # Create new
+                new_binary = ORMMediaBinary(
+                    media_object_id=media_object.id,
+                    type=MediaBinaryType.THUMBNAIL,
+                    data=thumbnail_bytes,
+                    mimetype=thumbnail_mimetype
+                )
+                self.db.add(new_binary)
+            
             self.db.commit()
             logger.info(f"Successfully updated thumbnail for {object_key}")
             return True
@@ -133,7 +152,7 @@ class MediaObjectRepository:
     def update_proxy(
         self, object_key: str, proxy_bytes: bytes, proxy_mimetype: str
     ) -> bool:
-        """Updates the proxy and its mimetype for a MediaObject identified by its object_key.
+        """Updates the proxy for a MediaObject by creating/updating a MediaBinary record.
 
         Args:
             object_key: The unique key of the MediaObject to update.
@@ -152,8 +171,27 @@ class MediaObjectRepository:
                 logger.warning(f"MediaObject not found for proxy update: {object_key}")
                 return False
 
-            media_object.proxy = proxy_bytes  # type: ignore[assignment]
-            media_object.proxy_mimetype = proxy_mimetype  # type: ignore[assignment]
+            # Check if proxy binary already exists
+            existing_binary = (
+                self.db.query(ORMMediaBinary)
+                .filter_by(media_object_id=media_object.id, type=MediaBinaryType.PROXY)
+                .first()
+            )
+            
+            if existing_binary:
+                # Update existing
+                existing_binary.data = proxy_bytes  # type: ignore[assignment]
+                existing_binary.mimetype = proxy_mimetype  # type: ignore[assignment]
+            else:
+                # Create new
+                new_binary = ORMMediaBinary(
+                    media_object_id=media_object.id,
+                    type=MediaBinaryType.PROXY,
+                    data=proxy_bytes,
+                    mimetype=proxy_mimetype
+                )
+                self.db.add(new_binary)
+            
             self.db.commit()
             logger.info(f"Successfully updated proxy for {object_key}")
             return True
@@ -215,10 +253,6 @@ class MediaObjectRepository:
                 orm_obj.object_key = cast(str, record.object_key)  # type: ignore[assignment]
             if record.metadata is not None:
                 orm_obj.object_metadata = cast(dict, record.metadata)  # type: ignore[assignment]
-            if record.thumbnail is not None:
-                orm_obj.thumbnail = cast(bytes, record.thumbnail)  # type: ignore[assignment]
-            if record.thumbnail_mimetype is not None:
-                orm_obj.thumbnail_mimetype = cast(str, record.thumbnail_mimetype)  # type: ignore[assignment]
             # updated_at expects a datetime
             from datetime import datetime
 
@@ -286,3 +320,41 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting adjacent MediaObjects for id {id}: {e}")
             return (None, None)
+    
+    def get_thumbnail(self, media_object_id) -> Optional[tuple[bytes, str]]:
+        """Get thumbnail binary data for a media object.
+        
+        Returns:
+            Tuple of (data, mimetype) if found, None otherwise.
+        """
+        try:
+            binary = (
+                self.db.query(ORMMediaBinary)
+                .filter_by(media_object_id=media_object_id, type=MediaBinaryType.THUMBNAIL)
+                .first()
+            )
+            if binary:
+                return (binary.data, binary.mimetype)  # type: ignore[return-value]
+            return None
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting thumbnail for {media_object_id}: {e}")
+            return None
+    
+    def get_proxy(self, media_object_id) -> Optional[tuple[bytes, str]]:
+        """Get proxy binary data for a media object.
+        
+        Returns:
+            Tuple of (data, mimetype) if found, None otherwise.
+        """
+        try:
+            binary = (
+                self.db.query(ORMMediaBinary)
+                .filter_by(media_object_id=media_object_id, type=MediaBinaryType.PROXY)
+                .first()
+            )
+            if binary:
+                return (binary.data, binary.mimetype)  # type: ignore[return-value]
+            return None
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting proxy for {media_object_id}: {e}")
+            return None
