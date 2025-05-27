@@ -37,11 +37,21 @@ export async function GET(
     const proxyBuffer = await response.arrayBuffer();
     const contentType = response.headers.get("content-type") || "image/jpeg";
 
+    // Generate a simple ETag based on the media ID
+    const etag = `"${id}-proxy"`;
+    
+    // Check if client has a cached version
+    const ifNoneMatch = request.headers.get("if-none-match");
+    if (ifNoneMatch === etag) {
+      return new NextResponse(null, { status: 304 });
+    }
+    
     // Return the proxy as a response with the proper content type
     return new NextResponse(proxyBuffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
+        "ETag": etag,
       },
     });
   } catch (error) {

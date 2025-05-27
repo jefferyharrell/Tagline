@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
@@ -139,16 +138,11 @@ export default function MediaDetailClient({
           const data = await response.json();
           setAdjacentMedia(data);
           
-          // Preload adjacent images for faster navigation using Next.js Image optimization
+          // Preload adjacent images for faster navigation
           if (data.previous) {
-            // Prefetch through Next.js image optimization endpoint
-            const deviceSizes = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
-            
-            // Prefetch optimized versions for likely viewport sizes
-            deviceSizes.slice(0, 4).forEach(w => {
-              const optimizedUrl = `/_next/image?url=${encodeURIComponent(`/api/library/${data.previous.id}/proxy`)}&w=${w}&q=75`;
-              fetch(optimizedUrl, { priority: 'low' }).catch(() => {});
-            });
+            // Prefetch the proxy image
+            const prevImg = new window.Image();
+            prevImg.src = `/api/library/${data.previous.id}/proxy`;
             
             // Prefetch and cache the media data too
             fetch(`/api/library/${data.previous.id}`)
@@ -158,15 +152,11 @@ export default function MediaDetailClient({
               })
               .catch(() => {});
           }
+          
           if (data.next) {
-            // Prefetch through Next.js image optimization endpoint
-            const deviceSizes = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
-            
-            // Prefetch optimized versions for likely viewport sizes
-            deviceSizes.slice(0, 4).forEach(w => {
-              const optimizedUrl = `/_next/image?url=${encodeURIComponent(`/api/library/${data.next.id}/proxy`)}&w=${w}&q=75`;
-              fetch(optimizedUrl, { priority: 'low' }).catch(() => {});
-            });
+            // Prefetch the proxy image
+            const nextImg = new window.Image();
+            nextImg.src = `/api/library/${data.next.id}/proxy`;
             
             // Prefetch and cache the media data too
             fetch(`/api/library/${data.next.id}`)
@@ -367,14 +357,12 @@ export default function MediaDetailClient({
                 : '4 / 3'
             }}
           >
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
-              className={`object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               onLoad={() => setImageLoaded(true)}
-              priority={true}
             />
             
             {/* Loading overlay */}

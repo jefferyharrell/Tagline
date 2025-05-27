@@ -6,14 +6,7 @@ const nextConfig: NextConfig = {
   images: {
     // Enable Next.js Image Optimization
     formats: ['image/avif', 'image/webp'],
-    remotePatterns: [
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
-        pathname: '/api/library/**',
-      },
-    ],
+    remotePatterns: [],
   },
   // Fix Docker file watching issues
   webpack: (config, { dev }) => {
