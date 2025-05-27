@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { Lock, Unlock, ChevronLeft, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -55,8 +55,6 @@ export default function MediaDetailClient({
   }>({ previous: null, next: null });
   const [isNavigating, setIsNavigating] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(true);
-  
-  const router = useRouter();
   
   // Cache for media data to avoid re-fetching
   const mediaCache = useRef<Map<string, MediaObject>>(new Map());
@@ -355,11 +353,14 @@ export default function MediaDetailClient({
                 : '4 / 3'
             }}
           >
-            <img
+            <Image
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+              className={`object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               onLoad={() => setImageLoaded(true)}
+              priority={true}
             />
             
             {/* Loading overlay */}
