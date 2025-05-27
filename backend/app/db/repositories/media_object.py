@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session, defer
+from sqlalchemy.orm import Session
 
 from app.domain_media_object import MediaObjectRecord
 from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject
@@ -221,8 +221,6 @@ class MediaObjectRepository:
             )
             orm_objs = (
                 self.db.query(ORMMediaObject)
-                .options(defer(ORMMediaObject.proxy))  # type: ignore[arg-type]
-                .options(defer(ORMMediaObject.thumbnail))  # type: ignore[arg-type]
                 .order_by(ORMMediaObject.created_at)
                 .offset(offset)
                 .limit(limit)
@@ -295,8 +293,6 @@ class MediaObjectRepository:
             # Get the previous media object (most recent one before current)
             previous_obj = (
                 self.db.query(ORMMediaObject)
-                .options(defer(ORMMediaObject.proxy))  # type: ignore[arg-type]
-                .options(defer(ORMMediaObject.thumbnail))  # type: ignore[arg-type]
                 .filter(ORMMediaObject.created_at < current.created_at)
                 .order_by(ORMMediaObject.created_at.desc())
                 .first()
@@ -305,8 +301,6 @@ class MediaObjectRepository:
             # Get the next media object (earliest one after current)
             next_obj = (
                 self.db.query(ORMMediaObject)
-                .options(defer(ORMMediaObject.proxy))  # type: ignore[arg-type]
-                .options(defer(ORMMediaObject.thumbnail))  # type: ignore[arg-type]
                 .filter(ORMMediaObject.created_at > current.created_at)
                 .order_by(ORMMediaObject.created_at)
                 .first()
