@@ -159,4 +159,3 @@ class EligibleEmailRepository:
 
 
 # Import the centralized get_db from database module
-from app.db.database import get_db

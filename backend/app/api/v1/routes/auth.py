@@ -19,11 +19,11 @@ from sqlalchemy.orm import Session
 from app import auth_schemas as schemas
 from app.auth_utils import create_access_token, get_current_admin, get_current_user
 from app.config import Settings, get_settings
+from app.db.database import get_db
 from app.db.repositories.auth import (
     EligibleEmailRepository,
     RoleRepository,
     UserRepository,
-    get_db,
 )
 
 logger = logging.getLogger(__name__)

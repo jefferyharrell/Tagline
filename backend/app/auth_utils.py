@@ -15,7 +15,8 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.auth_schemas import User as UserSchema
 from app.config import get_settings
-from app.db.repositories.auth import UserRepository, get_db
+from app.db.database import get_db
+from app.db.repositories.auth import UserRepository
 
 logger = logging.getLogger(__name__)
 

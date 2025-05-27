@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from app.domain_media_object import MediaObjectRecord
 from app.models import ORMMediaObject
@@ -183,12 +183,14 @@ class MediaObjectRepository:
             )
             orm_objs = (
                 self.db.query(ORMMediaObject)
+                .options(defer(ORMMediaObject.proxy))  # type: ignore[arg-type]
+                .options(defer(ORMMediaObject.thumbnail))  # type: ignore[arg-type]
                 .order_by(ORMMediaObject.created_at)
                 .offset(offset)
                 .limit(limit)
                 .all()
             )
-            records = [MediaObjectRecord.from_orm(obj) for obj in orm_objs]
+            records = [MediaObjectRecord.from_orm(obj, load_binary_fields=False) for obj in orm_objs]
             logger.debug(f"Found {len(records)} MediaObjects.")
             return records
         except SQLAlchemyError as e:
@@ -259,6 +261,8 @@ class MediaObjectRepository:
             # Get the previous media object (most recent one before current)
             previous_obj = (
                 self.db.query(ORMMediaObject)
+                .options(defer(ORMMediaObject.proxy))  # type: ignore[arg-type]
+                .options(defer(ORMMediaObject.thumbnail))  # type: ignore[arg-type]
                 .filter(ORMMediaObject.created_at < current.created_at)
                 .order_by(ORMMediaObject.created_at.desc())
                 .first()
@@ -267,14 +271,16 @@ class MediaObjectRepository:
             # Get the next media object (earliest one after current)
             next_obj = (
                 self.db.query(ORMMediaObject)
+                .options(defer(ORMMediaObject.proxy))  # type: ignore[arg-type]
+                .options(defer(ORMMediaObject.thumbnail))  # type: ignore[arg-type]
                 .filter(ORMMediaObject.created_at > current.created_at)
                 .order_by(ORMMediaObject.created_at)
                 .first()
             )
             
-            # Convert to domain objects
-            previous = MediaObjectRecord.from_orm(previous_obj) if previous_obj else None
-            next = MediaObjectRecord.from_orm(next_obj) if next_obj else None
+            # Convert to domain objects (skip binary fields for performance)
+            previous = MediaObjectRecord.from_orm(previous_obj, load_binary_fields=False) if previous_obj else None
+            next = MediaObjectRecord.from_orm(next_obj, load_binary_fields=False) if next_obj else None
             
             return (previous, next)
         except SQLAlchemyError as e:

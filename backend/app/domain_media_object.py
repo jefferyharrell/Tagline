@@ -37,15 +37,22 @@ class MediaObjectRecord:
         self.last_modified = last_modified
 
     @classmethod
-    def from_orm(cls, orm_obj: ORMMediaObject) -> "MediaObjectRecord":
+    def from_orm(cls, orm_obj: ORMMediaObject, load_binary_fields: bool = True) -> "MediaObjectRecord":
+        """Convert ORM object to domain object.
+        
+        Args:
+            orm_obj: The ORM MediaObject
+            load_binary_fields: Whether to load thumbnail and proxy fields. 
+                              Set to False for list operations to avoid N+1 queries.
+        """
         return cls(
             id=getattr(orm_obj, "id", None),
             object_key=getattr(orm_obj, "object_key", None),
             metadata=getattr(orm_obj, "object_metadata", {}) or {},
-            thumbnail=getattr(orm_obj, "thumbnail", None),
-            thumbnail_mimetype=getattr(orm_obj, "thumbnail_mimetype", None),
-            proxy=getattr(orm_obj, "proxy", None),
-            proxy_mimetype=getattr(orm_obj, "proxy_mimetype", None),
+            thumbnail=getattr(orm_obj, "thumbnail", None) if load_binary_fields else None,
+            thumbnail_mimetype=getattr(orm_obj, "thumbnail_mimetype", None) if load_binary_fields else None,
+            proxy=getattr(orm_obj, "proxy", None) if load_binary_fields else None,
+            proxy_mimetype=getattr(orm_obj, "proxy_mimetype", None) if load_binary_fields else None,
             created_at=getattr(orm_obj, "created_at", None),
             updated_at=getattr(orm_obj, "updated_at", None),
             last_modified=None,  # Could be derived from updated_at or metadata
