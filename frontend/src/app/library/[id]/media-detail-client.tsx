@@ -139,10 +139,17 @@ export default function MediaDetailClient({
           const data = await response.json();
           setAdjacentMedia(data);
           
-          // Preload adjacent images for faster navigation
+          // Preload adjacent images for faster navigation using Next.js Image optimization
           if (data.previous) {
-            const prevImg = new window.Image();
-            prevImg.src = `/api/library/${data.previous.id}/proxy`;
+            // Prefetch through Next.js image optimization endpoint
+            const deviceSizes = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+            
+            // Prefetch optimized versions for likely viewport sizes
+            deviceSizes.slice(0, 4).forEach(w => {
+              const optimizedUrl = `/_next/image?url=${encodeURIComponent(`/api/library/${data.previous.id}/proxy`)}&w=${w}&q=75`;
+              fetch(optimizedUrl, { priority: 'low' }).catch(() => {});
+            });
+            
             // Prefetch and cache the media data too
             fetch(`/api/library/${data.previous.id}`)
               .then(res => res.json())
@@ -152,8 +159,15 @@ export default function MediaDetailClient({
               .catch(() => {});
           }
           if (data.next) {
-            const nextImg = new window.Image();
-            nextImg.src = `/api/library/${data.next.id}/proxy`;
+            // Prefetch through Next.js image optimization endpoint
+            const deviceSizes = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+            
+            // Prefetch optimized versions for likely viewport sizes
+            deviceSizes.slice(0, 4).forEach(w => {
+              const optimizedUrl = `/_next/image?url=${encodeURIComponent(`/api/library/${data.next.id}/proxy`)}&w=${w}&q=75`;
+              fetch(optimizedUrl, { priority: 'low' }).catch(() => {});
+            });
+            
             // Prefetch and cache the media data too
             fetch(`/api/library/${data.next.id}`)
               .then(res => res.json())
