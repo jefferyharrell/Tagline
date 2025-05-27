@@ -221,7 +221,7 @@ class MediaObjectRepository:
             )
             orm_objs = (
                 self.db.query(ORMMediaObject)
-                .order_by(ORMMediaObject.created_at)
+                .order_by(ORMMediaObject.created_at.desc())
                 .offset(offset)
                 .limit(limit)
                 .all()
@@ -290,19 +290,19 @@ class MediaObjectRepository:
             if not current:
                 return (None, None)
             
-            # Get the previous media object (most recent one before current)
+            # Get the previous media object (newer than current, since we're showing newest first)
             previous_obj = (
-                self.db.query(ORMMediaObject)
-                .filter(ORMMediaObject.created_at < current.created_at)
-                .order_by(ORMMediaObject.created_at.desc())
-                .first()
-            )
-            
-            # Get the next media object (earliest one after current)
-            next_obj = (
                 self.db.query(ORMMediaObject)
                 .filter(ORMMediaObject.created_at > current.created_at)
                 .order_by(ORMMediaObject.created_at)
+                .first()
+            )
+            
+            # Get the next media object (older than current, since we're showing newest first)
+            next_obj = (
+                self.db.query(ORMMediaObject)
+                .filter(ORMMediaObject.created_at < current.created_at)
+                .order_by(ORMMediaObject.created_at.desc())
                 .first()
             )
             
