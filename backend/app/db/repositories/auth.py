@@ -3,12 +3,11 @@
 import logging
 from typing import List, Optional
 
-from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from app.auth_models import EligibleEmail, Role, User
-from app.config import Settings, get_settings
+from app.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -159,14 +158,5 @@ class EligibleEmailRepository:
         return self.db.query(EligibleEmail).offset(offset).limit(limit).all()
 
 
-# Database connection helper
-def get_db():
-    """Get a database session"""
-    settings = get_settings()
-    engine = create_engine(settings.get_active_database_url())
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Import the centralized get_db from database module
+from app.db.database import get_db

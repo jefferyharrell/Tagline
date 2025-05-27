@@ -8,7 +8,8 @@ from rq.exceptions import NoSuchJobError
 from rq.job import Job
 
 from app.config import get_settings
-from app.dependencies import get_media_object_repository
+from app.db.database import get_db
+from app.db.repositories.media_object import MediaObjectRepository
 from app.media_processing.factory import is_mimetype_supported
 from app.storage_provider import StorageProviderException, get_storage_provider
 
@@ -83,107 +84,119 @@ async def ingest_orchestrator(
         redis_conn = redis.from_url(redis_url)
         redis_conn.ping()  # Test connection
         ingest_queue = Queue("ingest", connection=redis_conn)
-        repo = get_media_object_repository()
+        
+        # Create a database session for this orchestrator task
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            repo = MediaObjectRepository(db)
 
-        # Initialize metadata
-        orchestrator_job.meta["total_items"] = 0
-        orchestrator_job.meta["processed_items"] = 0
-        orchestrator_job.meta["current_stage"] = "fetching_items"
-        orchestrator_job.save_meta()
-
-        for obj in media_objects_iter:
-            total_count += 1
-            mimetype = str((obj.metadata or {}).get("mimetype"))
-            logger.debug(
-                f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
-            )
-            if mimetype == "None" or not is_mimetype_supported(mimetype):
-                unsupported_count += 1
-                logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
-                continue
-            logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
-            exists = repo.get_by_object_key(obj.object_key)
-            if exists:
-                logger.info(f"Skipping {obj.object_key}: already present in DB.")
-                continue
-            orchestrator_job.meta["total_items"] = total_count
-            orchestrator_job.meta["current_stage"] = "enqueueing_items"
+            # Initialize metadata
+            orchestrator_job.meta["total_items"] = 0
+            orchestrator_job.meta["processed_items"] = 0
+            orchestrator_job.meta["current_stage"] = "fetching_items"
             orchestrator_job.save_meta()
-            ingest_job = ingest_queue.enqueue(
-                "app.tasks.ingest.ingest", stored_media_object=obj
-            )
-            logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
-            job_ids.append(ingest_job.id)
-            queued_count += 1
 
-        logger.info(f"Found {total_count} total media objects.")
-        if unsupported_count > 0:
-            logger.info(f"Filtered out {unsupported_count} unsupported media objects.")
-        else:
-            logger.info("No unsupported media objects filtered out.")
-        logger.info(f"Queued {queued_count} new media objects for processing")
-
-        logger.info(f"Finished enqueueing {queued_count} items for ingestion.")
-
-        # Set stage to indicate waiting for jobs to finish
-        orchestrator_job.meta["current_stage"] = "waiting_for_ingest_jobs"
-        orchestrator_job.save_meta()
-
-        # Wait for all ingest jobs to finish
-        import time
-
-        poll_interval = 1  # seconds
-        logger.info(f"Waiting for {len(job_ids)} ingest jobs to finish...")
-        completed_count = 0
-        total_jobs = len(job_ids)
-
-        while job_ids:
-            remaining = []
-            newly_completed = 0
-
-            for job_id in job_ids:
-                try:
-                    job = Job.fetch(job_id, connection=redis_conn)
-                    if job.is_finished:
-                        logger.debug(f"Job {job_id} finished.")
-                        newly_completed += 1
-                    else:
-                        remaining.append(job_id)
-                except NoSuchJobError:
-                    logger.warning(f"Job {job_id} not found.")
-                    # Count as completed since we can't track it anymore
-                    newly_completed += 1
-                except Exception as e:
-                    logger.exception(f"Error checking job {job_id}: {e}")
-                    remaining.append(job_id)
-
-            # Update completion count and metadata
-            if newly_completed > 0:
-                completed_count += newly_completed
-                # Update the metadata to show progress
-                orchestrator_job.meta["processed_items"] = completed_count
-                orchestrator_job.meta["current_stage"] = "monitoring_ingest_completion"
-                orchestrator_job.meta["progress_percent"] = int(
-                    (completed_count / total_jobs) * 100
+            for obj in media_objects_iter:
+                total_count += 1
+                mimetype = str((obj.metadata or {}).get("mimetype"))
+                logger.debug(
+                    f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
                 )
+                if mimetype == "None" or not is_mimetype_supported(mimetype):
+                    unsupported_count += 1
+                    logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
+                    continue
+                logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
+                exists = repo.get_by_object_key(obj.object_key)
+                if exists:
+                    logger.info(f"Skipping {obj.object_key}: already present in DB.")
+                    continue
+                orchestrator_job.meta["total_items"] = total_count
+                orchestrator_job.meta["current_stage"] = "enqueueing_items"
                 orchestrator_job.save_meta()
-                logger.info(
-                    f"Progress: {completed_count}/{total_jobs} items processed ({orchestrator_job.meta['progress_percent']}%)"
+                ingest_job = ingest_queue.enqueue(
+                    "app.tasks.ingest.ingest", stored_media_object=obj
                 )
+                logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
+                job_ids.append(ingest_job.id)
+                queued_count += 1
 
-            time.sleep(poll_interval)
-            job_ids = remaining
-            logger.info(f"Still waiting for {len(remaining)} jobs...")
-        logger.info("All ingest jobs finished. Ingest process completed.")
-        # The final status 'completed' is handled by RQ when the task returns IngestStatus.COMPLETED
-        orchestrator_job.meta["processed_items"] = (
-            total_count  # Final update to total count
-        )
-        orchestrator_job.meta["current_stage"] = (
-            IngestStatus.COMPLETED.value
-        )  # Use the enum value for the final stage
-        orchestrator_job.save_meta()
-        return IngestStatus.COMPLETED
+            logger.info(f"Found {total_count} total media objects.")
+            if unsupported_count > 0:
+                logger.info(f"Filtered out {unsupported_count} unsupported media objects.")
+            else:
+                logger.info("No unsupported media objects filtered out.")
+            logger.info(f"Queued {queued_count} new media objects for processing")
+
+            logger.info(f"Finished enqueueing {queued_count} items for ingestion.")
+
+            # Set stage to indicate waiting for jobs to finish
+            orchestrator_job.meta["current_stage"] = "waiting_for_ingest_jobs"
+            orchestrator_job.save_meta()
+
+            # Wait for all ingest jobs to finish
+            import time
+
+            poll_interval = 1  # seconds
+            logger.info(f"Waiting for {len(job_ids)} ingest jobs to finish...")
+            completed_count = 0
+            total_jobs = len(job_ids)
+
+            while job_ids:
+                remaining = []
+                newly_completed = 0
+
+                for job_id in job_ids:
+                    try:
+                        job = Job.fetch(job_id, connection=redis_conn)
+                        if job.is_finished:
+                            logger.debug(f"Job {job_id} finished.")
+                            newly_completed += 1
+                        else:
+                            remaining.append(job_id)
+                    except NoSuchJobError:
+                        logger.warning(f"Job {job_id} not found.")
+                        # Count as completed since we can't track it anymore
+                        newly_completed += 1
+                    except Exception as e:
+                        logger.exception(f"Error checking job {job_id}: {e}")
+                        remaining.append(job_id)
+
+                # Update completion count and metadata
+                if newly_completed > 0:
+                    completed_count += newly_completed
+                    # Update the metadata to show progress
+                    orchestrator_job.meta["processed_items"] = completed_count
+                    orchestrator_job.meta["current_stage"] = "monitoring_ingest_completion"
+                    orchestrator_job.meta["progress_percent"] = int(
+                        (completed_count / total_jobs) * 100
+                    )
+                    orchestrator_job.save_meta()
+                    logger.info(
+                        f"Progress: {completed_count}/{total_jobs} items processed ({orchestrator_job.meta['progress_percent']}%)"
+                    )
+
+                time.sleep(poll_interval)
+                job_ids = remaining
+                logger.info(f"Still waiting for {len(remaining)} jobs...")
+                
+            logger.info("All ingest jobs finished. Ingest process completed.")
+            # The final status 'completed' is handled by RQ when the task returns IngestStatus.COMPLETED
+            orchestrator_job.meta["processed_items"] = (
+                total_count  # Final update to total count
+            )
+            orchestrator_job.meta["current_stage"] = (
+                IngestStatus.COMPLETED.value
+            )  # Use the enum value for the final stage
+            orchestrator_job.save_meta()
+            return IngestStatus.COMPLETED
+        finally:
+            # Ensure proper cleanup of database session
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
     except ConnectionError:
         logger.error("Redis connection error during ingest orchestrator.")
         orchestrator_job.meta["current_stage"] = "error_redis"

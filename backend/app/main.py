@@ -5,12 +5,11 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from app.api.v1.routes import private_router, public_router
 from app.auth_utils import get_current_user
 from app.config import StorageProviderType, get_settings
+from app.db.database import get_db
 from app.db.init_db import init_db
 
 # Define required environment variables for each storage provider
@@ -68,11 +67,17 @@ async def lifespan(app):
     # Initialize database with default data
     try:
         logging.info("Initializing database with default data...")
-        engine = create_engine(settings.get_active_database_url())
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        db = SessionLocal()
-        init_db(db)
-        db.close()
+        # Use the next() to get the actual session from the generator
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            init_db(db)
+        finally:
+            # Ensure proper cleanup
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
         logging.info("Database initialization complete.")
     except Exception as e:
         logging.error(f"Error initializing database: {e}")

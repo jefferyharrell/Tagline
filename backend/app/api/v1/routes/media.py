@@ -79,12 +79,6 @@ class PaginatedMediaObjectList(BaseModel):
     pages: int = Field(..., description="Total number of pages.")
 
 
-# Dependency function for the repository
-def get_media_object_repository() -> MediaObjectRepository:
-    """Provides an instance of the MediaObjectRepository."""
-    return MediaObjectRepository()
-
-
 # --- Endpoints ---
 
 
@@ -187,12 +181,14 @@ def patch_media_object(
 
 
 @router.get("/media/{id}/thumbnail", response_class=Response, tags=["media"])
-def get_media_thumbnail(id: UUID):
+def get_media_thumbnail(
+    id: UUID,
+    repo: MediaObjectRepository = Depends(get_media_object_repository)
+):
     """
     Returns the thumbnail bytes for a media object by UUID, or 404 if not found or no thumbnail exists.
     Always returns as image/jpeg per API spec.
     """
-    repo = MediaObjectRepository()
     media_object = repo.get_by_id(id)
     if not media_object or not getattr(media_object, "thumbnail", None):
         raise HTTPException(status_code=404, detail="Thumbnail not found")
@@ -203,12 +199,14 @@ def get_media_thumbnail(id: UUID):
 
 
 @router.get("/media/{id}/proxy", response_class=Response, tags=["media"])
-def get_media_proxy(id: UUID):
+def get_media_proxy(
+    id: UUID,
+    repo: MediaObjectRepository = Depends(get_media_object_repository)
+):
     """
     Returns the proxy bytes for a media object by UUID, or 404 if not found or no proxy exists.
     Returns with the stored proxy mimetype, or application/octet-stream if missing.
     """
-    repo = MediaObjectRepository()
     media_object = repo.get_by_id(id)
     if not media_object or not getattr(media_object, "proxy", None):
         raise HTTPException(status_code=404, detail="Proxy not found")

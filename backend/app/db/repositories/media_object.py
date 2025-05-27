@@ -3,11 +3,9 @@
 import logging
 from typing import List, Optional
 
-from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.domain_media_object import MediaObjectRecord
 from app.models import ORMMediaObject
 
@@ -23,29 +21,16 @@ class MediaObjectNotFound(Exception):
 class MediaObjectRepository:
     """Handles database operations for MediaObject models."""
 
-    def __init__(self):
-        """Initializes the database connection."""
-        settings = get_settings()
-        try:
-            self.engine = create_engine(settings.DATABASE_URL)
-            self.SessionLocal = sessionmaker(
-                autocommit=False, autoflush=False, bind=self.engine
-            )
-            logger.debug("MediaObjectRepository initialized successfully.")
-        except Exception:
-            logger.exception(
-                "Failed to initialize MediaObjectRepository database connection."
-            )
-            # Decide if you want to raise or handle differently
-            # For now, let's raise to prevent using a non-functional repository
-            raise
+    def __init__(self, db: Session):
+        """Initializes the repository with a database session."""
+        self.db = db
+        logger.debug("MediaObjectRepository initialized successfully.")
 
     def get_by_id(self, id) -> Optional[MediaObjectRecord]:
         """Retrieves a MediaObjectRecord by its UUID."""
-        session = self.SessionLocal()
         try:
             logger.debug(f"Querying for MediaObject with id: {id}")
-            orm_obj = session.query(ORMMediaObject).filter_by(id=id).first()
+            orm_obj = self.db.query(ORMMediaObject).filter_by(id=id).first()
             if orm_obj:
                 logger.debug(f"Found MediaObject: {orm_obj.id}")
                 return MediaObjectRecord.from_orm(orm_obj)
@@ -55,17 +40,14 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for id {id}: {e}")
             return None
-        finally:
-            session.close()
 
     def get_by_object_key(self, object_key: str) -> Optional[MediaObjectRecord]:
         """Retrieves a MediaObjectRecord by its object_key."""
         assert object_key is not None, "object_key must not be None"
-        session = self.SessionLocal()
         try:
             logger.debug(f"Querying for MediaObject with object_key: {object_key}")
             orm_obj = (
-                session.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if orm_obj:
                 logger.debug(f"Found MediaObject: {orm_obj.id}")
@@ -76,8 +58,6 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for object_key {object_key}: {e}")
             return None
-        finally:
-            session.close()
 
     def create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
         """Creates a new MediaObjectRecord in the database or retrieves existing."""
@@ -86,17 +66,16 @@ class MediaObjectRepository:
             f"Attempting to create/get MediaObject for key: {record.object_key}"
         )
         orm_obj = record.to_orm()
-        session = self.SessionLocal()
         try:
-            with session.begin_nested():
-                session.add(orm_obj)
-            session.commit()
+            with self.db.begin_nested():
+                self.db.add(orm_obj)
+            self.db.commit()
             logger.info(
                 f"Successfully created MediaObject: {orm_obj.id} for key {orm_obj.object_key}"
             )
             return MediaObjectRecord.from_orm(orm_obj)
         except IntegrityError:
-            session.rollback()
+            self.db.rollback()
             logger.warning(
                 f"IntegrityError on create for key {record.object_key}, likely exists. Fetching."
             )
@@ -111,13 +90,11 @@ class MediaObjectRepository:
                 )
             return existing_obj
         except SQLAlchemyError as e:
-            session.rollback()
+            self.db.rollback()
             logger.error(
                 f"Database error creating MediaObject for key {record.object_key}: {e}"
             )
             return None
-        finally:
-            session.close()
 
     def update_thumbnail(
         self, object_key: str, thumbnail_bytes: bytes, thumbnail_mimetype: str
@@ -132,11 +109,10 @@ class MediaObjectRepository:
         Returns:
             True if the update was successful, False otherwise.
         """
-        session = self.SessionLocal()
         try:
             logger.debug(f"Attempting to update thumbnail for object_key: {object_key}")
             media_object = (
-                session.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if not media_object:
                 logger.warning(
@@ -146,15 +122,13 @@ class MediaObjectRepository:
 
             media_object.thumbnail = thumbnail_bytes  # type: ignore[assignment] # ORM handles assignment to Column attribute
             media_object.thumbnail_mimetype = thumbnail_mimetype  # type: ignore[assignment] # ORM handles assignment to Column attribute
-            session.commit()
+            self.db.commit()
             logger.info(f"Successfully updated thumbnail for {object_key}")
             return True
         except SQLAlchemyError as e:
-            session.rollback()
+            self.db.rollback()
             logger.error(f"Database error updating thumbnail for {object_key}: {e}")
             return False
-        finally:
-            session.close()
 
     def update_proxy(
         self, object_key: str, proxy_bytes: bytes, proxy_mimetype: str
@@ -169,11 +143,10 @@ class MediaObjectRepository:
         Returns:
             True if the update was successful, False otherwise.
         """
-        session = self.SessionLocal()
         try:
             logger.debug(f"Attempting to update proxy for object_key: {object_key}")
             media_object = (
-                session.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if not media_object:
                 logger.warning(f"MediaObject not found for proxy update: {object_key}")
@@ -181,15 +154,13 @@ class MediaObjectRepository:
 
             media_object.proxy = proxy_bytes  # type: ignore[assignment]
             media_object.proxy_mimetype = proxy_mimetype  # type: ignore[assignment]
-            session.commit()
+            self.db.commit()
             logger.info(f"Successfully updated proxy for {object_key}")
             return True
         except SQLAlchemyError as e:
-            session.rollback()
+            self.db.rollback()
             logger.error(f"Database error updating proxy for {object_key}: {e}")
             return False
-        finally:
-            session.close()
 
     def get_or_create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
         """Gets an existing MediaObjectRecord by object_key or creates it if not found.
@@ -206,13 +177,12 @@ class MediaObjectRepository:
 
     def get_all(self, limit: int = 100, offset: int = 0) -> List[MediaObjectRecord]:
         """Retrieves a paginated list of all MediaObjectRecords."""
-        session = self.SessionLocal()
         try:
             logger.debug(
                 f"Querying for all MediaObjects with limit={limit}, offset={offset}"
             )
             orm_objs = (
-                session.query(ORMMediaObject)
+                self.db.query(ORMMediaObject)
                 .order_by(ORMMediaObject.created_at)
                 .offset(offset)
                 .limit(limit)
@@ -224,8 +194,6 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for all MediaObjects: {e}")
             return []
-        finally:
-            session.close()
 
     def save(self, record: MediaObjectRecord) -> MediaObjectRecord:
         """
@@ -234,9 +202,8 @@ class MediaObjectRepository:
         Returns the updated MediaObjectRecord.
         """
         assert record.id is not None, "id must not be None for update/save"
-        session = self.SessionLocal()
         try:
-            orm_obj = session.query(ORMMediaObject).filter_by(id=record.id).first()
+            orm_obj = self.db.query(ORMMediaObject).filter_by(id=record.id).first()
             if orm_obj is None:
                 raise MediaObjectNotFound(f"MediaObject with id {record.id} not found.")
             # Update fields
@@ -260,27 +227,22 @@ class MediaObjectRepository:
                     orm_obj.updated_at = new_updated_at  # type: ignore[assignment]
                 except Exception:
                     pass  # fallback: do not update if parsing fails
-            session.commit()
+            self.db.commit()
             return MediaObjectRecord.from_orm(orm_obj)
         except SQLAlchemyError:
-            session.rollback()
+            self.db.rollback()
             raise
-        finally:
-            session.close()
 
     def count(self) -> int:
         """Returns the total count of MediaObjectRecords in the database."""
-        session = self.SessionLocal()
         try:
             logger.debug("Querying for total count of MediaObjects.")
-            total = session.query(ORMMediaObject).count()
+            total = self.db.query(ORMMediaObject).count()
             logger.debug(f"Total count: {total}")
             return total
         except SQLAlchemyError as e:
             logger.error(f"Database error counting MediaObjects: {e}")
             return 0
-        finally:
-            session.close()
     
     def get_adjacent(self, id) -> tuple[Optional[MediaObjectRecord], Optional[MediaObjectRecord]]:
         """Gets the previous and next MediaObjectRecords relative to the given id.
@@ -288,16 +250,15 @@ class MediaObjectRepository:
         Returns a tuple of (previous, next) MediaObjectRecords.
         Either or both may be None if at the beginning/end of the collection.
         """
-        session = self.SessionLocal()
         try:
             # Get the current media object to find its position
-            current = session.query(ORMMediaObject).filter_by(id=id).first()
+            current = self.db.query(ORMMediaObject).filter_by(id=id).first()
             if not current:
                 return (None, None)
             
             # Get the previous media object (most recent one before current)
             previous_obj = (
-                session.query(ORMMediaObject)
+                self.db.query(ORMMediaObject)
                 .filter(ORMMediaObject.created_at < current.created_at)
                 .order_by(ORMMediaObject.created_at.desc())
                 .first()
@@ -305,7 +266,7 @@ class MediaObjectRepository:
             
             # Get the next media object (earliest one after current)
             next_obj = (
-                session.query(ORMMediaObject)
+                self.db.query(ORMMediaObject)
                 .filter(ORMMediaObject.created_at > current.created_at)
                 .order_by(ORMMediaObject.created_at)
                 .first()
@@ -319,5 +280,3 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting adjacent MediaObjects for id {id}: {e}")
             return (None, None)
-        finally:
-            session.close()
