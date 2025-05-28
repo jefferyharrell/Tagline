@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Lock, Unlock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Lock, Unlock, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -39,6 +40,7 @@ interface MediaDetailClientProps {
 export default function MediaDetailClient({
   initialMediaObject,
 }: MediaDetailClientProps) {
+  const router = useRouter();
   const [mediaObject, setMediaObject] =
     useState<MediaObject>(initialMediaObject);
   const [description, setDescription] = useState(
@@ -343,11 +345,36 @@ export default function MediaDetailClient({
     handleCancel();
   };
 
+  const handleBackToGallery = useCallback(() => {
+    // Check if there are unsaved changes
+    if (!isDescriptionLocked && description !== lastSavedDescription) {
+      const confirmed = window.confirm("You have unsaved changes. Do you want to leave without saving?");
+      if (!confirmed) return;
+    }
+    
+    router.push('/library');
+  }, [router, isDescriptionLocked, description, lastSavedDescription]);
+
   return (
     <div className="min-h-screen">
+      {/* Header with Back Button */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <button
+              onClick={handleBackToGallery}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="text-sm font-medium">Back to Gallery</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
-        <div className="relative flex justify-center">
+        <div className="relative flex justify-center pt-4">
           <div 
             className="relative w-full max-w-4xl"
             style={{ 

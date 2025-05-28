@@ -18,8 +18,22 @@ interface MediaThumbnailProps {
 }
 
 export default function MediaThumbnail({ media }: MediaThumbnailProps) {
+  const handleClick = () => {
+    // Store current scroll position before navigation
+    if (typeof window !== 'undefined') {
+      const scrollPos = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      sessionStorage.setItem('library-scroll-position', scrollPos.toString());
+      
+      // Also store the current page offset for infinite scroll
+      const currentOffset = sessionStorage.getItem('library-current-offset');
+      if (currentOffset) {
+        sessionStorage.setItem('library-saved-offset', currentOffset);
+      }
+    }
+  };
+
   return (
-    <Link href={`/library/${media.id}`} className="block group">
+    <Link href={`/library/${media.id}`} className="block group" onClick={handleClick}>
       <div className="bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
         <div className="relative aspect-square bg-gray-100 flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
