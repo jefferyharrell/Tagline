@@ -76,13 +76,21 @@ export default function GalleryClient() {
   
   // Handle browser back/forward buttons
   useEffect(() => {
+    let isMounted = false;
+    
     const handlePopState = async () => {
       const path = window.location.pathname;
-      const match = path.match(/\/library\/(\w+)/);
+      const match = path.match(/\/library\/([a-zA-Z0-9_-]+)$/);
       
       if (match && match[1]) {
         // We're on a detail URL, find and show the media
         const mediaId = match[1];
+        
+        // Don't fetch on initial mount - the page component will handle that
+        if (!isMounted) {
+          return;
+        }
+        
         const media = mediaObjects.find(m => m.id === mediaId);
         if (media) {
           // Fetch full media details
@@ -117,7 +125,7 @@ export default function GalleryClient() {
             setSelectedMedia(null);
           }
         }
-      } else if (path === '/library') {
+      } else if (path === '/library' || path === '/library/') {
         // We're on the gallery URL, close modal
         setIsModalOpen(false);
         setSelectedMedia(null);
@@ -126,8 +134,11 @@ export default function GalleryClient() {
     
     window.addEventListener('popstate', handlePopState);
     
-    // Check initial URL on mount
-    handlePopState();
+    // Small delay before checking initial URL to ensure component is ready
+    setTimeout(() => {
+      isMounted = true;
+      handlePopState();
+    }, 100);
     
     return () => window.removeEventListener('popstate', handlePopState);
   }, [mediaObjects]);
