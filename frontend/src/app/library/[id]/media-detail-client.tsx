@@ -368,21 +368,21 @@ export default function MediaDetailClient({
       
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
-        <div className={`relative flex justify-center ${isModal ? 'pt-0' : 'pt-4'}`}>
+        <div className={`relative flex justify-center ${isModal ? 'h-full' : 'pt-4'}`}>
           <div 
-            className="relative w-full max-w-4xl"
-            style={{ 
+            className={`relative w-full ${isModal ? 'h-full flex items-center justify-center' : 'max-w-4xl'}`}
+            style={!isModal ? { 
               maxHeight: '80vh',
               aspectRatio: mediaObject.metadata.intrinsic 
                 ? `${mediaObject.metadata.intrinsic.width} / ${mediaObject.metadata.intrinsic.height}`
                 : '4 / 3'
-            }}
+            } : {}}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              className={`${isModal ? 'max-w-full max-h-full w-auto h-auto' : 'absolute inset-0 w-full h-full'} object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               onLoad={() => setImageLoaded(true)}
             />
             
@@ -421,8 +421,8 @@ export default function MediaDetailClient({
             </button>
             
             {/* Description Section - Positioned at Bottom of Photo */}
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className="relative">
+            <div className={`absolute bottom-0 ${isModal ? 'left-4 right-4 sm:left-8 sm:right-8 md:left-12 md:right-12 lg:left-16 lg:right-16' : 'left-0 right-0'} p-4`}>
+              <div className="relative max-w-3xl mx-auto">
                 
                 {/* Helper text and status - positioned above textarea */}
                 <div className="flex justify-end mb-2 h-6">
@@ -498,7 +498,7 @@ export default function MediaDetailClient({
         </div>
 
         {/* Raw Metadata Card */}
-        <div className="max-w-4xl mx-auto p-4">
+        <div className={`${isModal ? 'max-w-5xl' : 'max-w-4xl'} mx-auto p-4`}>
           <Card>
             <CardHeader>
               <CardTitle>Raw Metadata</CardTitle>

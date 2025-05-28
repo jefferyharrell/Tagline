@@ -42,17 +42,17 @@ export default function MediaModal({ isOpen, onClose, children }: MediaModalProp
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div className="fixed inset-4 md:inset-8 lg:inset-12 bg-white rounded-lg shadow-2xl overflow-hidden">
+      <div className="fixed inset-2 sm:inset-3 md:inset-4 lg:inset-6 xl:inset-8 bg-white rounded-lg shadow-2xl overflow-hidden">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 hover:scale-110"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 hover:scale-110"
           aria-label="Close modal"
         >
-          <X className="h-6 w-6 text-gray-700" />
+          <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-700" />
         </button>
         
         {/* Modal content */}
