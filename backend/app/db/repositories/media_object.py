@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy import func, text
 
 from app.domain_media_object import MediaObjectRecord
 from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject
@@ -352,3 +353,73 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting proxy for {media_object_id}: {e}")
             return None
+    
+    def search(
+        self, 
+        query: str, 
+        limit: int = 100, 
+        offset: int = 0
+    ) -> tuple[List[MediaObjectRecord], int]:
+        """Search media objects using full-text search.
+        
+        Args:
+            query: Search query string (will be tokenized)
+            limit: Maximum number of results to return
+            offset: Number of results to skip
+            
+        Returns:
+            Tuple of (results, total_count)
+        """
+        try:
+            if not query or not query.strip():
+                # Empty query returns empty results
+                return [], 0
+                
+            # Prepare the search query by tokenizing and joining with &
+            # This ensures all terms must be present (AND logic)
+            search_tokens = query.strip().split()
+            tsquery = ' & '.join(search_tokens)
+            
+            logger.debug(f"Searching for: {query} (tsquery: {tsquery})")
+            
+            # First get the total count
+            count_query = (
+                self.db.query(func.count(ORMMediaObject.id))
+                .filter(
+                    text("search_vector @@ plainto_tsquery('english', :query)")
+                    .bindparams(query=tsquery)
+                )
+            )
+            total_count = count_query.scalar() or 0
+            
+            # Then get the paginated results with ranking
+            results_query = (
+                self.db.query(
+                    ORMMediaObject,
+                    func.ts_rank(
+                        text('search_vector'),
+                        func.plainto_tsquery('english', tsquery)
+                    ).label('rank')
+                )
+                .filter(
+                    text("search_vector @@ plainto_tsquery('english', :query)")
+                    .bindparams(query=tsquery)
+                )
+                .order_by(text('rank DESC'), ORMMediaObject.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            
+            # Execute query and convert to domain objects
+            results = results_query.all()
+            records = [
+                MediaObjectRecord.from_orm(result[0], load_binary_fields=False) 
+                for result in results
+            ]
+            
+            logger.debug(f"Found {total_count} total results, returning {len(records)}")
+            return records, total_count
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Database error searching media objects: {e}")
+            return [], 0
