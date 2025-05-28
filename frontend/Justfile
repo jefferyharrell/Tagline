@@ -20,9 +20,13 @@ lint:
 test:
     npm test
 
+type-check:
+    npm run type-check
+
 all:
     just format
     just lint
+    just type-check
     # just test
 
 clean:
@@ -40,7 +44,7 @@ update-deps:
     echo "Dependencies updated."
 
 pre-commit:
-    npx prettier --check . && npx eslint .
+    npm run check-all
 
 run:
     npm run dev

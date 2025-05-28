@@ -126,7 +126,7 @@ cd frontend
 # Setup frontend dependencies
 just setup
 
-# Run format and lint checks
+# Run format, lint, and type checks
 just all
 
 # Format code with prettier
@@ -134,6 +134,12 @@ just format
 
 # Lint code with eslint
 just lint
+
+# Run TypeScript type checking
+just type-check
+
+# Run all checks (lint, type-check, build)
+npm run check-all
 
 # Run tests (currently commented out)
 just test
@@ -354,6 +360,14 @@ The application runs in Docker containers orchestrated with Docker Compose.
 - Keep components focused and compose them together
 - Write tests for new functionality
 - Use meaningful commit messages and create PRs for review
+
+### Type Safety Best Practices
+
+- Define shared types in `src/types/` directory to avoid duplication
+- Always run `npm run check-all` in frontend before committing
+- This command runs: lint, type-check, and build to catch all issues
+- Never define the same interface in multiple files
+- Use strict TypeScript settings to catch errors early
 
 ## Stakeholder Context
 
