@@ -1,16 +1,5 @@
 import React from "react";
-
-interface MediaObject {
-  id: string;
-  object_key: string;
-  metadata: {
-    description?: string;
-    keywords?: string[];
-    [key: string]: unknown;
-  };
-  created_at: string;
-  updated_at: string;
-}
+import { MediaObject } from "@/types/media";
 
 interface MediaThumbnailProps {
   media: MediaObject;

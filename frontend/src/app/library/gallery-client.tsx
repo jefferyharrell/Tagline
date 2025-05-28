@@ -5,18 +5,7 @@ import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
 import MediaDetailClient from "./[id]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface MediaObject {
-  id: string;
-  object_key: string;
-  metadata: {
-    description?: string;
-    keywords?: string[];
-    [key: string]: unknown;
-  };
-  created_at: string;
-  updated_at: string;
-}
+import { MediaObject } from "@/types/media";
 
 interface PaginatedResponse {
   items: MediaObject[];
