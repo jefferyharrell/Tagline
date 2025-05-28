@@ -35,10 +35,14 @@ interface MediaObject {
 
 interface MediaDetailClientProps {
   initialMediaObject: MediaObject;
+  isModal?: boolean;
+  onClose?: () => void;
 }
 
 export default function MediaDetailClient({
   initialMediaObject,
+  isModal = false,
+  onClose,
 }: MediaDetailClientProps) {
   const router = useRouter();
   const [mediaObject, setMediaObject] =
@@ -193,8 +197,10 @@ export default function MediaDetailClient({
     // Fetch the new media data
     const newMediaData = await fetchMediaData(media.id);
     if (newMediaData) {
-      // Update the URL without full page reload
-      window.history.pushState({}, '', `/library/${media.id}`);
+      // Update the URL without full page reload (only in modal mode)
+      if (isModal) {
+        window.history.pushState({}, '', `/library/${media.id}`);
+      }
       
       // Update the media object state
       setMediaObject(newMediaData);
@@ -206,7 +212,7 @@ export default function MediaDetailClient({
     }
     
     setIsNavigating(false);
-  }, [isDescriptionLocked, description, lastSavedDescription, isNavigating, fetchMediaData]);
+  }, [isDescriptionLocked, description, lastSavedDescription, isNavigating, fetchMediaData, isModal]);
   
   const handlePrevious = useCallback(() => {
     navigateToMedia(adjacentMedia.previous);
@@ -352,29 +358,35 @@ export default function MediaDetailClient({
       if (!confirmed) return;
     }
     
-    router.push('/library');
-  }, [router, isDescriptionLocked, description, lastSavedDescription]);
+    if (isModal && onClose) {
+      onClose();
+    } else {
+      router.push('/library');
+    }
+  }, [router, isDescriptionLocked, description, lastSavedDescription, isModal, onClose]);
 
   return (
     <div className="min-h-screen">
-      {/* Header with Back Button */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={handleBackToGallery}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="text-sm font-medium">Back to Gallery</span>
-            </button>
+      {/* Header with Back Button - only show in full page mode */}
+      {!isModal && (
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <button
+                onClick={handleBackToGallery}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span className="text-sm font-medium">Back to Gallery</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
-        <div className="relative flex justify-center pt-4">
+        <div className={`relative flex justify-center ${isModal ? 'pt-0' : 'pt-4'}`}>
           <div 
             className="relative w-full max-w-4xl"
             style={{ 

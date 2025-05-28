@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import MediaThumbnail from "@/components/MediaThumbnail";
+import MediaModal from "@/components/MediaModal";
+import MediaDetailClient from "./[id]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface MediaObject {
@@ -35,11 +37,100 @@ export default function GalleryClient() {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isRestoringScroll, setIsRestoringScroll] = useState(false);
-  const hasRestoredScrollRef = useRef(false);
   const isFetchingRef = useRef(false);
+  
+  // Modal state
+  const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const ITEMS_PER_PAGE = 36;
+  
+  // Handle opening media in modal
+  const handleMediaClick = useCallback(async (media: MediaObject) => {
+    // Fetch full media details
+    try {
+      const response = await fetch(`/api/library/${media.id}`);
+      if (response.ok) {
+        const fullMedia = await response.json();
+        setSelectedMedia(fullMedia);
+        setIsModalOpen(true);
+        // Update URL without navigation
+        window.history.pushState({}, '', `/library/${media.id}`);
+      }
+    } catch (error) {
+      console.error("Error fetching media details:", error);
+      // Fall back to using the basic media object
+      setSelectedMedia(media);
+      setIsModalOpen(true);
+      window.history.pushState({}, '', `/library/${media.id}`);
+    }
+  }, []);
+  
+  // Handle closing modal
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedMedia(null);
+    // Return to gallery URL
+    window.history.pushState({}, '', '/library');
+  }, []);
+  
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = async () => {
+      const path = window.location.pathname;
+      const match = path.match(/\/library\/(\w+)/);
+      
+      if (match && match[1]) {
+        // We're on a detail URL, find and show the media
+        const mediaId = match[1];
+        const media = mediaObjects.find(m => m.id === mediaId);
+        if (media) {
+          // Fetch full media details
+          try {
+            const response = await fetch(`/api/library/${mediaId}`);
+            if (response.ok) {
+              const fullMedia = await response.json();
+              setSelectedMedia(fullMedia);
+              setIsModalOpen(true);
+            }
+          } catch (error) {
+            console.error("Error fetching media details:", error);
+            setSelectedMedia(media);
+            setIsModalOpen(true);
+          }
+        } else {
+          // Media not in current list, try to fetch it anyway
+          try {
+            const response = await fetch(`/api/library/${mediaId}`);
+            if (response.ok) {
+              const fullMedia = await response.json();
+              setSelectedMedia(fullMedia);
+              setIsModalOpen(true);
+            } else {
+              // Can't load media, close modal
+              setIsModalOpen(false);
+              setSelectedMedia(null);
+            }
+          } catch (error) {
+            console.error("Error fetching media details:", error);
+            setIsModalOpen(false);
+            setSelectedMedia(null);
+          }
+        }
+      } else if (path === '/library') {
+        // We're on the gallery URL, close modal
+        setIsModalOpen(false);
+        setSelectedMedia(null);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
+    // Check initial URL on mount
+    handlePopState();
+    
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [mediaObjects]);
 
   const fetchMediaObjects = useCallback(
     async (reset: boolean = false) => {
@@ -86,11 +177,6 @@ export default function GalleryClient() {
         const newOffset = currentOffset + data.items.length;
         setOffset(newOffset);
         setInitialLoad(false);
-        
-        // Store current offset in sessionStorage for scroll restoration
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('library-current-offset', newOffset.toString());
-        }
       } catch (err) {
         console.error("Error fetching media objects:", err);
         setError((err as Error).message || "Failed to fetch media objects");
@@ -99,77 +185,14 @@ export default function GalleryClient() {
         setIsLoading(false);
       }
     },
-    [offset, isLoading, hasMore, searchQuery, searchInput],
+    [offset, isLoading, hasMore, searchQuery],
   );
 
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Restore scroll position after content loads
-  const restoreScrollPosition = useCallback(() => {
-    if (hasRestoredScrollRef.current) return;
-    
-    const savedPosition = sessionStorage.getItem('library-scroll-position');
-    const savedOffset = sessionStorage.getItem('library-saved-offset');
-    
-    
-    if (savedPosition && savedOffset) {
-      const targetPosition = parseInt(savedPosition, 10);
-      const targetOffset = parseInt(savedOffset, 10);
-      
-      // Check if we have loaded enough content
-      if (offset >= targetOffset) {
-        // Content is loaded, restore scroll position
-        hasRestoredScrollRef.current = true;
-        // Add a small delay to ensure DOM is fully ready
-        setTimeout(() => {
-          // Try multiple methods to ensure scroll works
-          window.scrollTo(0, targetPosition);
-          document.documentElement.scrollTop = targetPosition;
-          document.body.scrollTop = targetPosition;
-          
-          // Double-check the scroll worked
-          requestAnimationFrame(() => {
-            const currentScroll = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-            
-            if (Math.abs(currentScroll - targetPosition) > 10) {
-              window.scrollTo({ top: targetPosition, behavior: 'instant' });
-            }
-            
-            // Clean up after successful restoration
-            sessionStorage.removeItem('library-scroll-position');
-            sessionStorage.removeItem('library-saved-offset');
-            setIsRestoringScroll(false);
-          });
-        }, 100);
-      } else if (hasMore && !isLoading) {
-        // Need to load more content
-        setIsRestoringScroll(true);
-        fetchMediaObjects();
-      }
-    } else {
-      // No saved position, we're done
-      setIsRestoringScroll(false);
-    }
-  }, [offset, hasMore, isLoading, fetchMediaObjects]);
-
   // Initialize data load
   useEffect(() => {
     if (!hasInitialized) {
-      // Disable browser scroll restoration
-      if ('scrollRestoration' in history) {
-        history.scrollRestoration = 'manual';
-      }
-      
-      // Check if we're returning from detail view
-      const savedPosition = sessionStorage.getItem('library-scroll-position');
-      const savedOffset = sessionStorage.getItem('library-saved-offset');
-      
-      
-      if (savedPosition && savedOffset) {
-        // We're returning - start restoration process
-        setIsRestoringScroll(true);
-      }
-      
       fetchMediaObjects(true);
       setHasInitialized(true);
     }
@@ -181,23 +204,11 @@ export default function GalleryClient() {
     if (hasInitialized) {
       setOffset(0);
       setHasMore(true);
-      hasRestoredScrollRef.current = false;
-      setIsRestoringScroll(false);
       isFetchingRef.current = false;
-      // Clear saved scroll position when search changes
-      sessionStorage.removeItem('library-scroll-position');
-      sessionStorage.removeItem('library-saved-offset');
       fetchMediaObjects(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
-  
-  // Try to restore scroll position after content loads
-  useEffect(() => {
-    if (isRestoringScroll && !isLoading) {
-      restoreScrollPosition();
-    }
-  }, [isRestoringScroll, isLoading, offset, restoreScrollPosition]);
 
   // Setup intersection observer for infinite scroll
   useEffect(() => {
@@ -205,7 +216,7 @@ export default function GalleryClient() {
       observerRef.current = new IntersectionObserver(
         (entries) => {
           const [entry] = entries;
-          if (entry.isIntersecting && hasMore && !isLoading && !isRestoringScroll) {
+          if (entry.isIntersecting && hasMore && !isLoading) {
             fetchMediaObjects();
           }
         },
@@ -220,7 +231,7 @@ export default function GalleryClient() {
         observerRef.current.disconnect();
       }
     };
-  }, [fetchMediaObjects, hasMore, isLoading, initialLoad, isRestoringScroll]);
+  }, [fetchMediaObjects, hasMore, isLoading, initialLoad]);
 
   // Handle search input with debounce
   const handleSearchInput = (value: string) => {
@@ -380,7 +391,7 @@ export default function GalleryClient() {
         <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 p-6 mt-2">
             {mediaObjects.map((media) => (
-              <MediaThumbnail key={media.id} media={media} />
+              <MediaThumbnail key={media.id} media={media} onClick={handleMediaClick} />
             ))}
           </div>
 
@@ -411,6 +422,17 @@ export default function GalleryClient() {
           </div>
         </>
       )}
+      
+      {/* Modal for media detail */}
+      <MediaModal isOpen={isModalOpen} onClose={handleCloseModal}>
+        {selectedMedia && (
+          <MediaDetailClient 
+            initialMediaObject={selectedMedia} 
+            isModal={true}
+            onClose={handleCloseModal}
+          />
+        )}
+      </MediaModal>
     </div>
   );
 }

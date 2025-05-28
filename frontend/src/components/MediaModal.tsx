@@ -1,0 +1,65 @@
+"use client";
+
+import React, { useEffect, useCallback } from "react";
+import { X } from "lucide-react";
+
+interface MediaModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+export default function MediaModal({ isOpen, onClose, children }: MediaModalProps) {
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      // Prevent background scrolling when modal is open
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
+  // Handle backdrop click
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div className="fixed inset-4 md:inset-8 lg:inset-12 bg-white rounded-lg shadow-2xl overflow-hidden">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 hover:scale-110"
+          aria-label="Close modal"
+        >
+          <X className="h-6 w-6 text-gray-700" />
+        </button>
+        
+        {/* Modal content */}
+        <div className="h-full overflow-auto">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,4 @@
 import React from "react";
-import Link from "next/link";
 
 interface MediaObject {
   id: string;
@@ -15,25 +14,31 @@ interface MediaObject {
 
 interface MediaThumbnailProps {
   media: MediaObject;
+  onClick?: (media: MediaObject) => void;
 }
 
-export default function MediaThumbnail({ media }: MediaThumbnailProps) {
-  const handleClick = () => {
-    // Store current scroll position before navigation
-    if (typeof window !== 'undefined') {
-      const scrollPos = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      sessionStorage.setItem('library-scroll-position', scrollPos.toString());
-      
-      // Also store the current page offset for infinite scroll
-      const currentOffset = sessionStorage.getItem('library-current-offset');
-      if (currentOffset) {
-        sessionStorage.setItem('library-saved-offset', currentOffset);
-      }
+export default function MediaThumbnail({ media, onClick }: MediaThumbnailProps) {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Check for modifier keys - if present, let the browser handle as normal link
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+      // Let the browser handle it normally (open in new tab/window)
+      return;
+    }
+    
+    // Otherwise, prevent default and call onClick if provided
+    if (onClick) {
+      e.preventDefault();
+      onClick(media);
     }
   };
 
   return (
-    <Link href={`/library/${media.id}`} className="block group" onClick={handleClick}>
+    <a 
+      href={`/library/${media.id}`} 
+      className="block group" 
+      onClick={handleClick}
+      target="_self"
+    >
       <div className="bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
         <div className="relative aspect-square bg-gray-100 flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -55,6 +60,6 @@ export default function MediaThumbnail({ media }: MediaThumbnailProps) {
           <div className="absolute inset-0 bg-jl-red/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       </div>
-    </Link>
+    </a>
   );
 }
