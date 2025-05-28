@@ -375,10 +375,12 @@ class MediaObjectRepository:
                 # Empty query returns empty results
                 return [], 0
                 
-            # Prepare the search query by tokenizing and joining with &
-            # This ensures all terms must be present (AND logic)
+            # Prepare the search query with prefix matching support
+            # This ensures all terms must be present (AND logic) and supports partial word matching
             search_tokens = query.strip().split()
-            tsquery = ' & '.join(search_tokens)
+            # Add :* suffix for prefix matching on each token
+            prefix_tokens = [f"{token}:*" for token in search_tokens]
+            tsquery = ' & '.join(prefix_tokens)
             
             logger.debug(f"Searching for: {query} (tsquery: {tsquery})")
             
@@ -386,7 +388,7 @@ class MediaObjectRepository:
             count_query = (
                 self.db.query(func.count(ORMMediaObject.id))
                 .filter(
-                    text("search_vector @@ plainto_tsquery('english', :query)")
+                    text("search_vector @@ to_tsquery('english', :query)")
                     .bindparams(query=tsquery)
                 )
             )
@@ -398,11 +400,11 @@ class MediaObjectRepository:
                     ORMMediaObject,
                     func.ts_rank(
                         text('search_vector'),
-                        func.plainto_tsquery('english', tsquery)
+                        func.to_tsquery('english', tsquery)
                     ).label('rank')
                 )
                 .filter(
-                    text("search_vector @@ plainto_tsquery('english', :query)")
+                    text("search_vector @@ to_tsquery('english', :query)")
                     .bindparams(query=tsquery)
                 )
                 .order_by(text('rank DESC'), ORMMediaObject.created_at.desc())
