@@ -30,7 +30,7 @@ export default function GalleryClient() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
-  const [searchQuery, setSearchQuery] = useState<string | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
@@ -47,7 +47,7 @@ export default function GalleryClient() {
       setError(null);
 
       try {
-        const url = searchQuery && searchQuery !== ""
+        const url = searchQuery && searchQuery.trim() !== ""
           ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
           : `/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
         
@@ -83,18 +83,23 @@ export default function GalleryClient() {
         setIsLoading(false);
       }
     },
-    [offset, isLoading, hasMore],
+    [offset, isLoading, hasMore, searchQuery, searchInput],
   );
+
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Initialize data load
   useEffect(() => {
-    fetchMediaObjects(true);
+    if (!hasInitialized) {
+      fetchMediaObjects(true);
+      setHasInitialized(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle search query changes
   useEffect(() => {
-    if (searchQuery !== undefined) {
+    if (hasInitialized) {
       setOffset(0);
       setHasMore(true);
       fetchMediaObjects(true);
@@ -183,9 +188,6 @@ export default function GalleryClient() {
                 onClick={() => {
                   setSearchInput("");
                   setSearchQuery("");
-                  setOffset(0);
-                  setHasMore(true);
-                  fetchMediaObjects(true);
                 }}
               >
                 <svg
@@ -204,7 +206,7 @@ export default function GalleryClient() {
               </button>
             )}
           </div>
-          {searchQuery && (
+          {searchQuery !== "" && (
             <p className="mt-2 text-sm text-gray-600">
               Searching for: <span className="font-medium">{searchQuery}</span>
             </p>
