@@ -368,9 +368,9 @@ export default function MediaDetailClient({
       
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
-        <div className={`relative flex justify-center ${isModal ? 'h-full' : 'pt-4'}`}>
+        <div className={`relative flex justify-center ${isModal ? 'h-full items-center p-4' : 'pt-4'}`}>
           <div 
-            className={`relative w-full ${isModal ? 'h-full flex items-center justify-center' : 'max-w-4xl'}`}
+            className={`relative ${isModal ? 'w-full h-full flex items-center justify-center' : 'w-full max-w-4xl'}`}
             style={!isModal ? { 
               maxHeight: '80vh',
               aspectRatio: mediaObject.metadata.intrinsic 
@@ -382,7 +382,8 @@ export default function MediaDetailClient({
             <img
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              className={`${isModal ? 'max-w-full max-h-full w-auto h-auto' : 'absolute inset-0 w-full h-full'} object-contain transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              className={`${isModal ? 'max-w-full max-h-full w-auto h-auto object-contain' : 'absolute inset-0 w-full h-full object-contain'} transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              style={isModal ? { maxHeight: 'calc(100vh - 8rem)' } : {}}
               onLoad={() => setImageLoaded(true)}
             />
             
@@ -421,7 +422,7 @@ export default function MediaDetailClient({
             </button>
             
             {/* Description Section - Positioned at Bottom of Photo */}
-            <div className={`absolute bottom-0 ${isModal ? 'left-4 right-4 sm:left-8 sm:right-8 md:left-12 md:right-12 lg:left-16 lg:right-16' : 'left-0 right-0'} p-4`}>
+            <div className={`absolute bottom-0 ${isModal ? 'left-4 right-4 sm:left-8 sm:right-8' : 'left-0 right-0'} p-4`}>
               <div className="relative max-w-3xl mx-auto">
                 
                 {/* Helper text and status - positioned above textarea */}
