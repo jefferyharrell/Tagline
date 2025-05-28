@@ -27,6 +27,16 @@ The repository is organized into two main directories:
 
 ## Development Commands
 
+### Initial Setup
+
+```bash
+# Frontend initial setup
+cd frontend && just setup
+
+# Start all services
+cd .. && just up
+```
+
 ### Project-Wide Commands
 
 ```bash
@@ -41,6 +51,9 @@ just bounce
 
 # Restart both services
 just restart
+
+# Show available commands
+just help
 ```
 
 ### Backend Commands
@@ -48,6 +61,9 @@ just restart
 ```bash
 # Navigate to backend directory first
 cd backend
+
+# Run full quality check (format, lint, test, pre-commit)
+just all
 
 # Format code with isort and black
 just format
@@ -70,7 +86,7 @@ just coverage
 # Run backend locally with uvicorn
 just run
 
-# Start backend containers
+# Start backend containers (auto-runs migrations)
 just up
 
 # Stop backend containers
@@ -84,6 +100,21 @@ just makemigration "Description of change"
 
 # Open PostgreSQL shell
 just dbshell
+
+# Clean Python cache files
+just clean
+
+# Rebuild containers from scratch
+just rebuild
+
+# View backend logs
+just logs
+
+# Open bash shell in backend container
+just shell
+
+# Install/sync Python dependencies
+just pip-install
 ```
 
 ### Frontend Commands
@@ -95,13 +126,16 @@ cd frontend
 # Setup frontend dependencies
 just setup
 
+# Run format and lint checks
+just all
+
 # Format code with prettier
 just format
 
 # Lint code with eslint
 just lint
 
-# Run tests
+# Run tests (currently commented out)
 just test
 
 # Run frontend development server
@@ -112,6 +146,21 @@ just up
 
 # Stop frontend container
 just down
+
+# Clean build artifacts and node_modules
+just clean
+
+# Rebuild containers from scratch
+just rebuild
+
+# View frontend logs
+just logs
+
+# Open shell in frontend container
+just shell
+
+# Update npm dependencies
+just update-deps
 ```
 
 ## Architecture
@@ -123,16 +172,26 @@ just down
 - Media processing pipeline for images (JPEG, PNG, HEIC)
 - PostgreSQL database with SQLAlchemy ORM
 - Redis-based background task queue for media ingestion
+- Full-text search using PostgreSQL's tsvector/tsquery
 
 Key patterns:
-- Repository Pattern for data access
+- Repository Pattern for data access (app/db/repositories/)
 - Protocol-based interfaces for storage providers
 - Factory Pattern for media processors
 - Dependency Injection via FastAPI Depends
+- Domain models separate from database models
+
+Key directories:
+- `app/api/v1/routes/`: API endpoint handlers
+- `app/db/repositories/`: Data access layer
+- `app/media_processing/`: Image processing pipeline
+- `app/storage_providers/`: Storage abstraction implementations
+- `app/tasks/`: Background job definitions
 
 ### Frontend (Next.js)
 
-- Modern React application with Tailwind CSS
+- Next.js 15 with React 19 and TypeScript
+- Tailwind CSS v4 for styling
 - Authentication via Stytch magic links
 - Media gallery for browsing and organizing photos
 - Responsive design with server and client components
@@ -142,6 +201,13 @@ Key patterns:
 - Provider Pattern for authentication state
 - Server Components for data loading
 - Route Handlers in app directory structure
+- Proxy API routes for backend communication
+
+Key directories:
+- `src/app/`: Next.js app router pages
+- `src/app/api/`: API route handlers
+- `src/components/`: Reusable UI components
+- `src/lib/`: Utility functions and helpers
 
 ## Authentication System
 
@@ -170,33 +236,48 @@ Authentication Flow:
 
 ### Backend
 
-- `GET /v1/media`: List all media objects with pagination
+- `GET /v1/media`: List all media objects with pagination and search
+- `GET /v1/media/search`: Full-text search across media metadata
 - `GET /v1/media/{id}`: Get specific media object metadata
 - `PATCH /v1/media/{id}`: Update media object metadata
 - `GET /v1/media/{id}/thumbnail`: Get the thumbnail image
 - `GET /v1/media/{id}/proxy`: Stream the proxy file
 - `GET /v1/media/{id}/data`: Stream the full media file
+- `GET /v1/media/{id}/adjacent`: Get previous/next media objects
 - `POST /v1/auth/authenticate`: Authenticate with Stytch
 - `POST /v1/auth/bypass`: Developer authentication bypass
 - `POST /v1/ingest`: Scan storage for new media files
+- `GET /v1/tasks`: List background tasks
+- `GET /v1/tasks/{id}`: Get task status
 
 ### Frontend
 
 - `/api/auth/callback`: Stytch callback handler
 - `/api/auth/dev-login`: Developer login bypass
 - `/api/auth/check-email`: Email eligibility verification
+- `/api/library`: Proxy for backend media endpoints
+- `/api/library/search`: Proxy for backend search
+- `/api/library/{id}`: Proxy for specific media object
+- `/api/library/{id}/thumbnail`: Proxy for thumbnail
+- `/api/library/{id}/proxy`: Proxy for proxy image
+- `/api/library/{id}/adjacent`: Proxy for adjacent media
+- `/api/ingest`: Proxy for ingest endpoint
 
 ## Environment Configuration
 
 ### Backend Variables
 
 - `BACKEND_API_KEY`: For X-API-Key header authentication
-- `DATABASE_URL`: PostgreSQL connection string (using Neon managed Postgres)
+- `DATABASE_URL`: PostgreSQL connection string
 - `JWT_SECRET`: Secret for JWT token signing
 - `STYTCH_PROJECT_ID`, `STYTCH_SECRET`: Stytch authentication
 - `STORAGE_PROVIDER`: "filesystem" or "dropbox"
 - `AUTH_BYPASS_EMAILS`: Comma-separated list of emails for bypass
 - `AUTH_BYPASS_ENABLED`: Enable/disable auth bypass
+- `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`: For Dropbox API access
+- `DROPBOX_REFRESH_TOKEN`: Long-lived token for Dropbox
+- `REDIS_URL`: Redis connection for task queue
+- `FILESYSTEM_BASE_PATH`: Base path when using filesystem storage
 
 ### Frontend Variables
 
@@ -205,18 +286,33 @@ Authentication Flow:
 - `BACKEND_URL`: Backend API URL
 - `BACKEND_API_KEY`: API key for backend communication
 - `NEXT_PUBLIC_AUTH_BYPASS_ENABLED`: Enable auth bypass in frontend
+- `JWT_SECRET`: For verifying JWT tokens in middleware
 
 ## Testing
+
+### Backend Testing
 
 - Backend uses pytest for unit and end-to-end tests
 - Test files are in backend/tests/unit and backend/tests/e2e
 - Run unit tests with `just unit-tests` in the backend directory
 - Run e2e tests with `just e2e-tests` in the backend directory
+- Run all tests with `just test`
 - Generate coverage report with `just coverage`
 
-**Known Issues**:
-- Playwright parallel testing can cause capacity problems on local development (likely connection pooling related)
-- Consider investigating connection pooling configuration if running into database connection issues during testing
+**Test Patterns**:
+- Unit tests mock external dependencies (database, storage providers)
+- E2E tests use real database with test fixtures
+- Conftest provides shared fixtures and test utilities
+- Tests follow AAA pattern (Arrange, Act, Assert)
+
+### Frontend Testing
+
+- Frontend tests are currently commented out in Justfile
+- Test infrastructure exists but needs implementation
+- Manual testing should be performed with Playwright:
+   - navigate to `http://localhost:3000`
+   - sign in as `test@example.com`
+   - press the purple `Developer Login` button at the bottom of the sign in page
 
 ## Docker Compose Setup
 
@@ -224,16 +320,29 @@ The application runs in Docker containers orchestrated with Docker Compose.
 
 ### Backend Services
 
-- PostgreSQL database
-- Redis for task queue
-- FastAPI application
-- Ingest orchestrator worker
-- Ingest workers (configurable replicas)
+- `postgres`: PostgreSQL 17 database with pgvector extension (port 5432)
+- `redis`: Redis 7 for task queue (port 6379)
+- `backend`: FastAPI application (port 8000)
+- `ingest-orchestrator`: Single RQ worker for task orchestration
+- `ingest-worker`: RQ workers for parallel processing (8 replicas)
 
 ### Frontend Services
 
-- Next.js development server
+- `frontend`: Next.js development server (port 3000)
+- Uses named volumes for node_modules and .next cache
 - Volume mounts for hot reloading
+
+### Service Dependencies
+
+- Backend depends on postgres and redis
+- Workers depend on backend, postgres, and redis
+- Frontend can run independently but requires backend for API
+
+### Volumes
+
+- `postgres_data`: Persistent database storage
+- `frontend_node_modules`: Cached dependencies
+- `frontend_next`: Build cache
 
 ## Development Preferences & Conventions
 
