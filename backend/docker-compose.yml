@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg17x
     container_name: tagline-postgres
     environment:
       POSTGRES_DB: tagline
