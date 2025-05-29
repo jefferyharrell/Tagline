@@ -2,7 +2,7 @@ import logging
 from typing import List, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -230,35 +230,27 @@ def get_media_thumbnail(
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
 
-    # Try S3 first if configured
-    if s3_storage:
-        try:
-            # Get metadata to determine content type
-            metadata = s3_storage.get_thumbnail_metadata(str(id))
-            if metadata:
-                # Stream from S3
-                stream = s3_storage.stream_thumbnail(str(id))
-                return StreamingResponse(
-                    content=stream,
-                    media_type=metadata.get("content_type", "image/jpeg"),
-                    headers={
-                        "Cache-Control": "public, max-age=3600",
-                        "ETag": metadata.get("etag", ""),
-                    },
-                )
-        except FileNotFoundError:
-            pass  # Fall back to database
-        except Exception as e:
-            logger.error(f"Error streaming thumbnail from S3 for {id}: {e}")
-            # Fall back to database
+    # Get metadata to determine content type
+    try:
+        metadata = s3_storage.get_thumbnail_metadata(str(id))
+        if not metadata:
+            raise HTTPException(status_code=404, detail="Thumbnail not found")
 
-    # Fall back to database
-    thumbnail_data = repo.get_thumbnail(id)
-    if not thumbnail_data:
+        # Stream from S3
+        stream = s3_storage.stream_thumbnail(str(id))
+        return StreamingResponse(
+            content=stream,
+            media_type=metadata.get("content_type", "image/jpeg"),
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "ETag": metadata.get("etag", ""),
+            },
+        )
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
-
-    data, mimetype = thumbnail_data
-    return Response(content=data, media_type=mimetype)
+    except Exception as e:
+        logger.error(f"Error streaming thumbnail from S3 for {id}: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving thumbnail")
 
 
 @router.get("/media/{id}/proxy", response_class=StreamingResponse, tags=["media"])
@@ -275,35 +267,27 @@ def get_media_proxy(
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
 
-    # Try S3 first if configured
-    if s3_storage:
-        try:
-            # Get metadata to determine content type
-            metadata = s3_storage.get_proxy_metadata(str(id))
-            if metadata:
-                # Stream from S3
-                stream = s3_storage.stream_proxy(str(id))
-                return StreamingResponse(
-                    content=stream,
-                    media_type=metadata.get("content_type", "image/jpeg"),
-                    headers={
-                        "Cache-Control": "public, max-age=3600",
-                        "ETag": metadata.get("etag", ""),
-                    },
-                )
-        except FileNotFoundError:
-            pass  # Fall back to database
-        except Exception as e:
-            logger.error(f"Error streaming proxy from S3 for {id}: {e}")
-            # Fall back to database
+    # Get metadata to determine content type
+    try:
+        metadata = s3_storage.get_proxy_metadata(str(id))
+        if not metadata:
+            raise HTTPException(status_code=404, detail="Proxy not found")
 
-    # Fall back to database
-    proxy_data = repo.get_proxy(id)
-    if not proxy_data:
+        # Stream from S3
+        stream = s3_storage.stream_proxy(str(id))
+        return StreamingResponse(
+            content=stream,
+            media_type=metadata.get("content_type", "image/jpeg"),
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "ETag": metadata.get("etag", ""),
+            },
+        )
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Proxy not found")
-
-    data, mimetype = proxy_data
-    return Response(content=data, media_type=mimetype)
+    except Exception as e:
+        logger.error(f"Error streaming proxy from S3 for {id}: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving proxy")
 
 
 class AdjacentMediaResponse(BaseModel):

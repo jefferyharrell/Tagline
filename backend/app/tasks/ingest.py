@@ -35,10 +35,9 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
     try:
         repo = MediaObjectRepository(db)
 
-        # Initialize S3 storage if configured
-        s3_storage = None
+        # Initialize S3 storage (required)
         settings = get_settings()
-        if all(
+        if not all(
             [
                 settings.S3_ENDPOINT_URL,
                 settings.S3_ACCESS_KEY_ID,
@@ -46,14 +45,19 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 settings.S3_BUCKET_NAME,
             ]
         ):
-            config = S3Config(
-                endpoint_url=settings.S3_ENDPOINT_URL,  # type: ignore[arg-type]
-                access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[arg-type]
-                secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[arg-type]
-                bucket_name=settings.S3_BUCKET_NAME,  # type: ignore[arg-type]
-                region=settings.S3_REGION,
+            logger.error(
+                "S3 configuration is incomplete. S3 storage is required for Tagline."
             )
-            s3_storage = S3BinaryStorage(config)
+            return False
+
+        config = S3Config(
+            endpoint_url=settings.S3_ENDPOINT_URL,  # type: ignore[arg-type]
+            access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[arg-type]
+            secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[arg-type]
+            bucket_name=settings.S3_BUCKET_NAME,  # type: ignore[arg-type]
+            region=settings.S3_REGION,
+        )
+        s3_storage = S3BinaryStorage(config)
 
         # Use domain_record for downstream logic
         try:
@@ -141,36 +145,19 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 and db_media_object
                 and db_media_object.id
             ):
-                if s3_storage:
-                    # Store in S3
-                    try:
-                        s3_storage.put_thumbnail(
-                            str(db_media_object.id), thumbnail_bytes, thumbnail_mimetype
-                        )
-                        logger.info(
-                            f"Stored thumbnail in S3 for {domain_record.object_key}"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to store thumbnail in S3 for {domain_record.object_key}: {e}"
-                        )
-                        # Fall back to database
-                        if domain_record.object_key and not repo.update_thumbnail(
-                            domain_record.object_key,
-                            thumbnail_bytes,
-                            thumbnail_mimetype,
-                        ):
-                            logger.error(
-                                f"Failed to update thumbnail in database for {domain_record.object_key}"
-                            )
-                else:
-                    # Store in database
-                    if domain_record.object_key and not repo.update_thumbnail(
-                        domain_record.object_key, thumbnail_bytes, thumbnail_mimetype
-                    ):
-                        logger.error(
-                            f"Failed to update thumbnail for {domain_record.object_key}"
-                        )
+                try:
+                    s3_storage.put_thumbnail(
+                        str(db_media_object.id), thumbnail_bytes, thumbnail_mimetype
+                    )
+                    logger.info(
+                        f"Stored thumbnail in S3 for {domain_record.object_key}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to store thumbnail in S3 for {domain_record.object_key}: {e}"
+                    )
+                    # S3 storage failure is critical
+                    return False
 
             # 6. Store proxy if generated successfully
             if (
@@ -179,34 +166,17 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 and db_media_object
                 and db_media_object.id
             ):
-                if s3_storage:
-                    # Store in S3
-                    try:
-                        s3_storage.put_proxy(
-                            str(db_media_object.id), proxy_bytes, proxy_mimetype
-                        )
-                        logger.info(
-                            f"Stored proxy in S3 for {domain_record.object_key}"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to store proxy in S3 for {domain_record.object_key}: {e}"
-                        )
-                        # Fall back to database
-                        if domain_record.object_key and not repo.update_proxy(
-                            domain_record.object_key, proxy_bytes, proxy_mimetype
-                        ):
-                            logger.error(
-                                f"Failed to update proxy in database for {domain_record.object_key}"
-                            )
-                else:
-                    # Store in database
-                    if domain_record.object_key and not repo.update_proxy(
-                        domain_record.object_key, proxy_bytes, proxy_mimetype
-                    ):
-                        logger.error(
-                            f"Failed to update proxy for {domain_record.object_key}"
-                        )
+                try:
+                    s3_storage.put_proxy(
+                        str(db_media_object.id), proxy_bytes, proxy_mimetype
+                    )
+                    logger.info(f"Stored proxy in S3 for {domain_record.object_key}")
+                except Exception as e:
+                    logger.error(
+                        f"Failed to store proxy in S3 for {domain_record.object_key}: {e}"
+                    )
+                    # S3 storage failure is critical
+                    return False
 
             logger.info(
                 f"Successfully processed and committed {domain_record.object_key}"
