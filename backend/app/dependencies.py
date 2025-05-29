@@ -1,6 +1,6 @@
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -22,17 +22,18 @@ def get_media_object_repository(
 _s3_storage: Optional[S3BinaryStorage] = None
 
 
-def get_s3_binary_storage() -> S3BinaryStorage:
+def get_s3_binary_storage() -> Optional[S3BinaryStorage]:
     """
     Get S3BinaryStorage instance for storing thumbnails and proxies.
     Uses singleton pattern to reuse the same S3 client across requests.
+    Returns None if S3 is not configured.
     """
     global _s3_storage
 
     if _s3_storage is None:
         settings = get_settings()
 
-        # Validate S3 configuration
+        # Check if S3 configuration exists
         if not all(
             [
                 settings.S3_ENDPOINT_URL,
@@ -41,10 +42,8 @@ def get_s3_binary_storage() -> S3BinaryStorage:
                 settings.S3_BUCKET_NAME,
             ]
         ):
-            raise HTTPException(
-                status_code=500,
-                detail="S3 configuration is incomplete. Please check environment variables.",
-            )
+            # S3 not configured - return None to fall back to database
+            return None
 
         # Type assertions - we've already validated these are not None
         config = S3Config(

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 # Import needed for get_media_thumbnail (placeholder logic)
 from app.db.repositories.media_object import MediaObjectNotFound, MediaObjectRepository
-from app.dependencies import get_media_object_repository
+from app.dependencies import get_media_object_repository, get_s3_binary_storage
 from app.schemas import MediaObject, MediaObjectPatch, PaginatedMediaResponse
 from app.storage_provider import get_storage_provider
 
@@ -216,17 +216,43 @@ def patch_media_object(
     return updated.to_pydantic()
 
 
-@router.get("/media/{id}/thumbnail", response_class=Response, tags=["media"])
+@router.get("/media/{id}/thumbnail", response_class=StreamingResponse, tags=["media"])
 def get_media_thumbnail(
-    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
+    id: UUID,
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+    s3_storage=Depends(get_s3_binary_storage),
 ):
     """
     Returns the thumbnail bytes for a media object by UUID, or 404 if not found or no thumbnail exists.
+    Streams from S3 if available, falls back to database.
     """
     media_object = repo.get_by_id(id)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
 
+    # Try S3 first if configured
+    if s3_storage:
+        try:
+            # Get metadata to determine content type
+            metadata = s3_storage.get_thumbnail_metadata(str(id))
+            if metadata:
+                # Stream from S3
+                stream = s3_storage.stream_thumbnail(str(id))
+                return StreamingResponse(
+                    content=stream,
+                    media_type=metadata.get("content_type", "image/jpeg"),
+                    headers={
+                        "Cache-Control": "public, max-age=3600",
+                        "ETag": metadata.get("etag", ""),
+                    },
+                )
+        except FileNotFoundError:
+            pass  # Fall back to database
+        except Exception as e:
+            logger.error(f"Error streaming thumbnail from S3 for {id}: {e}")
+            # Fall back to database
+
+    # Fall back to database
     thumbnail_data = repo.get_thumbnail(id)
     if not thumbnail_data:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
@@ -235,17 +261,43 @@ def get_media_thumbnail(
     return Response(content=data, media_type=mimetype)
 
 
-@router.get("/media/{id}/proxy", response_class=Response, tags=["media"])
+@router.get("/media/{id}/proxy", response_class=StreamingResponse, tags=["media"])
 def get_media_proxy(
-    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
+    id: UUID,
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+    s3_storage=Depends(get_s3_binary_storage),
 ):
     """
     Returns the proxy bytes for a media object by UUID, or 404 if not found or no proxy exists.
+    Streams from S3 if available, falls back to database.
     """
     media_object = repo.get_by_id(id)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
 
+    # Try S3 first if configured
+    if s3_storage:
+        try:
+            # Get metadata to determine content type
+            metadata = s3_storage.get_proxy_metadata(str(id))
+            if metadata:
+                # Stream from S3
+                stream = s3_storage.stream_proxy(str(id))
+                return StreamingResponse(
+                    content=stream,
+                    media_type=metadata.get("content_type", "image/jpeg"),
+                    headers={
+                        "Cache-Control": "public, max-age=3600",
+                        "ETag": metadata.get("etag", ""),
+                    },
+                )
+        except FileNotFoundError:
+            pass  # Fall back to database
+        except Exception as e:
+            logger.error(f"Error streaming proxy from S3 for {id}: {e}")
+            # Fall back to database
+
+    # Fall back to database
     proxy_data = repo.get_proxy(id)
     if not proxy_data:
         raise HTTPException(status_code=404, detail="Proxy not found")
