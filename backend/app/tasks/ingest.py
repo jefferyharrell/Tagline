@@ -146,8 +146,16 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 and db_media_object.id
             ):
                 try:
-                    s3_storage.put_thumbnail(
+                    # Store in S3
+                    s3_key = s3_storage.put_thumbnail(
                         str(db_media_object.id), thumbnail_bytes, thumbnail_mimetype
+                    )
+                    # Register S3 key in database
+                    repo.register_thumbnail(
+                        db_media_object.id,
+                        s3_key,
+                        thumbnail_mimetype,
+                        len(thumbnail_bytes),
                     )
                     logger.info(
                         f"Stored thumbnail in S3 for {domain_record.object_key}"
@@ -167,8 +175,13 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 and db_media_object.id
             ):
                 try:
-                    s3_storage.put_proxy(
+                    # Store in S3
+                    s3_key = s3_storage.put_proxy(
                         str(db_media_object.id), proxy_bytes, proxy_mimetype
+                    )
+                    # Register S3 key in database
+                    repo.register_proxy(
+                        db_media_object.id, s3_key, proxy_mimetype, len(proxy_bytes)
                     )
                     logger.info(f"Stored proxy in S3 for {domain_record.object_key}")
                 except Exception as e:

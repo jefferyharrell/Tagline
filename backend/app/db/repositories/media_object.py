@@ -97,110 +97,112 @@ class MediaObjectRepository:
             )
             return None
 
-    def update_thumbnail(
-        self, object_key: str, thumbnail_bytes: bytes, thumbnail_mimetype: str
+    def register_thumbnail(
+        self, media_object_id, s3_key: str, mimetype: str, size: Optional[int] = None
     ) -> bool:
-        """Updates the thumbnail for a MediaObject by creating/updating a MediaBinary record.
+        """Registers thumbnail S3 key for a MediaObject by creating/updating a MediaBinary record.
 
         Args:
-            object_key: The unique key of the MediaObject to update.
-            thumbnail_bytes: The binary data of the thumbnail.
-            thumbnail_mimetype: The mimetype of the thumbnail.
+            media_object_id: The ID of the MediaObject.
+            s3_key: The S3 key where the thumbnail is stored.
+            mimetype: The mimetype of the thumbnail.
+            size: Optional size of the thumbnail in bytes.
 
         Returns:
-            True if the update was successful, False otherwise.
+            True if the registration was successful, False otherwise.
         """
         try:
-            logger.debug(f"Attempting to update thumbnail for object_key: {object_key}")
-            media_object = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            logger.debug(
+                f"Attempting to register thumbnail for media_object_id: {media_object_id}"
             )
-            if not media_object:
-                logger.warning(
-                    f"MediaObject not found for thumbnail update: {object_key}"
-                )
-                return False
 
-            # Check if thumbnail binary already exists
+            # Check if thumbnail record already exists
             existing_binary = (
                 self.db.query(ORMMediaBinary)
                 .filter_by(
-                    media_object_id=media_object.id, type=MediaBinaryType.THUMBNAIL
+                    media_object_id=media_object_id, type=MediaBinaryType.THUMBNAIL
                 )
                 .first()
             )
 
             if existing_binary:
                 # Update existing
-                existing_binary.data = thumbnail_bytes  # type: ignore[assignment]
-                existing_binary.mimetype = thumbnail_mimetype  # type: ignore[assignment]
+                existing_binary.s3_key = s3_key  # type: ignore[assignment]
+                existing_binary.mimetype = mimetype  # type: ignore[assignment]
+                existing_binary.size = size  # type: ignore[assignment]
             else:
                 # Create new
                 new_binary = ORMMediaBinary(
-                    media_object_id=media_object.id,
+                    media_object_id=media_object_id,
                     type=MediaBinaryType.THUMBNAIL,
-                    data=thumbnail_bytes,
-                    mimetype=thumbnail_mimetype,
+                    s3_key=s3_key,
+                    mimetype=mimetype,
+                    size=size,
                 )
                 self.db.add(new_binary)
 
             self.db.commit()
-            logger.info(f"Successfully updated thumbnail for {object_key}")
+            logger.info(
+                f"Successfully registered thumbnail for media_object_id: {media_object_id}"
+            )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error updating thumbnail for {object_key}: {e}")
+            logger.error(
+                f"Database error registering thumbnail for {media_object_id}: {e}"
+            )
             return False
 
-    def update_proxy(
-        self, object_key: str, proxy_bytes: bytes, proxy_mimetype: str
+    def register_proxy(
+        self, media_object_id, s3_key: str, mimetype: str, size: Optional[int] = None
     ) -> bool:
-        """Updates the proxy for a MediaObject by creating/updating a MediaBinary record.
+        """Registers proxy S3 key for a MediaObject by creating/updating a MediaBinary record.
 
         Args:
-            object_key: The unique key of the MediaObject to update.
-            proxy_bytes: The binary data of the proxy.
-            proxy_mimetype: The mimetype of the proxy.
+            media_object_id: The ID of the MediaObject.
+            s3_key: The S3 key where the proxy is stored.
+            mimetype: The mimetype of the proxy.
+            size: Optional size of the proxy in bytes.
 
         Returns:
-            True if the update was successful, False otherwise.
+            True if the registration was successful, False otherwise.
         """
         try:
-            logger.debug(f"Attempting to update proxy for object_key: {object_key}")
-            media_object = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            logger.debug(
+                f"Attempting to register proxy for media_object_id: {media_object_id}"
             )
-            if not media_object:
-                logger.warning(f"MediaObject not found for proxy update: {object_key}")
-                return False
 
-            # Check if proxy binary already exists
+            # Check if proxy record already exists
             existing_binary = (
                 self.db.query(ORMMediaBinary)
-                .filter_by(media_object_id=media_object.id, type=MediaBinaryType.PROXY)
+                .filter_by(media_object_id=media_object_id, type=MediaBinaryType.PROXY)
                 .first()
             )
 
             if existing_binary:
                 # Update existing
-                existing_binary.data = proxy_bytes  # type: ignore[assignment]
-                existing_binary.mimetype = proxy_mimetype  # type: ignore[assignment]
+                existing_binary.s3_key = s3_key  # type: ignore[assignment]
+                existing_binary.mimetype = mimetype  # type: ignore[assignment]
+                existing_binary.size = size  # type: ignore[assignment]
             else:
                 # Create new
                 new_binary = ORMMediaBinary(
-                    media_object_id=media_object.id,
+                    media_object_id=media_object_id,
                     type=MediaBinaryType.PROXY,
-                    data=proxy_bytes,
-                    mimetype=proxy_mimetype,
+                    s3_key=s3_key,
+                    mimetype=mimetype,
+                    size=size,
                 )
                 self.db.add(new_binary)
 
             self.db.commit()
-            logger.info(f"Successfully updated proxy for {object_key}")
+            logger.info(
+                f"Successfully registered proxy for media_object_id: {media_object_id}"
+            )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error updating proxy for {object_key}: {e}")
+            logger.error(f"Database error registering proxy for {media_object_id}: {e}")
             return False
 
     def get_or_create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
@@ -333,11 +335,11 @@ class MediaObjectRepository:
             )
             return (None, None)
 
-    def get_thumbnail(self, media_object_id) -> Optional[tuple[bytes, str]]:
-        """Get thumbnail binary data for a media object.
+    def get_thumbnail_s3_key(self, media_object_id) -> Optional[tuple[str, str]]:
+        """Get thumbnail S3 key for a media object.
 
         Returns:
-            Tuple of (data, mimetype) if found, None otherwise.
+            Tuple of (s3_key, mimetype) if found, None otherwise.
         """
         try:
             binary = (
@@ -348,17 +350,17 @@ class MediaObjectRepository:
                 .first()
             )
             if binary:
-                return (binary.data, binary.mimetype)  # type: ignore[return-value]
+                return (binary.s3_key, binary.mimetype)  # type: ignore[return-value]
             return None
         except SQLAlchemyError as e:
             logger.error(f"Database error getting thumbnail for {media_object_id}: {e}")
             return None
 
-    def get_proxy(self, media_object_id) -> Optional[tuple[bytes, str]]:
-        """Get proxy binary data for a media object.
+    def get_proxy_s3_key(self, media_object_id) -> Optional[tuple[str, str]]:
+        """Get proxy S3 key for a media object.
 
         Returns:
-            Tuple of (data, mimetype) if found, None otherwise.
+            Tuple of (s3_key, mimetype) if found, None otherwise.
         """
         try:
             binary = (
@@ -367,7 +369,7 @@ class MediaObjectRepository:
                 .first()
             )
             if binary:
-                return (binary.data, binary.mimetype)  # type: ignore[return-value]
+                return (binary.s3_key, binary.mimetype)  # type: ignore[return-value]
             return None
         except SQLAlchemyError as e:
             logger.error(f"Database error getting proxy for {media_object_id}: {e}")

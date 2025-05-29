@@ -61,7 +61,7 @@ pre-commit:
 # Docker Compose
 up:
     # Start all containers in the background
-    docker compose up --wait --wait-timeout 60
+    docker compose up --wait --wait-timeout 300
     just migrate
 
 down:
@@ -85,7 +85,8 @@ pip-install:
 
 logs:
     # Tail backend logs
-    docker compose logs -f backend
+    # docker compose logs -f backend
+    docker compose logs -f
 
 shell:
     # Open a bash shell in the backend container

@@ -6,7 +6,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
-    LargeBinary,
+    Integer,
     String,
     UniqueConstraint,
 )
@@ -66,7 +66,8 @@ class ORMMediaBinary(Base):
         index=True,
     )
     type = Column(String(20), nullable=False)  # 'thumbnail' or 'proxy'
-    data = Column(LargeBinary, nullable=False)
+    s3_key = Column(String(255), nullable=False, index=True)
+    size = Column(Integer, nullable=True)
     mimetype = Column(String(255), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
