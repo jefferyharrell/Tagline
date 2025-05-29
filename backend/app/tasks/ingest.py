@@ -1,6 +1,7 @@
 import logging
 
 # Import necessary components for media processing
+from app.config import get_settings
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
 from app.domain_media_object import MediaObjectRecord
@@ -10,6 +11,7 @@ from app.domain_media_object import MediaObjectRecord
 from app.media_processing import heicprocessor  # noqa: F401
 from app.media_processing import jpegprocessor  # noqa: F401
 from app.media_processing.factory import get_processor
+from app.s3_binary_storage import S3BinaryStorage, S3Config
 from app.schemas import StoredMediaObject
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,26 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
 
     try:
         repo = MediaObjectRepository(db)
+
+        # Initialize S3 storage if configured
+        s3_storage = None
+        settings = get_settings()
+        if all(
+            [
+                settings.S3_ENDPOINT_URL,
+                settings.S3_ACCESS_KEY_ID,
+                settings.S3_SECRET_ACCESS_KEY,
+                settings.S3_BUCKET_NAME,
+            ]
+        ):
+            config = S3Config(
+                endpoint_url=settings.S3_ENDPOINT_URL,  # type: ignore[arg-type]
+                access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[arg-type]
+                secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[arg-type]
+                bucket_name=settings.S3_BUCKET_NAME,  # type: ignore[arg-type]
+                region=settings.S3_REGION,
+            )
+            s3_storage = S3BinaryStorage(config)
 
         # Use domain_record for downstream logic
         try:
@@ -112,33 +134,79 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 )
                 return False  # Indicate failure
 
-            # 5. Update thumbnail if generated successfully
-            if thumbnail_bytes and thumbnail_mimetype:
-                if domain_record.object_key is None:
-                    logger.error(
-                        "domain_record.object_key is None; cannot update thumbnail."
-                    )
-                elif not repo.update_thumbnail(
-                    domain_record.object_key, thumbnail_bytes, thumbnail_mimetype
-                ):
-                    logger.error(
-                        f"Failed to update thumbnail for {domain_record.object_key}"
-                    )
-                    # Decide if this is a critical failure or just a warning
+            # 5. Store thumbnail if generated successfully
+            if (
+                thumbnail_bytes
+                and thumbnail_mimetype
+                and db_media_object
+                and db_media_object.id
+            ):
+                if s3_storage:
+                    # Store in S3
+                    try:
+                        s3_storage.put_thumbnail(
+                            str(db_media_object.id), thumbnail_bytes, thumbnail_mimetype
+                        )
+                        logger.info(
+                            f"Stored thumbnail in S3 for {domain_record.object_key}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to store thumbnail in S3 for {domain_record.object_key}: {e}"
+                        )
+                        # Fall back to database
+                        if domain_record.object_key and not repo.update_thumbnail(
+                            domain_record.object_key,
+                            thumbnail_bytes,
+                            thumbnail_mimetype,
+                        ):
+                            logger.error(
+                                f"Failed to update thumbnail in database for {domain_record.object_key}"
+                            )
+                else:
+                    # Store in database
+                    if domain_record.object_key and not repo.update_thumbnail(
+                        domain_record.object_key, thumbnail_bytes, thumbnail_mimetype
+                    ):
+                        logger.error(
+                            f"Failed to update thumbnail for {domain_record.object_key}"
+                        )
 
-            # 6. Update proxy if generated successfully
-            if proxy_bytes and proxy_mimetype:
-                if domain_record.object_key is None:
-                    logger.error(
-                        "domain_record.object_key is None; cannot update proxy."
-                    )
-                elif not repo.update_proxy(
-                    domain_record.object_key, proxy_bytes, proxy_mimetype
-                ):
-                    logger.error(
-                        f"Failed to update proxy for {domain_record.object_key}"
-                    )
-                    # Decide if this is a critical failure or just a warning
+            # 6. Store proxy if generated successfully
+            if (
+                proxy_bytes
+                and proxy_mimetype
+                and db_media_object
+                and db_media_object.id
+            ):
+                if s3_storage:
+                    # Store in S3
+                    try:
+                        s3_storage.put_proxy(
+                            str(db_media_object.id), proxy_bytes, proxy_mimetype
+                        )
+                        logger.info(
+                            f"Stored proxy in S3 for {domain_record.object_key}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to store proxy in S3 for {domain_record.object_key}: {e}"
+                        )
+                        # Fall back to database
+                        if domain_record.object_key and not repo.update_proxy(
+                            domain_record.object_key, proxy_bytes, proxy_mimetype
+                        ):
+                            logger.error(
+                                f"Failed to update proxy in database for {domain_record.object_key}"
+                            )
+                else:
+                    # Store in database
+                    if domain_record.object_key and not repo.update_proxy(
+                        domain_record.object_key, proxy_bytes, proxy_mimetype
+                    ):
+                        logger.error(
+                            f"Failed to update proxy for {domain_record.object_key}"
+                        )
 
             logger.info(
                 f"Successfully processed and committed {domain_record.object_key}"
