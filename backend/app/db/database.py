@@ -30,7 +30,7 @@ def get_engine():
             poolclass=NullPool,
             echo=False,
         )
-        
+
         # Option 2: QueuePool with conservative settings (uncomment to use)
         # Pros: Better performance with connection reuse
         # Cons: Must carefully manage pool size to avoid exhaustion
@@ -53,9 +53,7 @@ def get_session_factory():
     global _SessionLocal
     if _SessionLocal is None:
         _SessionLocal = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=get_engine()
+            autocommit=False, autoflush=False, bind=get_engine()
         )
         logger.info("Created session factory")
     return _SessionLocal

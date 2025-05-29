@@ -53,3 +53,4 @@ class PaginatedMediaResponse(BaseModel):
     total: int
     limit: int
     offset: int
+    pages: int = Field(default=0, description="Total number of pages")

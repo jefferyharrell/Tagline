@@ -3,9 +3,9 @@
 import logging
 from typing import List, Optional
 
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
 
 from app.domain_media_object import MediaObjectRecord
 from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject
@@ -124,10 +124,12 @@ class MediaObjectRepository:
             # Check if thumbnail binary already exists
             existing_binary = (
                 self.db.query(ORMMediaBinary)
-                .filter_by(media_object_id=media_object.id, type=MediaBinaryType.THUMBNAIL)
+                .filter_by(
+                    media_object_id=media_object.id, type=MediaBinaryType.THUMBNAIL
+                )
                 .first()
             )
-            
+
             if existing_binary:
                 # Update existing
                 existing_binary.data = thumbnail_bytes  # type: ignore[assignment]
@@ -138,10 +140,10 @@ class MediaObjectRepository:
                     media_object_id=media_object.id,
                     type=MediaBinaryType.THUMBNAIL,
                     data=thumbnail_bytes,
-                    mimetype=thumbnail_mimetype
+                    mimetype=thumbnail_mimetype,
                 )
                 self.db.add(new_binary)
-            
+
             self.db.commit()
             logger.info(f"Successfully updated thumbnail for {object_key}")
             return True
@@ -178,7 +180,7 @@ class MediaObjectRepository:
                 .filter_by(media_object_id=media_object.id, type=MediaBinaryType.PROXY)
                 .first()
             )
-            
+
             if existing_binary:
                 # Update existing
                 existing_binary.data = proxy_bytes  # type: ignore[assignment]
@@ -189,10 +191,10 @@ class MediaObjectRepository:
                     media_object_id=media_object.id,
                     type=MediaBinaryType.PROXY,
                     data=proxy_bytes,
-                    mimetype=proxy_mimetype
+                    mimetype=proxy_mimetype,
                 )
                 self.db.add(new_binary)
-            
+
             self.db.commit()
             logger.info(f"Successfully updated proxy for {object_key}")
             return True
@@ -227,7 +229,10 @@ class MediaObjectRepository:
                 .limit(limit)
                 .all()
             )
-            records = [MediaObjectRecord.from_orm(obj, load_binary_fields=False) for obj in orm_objs]
+            records = [
+                MediaObjectRecord.from_orm(obj, load_binary_fields=False)
+                for obj in orm_objs
+            ]
             logger.debug(f"Found {len(records)} MediaObjects.")
             return records
         except SQLAlchemyError as e:
@@ -278,10 +283,12 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error counting MediaObjects: {e}")
             return 0
-    
-    def get_adjacent(self, id) -> tuple[Optional[MediaObjectRecord], Optional[MediaObjectRecord]]:
+
+    def get_adjacent(
+        self, id
+    ) -> tuple[Optional[MediaObjectRecord], Optional[MediaObjectRecord]]:
         """Gets the previous and next MediaObjectRecords relative to the given id.
-        
+
         Returns a tuple of (previous, next) MediaObjectRecords.
         Either or both may be None if at the beginning/end of the collection.
         """
@@ -290,7 +297,7 @@ class MediaObjectRepository:
             current = self.db.query(ORMMediaObject).filter_by(id=id).first()
             if not current:
                 return (None, None)
-            
+
             # Get the previous media object (newer than current, since we're showing newest first)
             previous_obj = (
                 self.db.query(ORMMediaObject)
@@ -298,7 +305,7 @@ class MediaObjectRepository:
                 .order_by(ORMMediaObject.created_at)
                 .first()
             )
-            
+
             # Get the next media object (older than current, since we're showing newest first)
             next_obj = (
                 self.db.query(ORMMediaObject)
@@ -306,26 +313,38 @@ class MediaObjectRepository:
                 .order_by(ORMMediaObject.created_at.desc())
                 .first()
             )
-            
+
             # Convert to domain objects (skip binary fields for performance)
-            previous = MediaObjectRecord.from_orm(previous_obj, load_binary_fields=False) if previous_obj else None
-            next = MediaObjectRecord.from_orm(next_obj, load_binary_fields=False) if next_obj else None
-            
+            previous = (
+                MediaObjectRecord.from_orm(previous_obj, load_binary_fields=False)
+                if previous_obj
+                else None
+            )
+            next = (
+                MediaObjectRecord.from_orm(next_obj, load_binary_fields=False)
+                if next_obj
+                else None
+            )
+
             return (previous, next)
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting adjacent MediaObjects for id {id}: {e}")
+            logger.error(
+                f"Database error getting adjacent MediaObjects for id {id}: {e}"
+            )
             return (None, None)
-    
+
     def get_thumbnail(self, media_object_id) -> Optional[tuple[bytes, str]]:
         """Get thumbnail binary data for a media object.
-        
+
         Returns:
             Tuple of (data, mimetype) if found, None otherwise.
         """
         try:
             binary = (
                 self.db.query(ORMMediaBinary)
-                .filter_by(media_object_id=media_object_id, type=MediaBinaryType.THUMBNAIL)
+                .filter_by(
+                    media_object_id=media_object_id, type=MediaBinaryType.THUMBNAIL
+                )
                 .first()
             )
             if binary:
@@ -334,10 +353,10 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting thumbnail for {media_object_id}: {e}")
             return None
-    
+
     def get_proxy(self, media_object_id) -> Optional[tuple[bytes, str]]:
         """Get proxy binary data for a media object.
-        
+
         Returns:
             Tuple of (data, mimetype) if found, None otherwise.
         """
@@ -353,20 +372,17 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting proxy for {media_object_id}: {e}")
             return None
-    
+
     def search(
-        self, 
-        query: str, 
-        limit: int = 100, 
-        offset: int = 0
+        self, query: str, limit: int = 100, offset: int = 0
     ) -> tuple[List[MediaObjectRecord], int]:
         """Search media objects using full-text search.
-        
+
         Args:
             query: Search query string (will be tokenized)
             limit: Maximum number of results to return
             offset: Number of results to skip
-            
+
         Returns:
             Tuple of (results, total_count)
         """
@@ -374,54 +390,52 @@ class MediaObjectRepository:
             if not query or not query.strip():
                 # Empty query returns empty results
                 return [], 0
-                
+
             # Prepare the search query with prefix matching support
             # This ensures all terms must be present (AND logic) and supports partial word matching
             search_tokens = query.strip().split()
             # Add :* suffix for prefix matching on each token
             prefix_tokens = [f"{token}:*" for token in search_tokens]
-            tsquery = ' & '.join(prefix_tokens)
-            
+            tsquery = " & ".join(prefix_tokens)
+
             logger.debug(f"Searching for: {query} (tsquery: {tsquery})")
-            
+
             # First get the total count
-            count_query = (
-                self.db.query(func.count(ORMMediaObject.id))
-                .filter(
-                    text("search_vector @@ to_tsquery('english', :query)")
-                    .bindparams(query=tsquery)
+            count_query = self.db.query(func.count(ORMMediaObject.id)).filter(
+                text("search_vector @@ to_tsquery('english', :query)").bindparams(
+                    query=tsquery
                 )
             )
             total_count = count_query.scalar() or 0
-            
+
             # Then get the paginated results with ranking
             results_query = (
                 self.db.query(
                     ORMMediaObject,
                     func.ts_rank(
-                        text('search_vector'),
-                        func.to_tsquery('english', tsquery)
-                    ).label('rank')
+                        text("search_vector"), func.to_tsquery("english", tsquery)
+                    ).label("rank"),
                 )
                 .filter(
-                    text("search_vector @@ to_tsquery('english', :query)")
-                    .bindparams(query=tsquery)
+                    text("search_vector @@ to_tsquery('english', :query)").bindparams(
+                        query=tsquery
+                    )
                 )
-                .order_by(text('rank DESC'), ORMMediaObject.created_at.desc())
+                .order_by(text("rank DESC"), ORMMediaObject.created_at.desc())
                 .offset(offset)
                 .limit(limit)
             )
-            
+
             # Execute query and convert to domain objects
             results = results_query.all()
             records = [
-                MediaObjectRecord.from_orm(result[0], load_binary_fields=False) 
+                MediaObjectRecord.from_orm(result[0], load_binary_fields=False)
                 for result in results
             ]
-            
+
             logger.debug(f"Found {total_count} total results, returning {len(records)}")
             return records, total_count
-            
+
         except SQLAlchemyError as e:
             logger.error(f"Database error searching media objects: {e}")
             return [], 0

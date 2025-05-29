@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     DROPBOX_REFRESH_TOKEN: str | None = None
     DROPBOX_ROOT_PATH: str | None = None
 
+    # S3 Binary Storage Configuration (for thumbnails/proxies)
+    S3_ENDPOINT_URL: str | None = None
+    S3_ACCESS_KEY_ID: str | None = None
+    S3_SECRET_ACCESS_KEY: str | None = None
+    S3_BUCKET_NAME: str | None = None
+    S3_REGION: str = "us-east-1"
+
     @field_validator("STORAGE_PROVIDER", mode="before")
     @classmethod
     def parse_storage_provider(

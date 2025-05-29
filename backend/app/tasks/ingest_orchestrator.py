@@ -84,7 +84,7 @@ async def ingest_orchestrator(
         redis_conn = redis.from_url(redis_url)
         redis_conn.ping()  # Test connection
         ingest_queue = Queue("ingest", connection=redis_conn)
-        
+
         # Create a database session for this orchestrator task
         db_gen = get_db()
         db = next(db_gen)
@@ -124,7 +124,9 @@ async def ingest_orchestrator(
 
             logger.info(f"Found {total_count} total media objects.")
             if unsupported_count > 0:
-                logger.info(f"Filtered out {unsupported_count} unsupported media objects.")
+                logger.info(
+                    f"Filtered out {unsupported_count} unsupported media objects."
+                )
             else:
                 logger.info("No unsupported media objects filtered out.")
             logger.info(f"Queued {queued_count} new media objects for processing")
@@ -168,7 +170,9 @@ async def ingest_orchestrator(
                     completed_count += newly_completed
                     # Update the metadata to show progress
                     orchestrator_job.meta["processed_items"] = completed_count
-                    orchestrator_job.meta["current_stage"] = "monitoring_ingest_completion"
+                    orchestrator_job.meta["current_stage"] = (
+                        "monitoring_ingest_completion"
+                    )
                     orchestrator_job.meta["progress_percent"] = int(
                         (completed_count / total_jobs) * 100
                     )
@@ -180,7 +184,7 @@ async def ingest_orchestrator(
                 time.sleep(poll_interval)
                 job_ids = remaining
                 logger.info(f"Still waiting for {len(remaining)} jobs...")
-                
+
             logger.info("All ingest jobs finished. Ingest process completed.")
             # The final status 'completed' is handled by RQ when the task returns IngestStatus.COMPLETED
             orchestrator_job.meta["processed_items"] = (

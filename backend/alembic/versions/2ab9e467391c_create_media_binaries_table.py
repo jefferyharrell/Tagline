@@ -24,24 +24,34 @@ def upgrade() -> None:
     """Create media_binaries table and migrate data."""
     # Create the new media_binaries table
     op.create_table(
-        'media_binaries',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, default=sa.text('gen_random_uuid()')),
-        sa.Column('media_object_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('type', sa.String(20), nullable=False),
-        sa.Column('data', sa.LargeBinary(), nullable=False),
-        sa.Column('mimetype', sa.String(255), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False, default=sa.func.now()),
-        sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['media_object_id'], ['media_objects.id'], ondelete='CASCADE'),
-        sa.UniqueConstraint('media_object_id', 'type', name='uq_media_object_type')
+        "media_binaries",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("media_object_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("type", sa.String(20), nullable=False),
+        sa.Column("data", sa.LargeBinary(), nullable=False),
+        sa.Column("mimetype", sa.String(255), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, default=sa.func.now()),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["media_object_id"], ["media_objects.id"], ondelete="CASCADE"
+        ),
+        sa.UniqueConstraint("media_object_id", "type", name="uq_media_object_type"),
     )
-    
+
     # Create index on media_object_id for faster lookups
-    op.create_index('ix_media_binaries_media_object_id', 'media_binaries', ['media_object_id'])
-    
+    op.create_index(
+        "ix_media_binaries_media_object_id", "media_binaries", ["media_object_id"]
+    )
+
     # Migrate existing data - since this is test data, we'll do a simple migration
     # In production, you'd want to batch this
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO media_binaries (id, media_object_id, type, data, mimetype, created_at)
         SELECT 
             gen_random_uuid(),
@@ -52,9 +62,11 @@ def upgrade() -> None:
             created_at
         FROM media_objects
         WHERE thumbnail IS NOT NULL
-    """)
-    
-    op.execute("""
+    """
+    )
+
+    op.execute(
+        """
         INSERT INTO media_binaries (id, media_object_id, type, data, mimetype, created_at)
         SELECT 
             gen_random_uuid(),
@@ -65,42 +77,53 @@ def upgrade() -> None:
             created_at
         FROM media_objects
         WHERE proxy IS NOT NULL
-    """)
-    
+    """
+    )
+
     # Now drop the old columns from media_objects
-    op.drop_column('media_objects', 'thumbnail')
-    op.drop_column('media_objects', 'thumbnail_mimetype')
-    op.drop_column('media_objects', 'proxy')
-    op.drop_column('media_objects', 'proxy_mimetype')
+    op.drop_column("media_objects", "thumbnail")
+    op.drop_column("media_objects", "thumbnail_mimetype")
+    op.drop_column("media_objects", "proxy")
+    op.drop_column("media_objects", "proxy_mimetype")
 
 
 def downgrade() -> None:
     """Revert to storing binaries in media_objects table."""
     # Add columns back to media_objects
-    op.add_column('media_objects', sa.Column('thumbnail', sa.LargeBinary(), nullable=True))
-    op.add_column('media_objects', sa.Column('thumbnail_mimetype', sa.String(), nullable=True))
-    op.add_column('media_objects', sa.Column('proxy', sa.LargeBinary(), nullable=True))
-    op.add_column('media_objects', sa.Column('proxy_mimetype', sa.String(), nullable=True))
-    
+    op.add_column(
+        "media_objects", sa.Column("thumbnail", sa.LargeBinary(), nullable=True)
+    )
+    op.add_column(
+        "media_objects", sa.Column("thumbnail_mimetype", sa.String(), nullable=True)
+    )
+    op.add_column("media_objects", sa.Column("proxy", sa.LargeBinary(), nullable=True))
+    op.add_column(
+        "media_objects", sa.Column("proxy_mimetype", sa.String(), nullable=True)
+    )
+
     # Migrate data back (for test purposes, we'll just do thumbnails and proxies)
-    op.execute("""
+    op.execute(
+        """
         UPDATE media_objects mo
         SET 
             thumbnail = mb.data,
             thumbnail_mimetype = mb.mimetype
         FROM media_binaries mb
         WHERE mo.id = mb.media_object_id AND mb.type = 'thumbnail'
-    """)
-    
-    op.execute("""
+    """
+    )
+
+    op.execute(
+        """
         UPDATE media_objects mo
         SET 
             proxy = mb.data,
             proxy_mimetype = mb.mimetype
         FROM media_binaries mb
         WHERE mo.id = mb.media_object_id AND mb.type = 'proxy'
-    """)
-    
+    """
+    )
+
     # Drop the media_binaries table
-    op.drop_index('ix_media_binaries_media_object_id')
-    op.drop_table('media_binaries')
+    op.drop_index("ix_media_binaries_media_object_id")
+    op.drop_table("media_binaries")

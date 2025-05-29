@@ -8,9 +8,6 @@ Create Date: 2025-05-27 17:00:00.000000
 
 from typing import Sequence, Union
 
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -22,9 +19,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add full-text search support to media_objects table."""
-    
+
     # Create a function to generate the search vector from media object fields
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION media_object_search_vector(object_key text, metadata jsonb)
         RETURNS tsvector AS $$
         BEGIN
@@ -58,34 +56,37 @@ def upgrade() -> None:
             );
         END;
         $$ LANGUAGE plpgsql IMMUTABLE;
-    """)
-    
+    """
+    )
+
     # Add a generated column for the search vector
-    op.execute("""
+    op.execute(
+        """
         ALTER TABLE media_objects 
         ADD COLUMN search_vector tsvector 
         GENERATED ALWAYS AS (
             media_object_search_vector(object_key, object_metadata)
         ) STORED;
-    """)
-    
+    """
+    )
+
     # Create a GIN index for fast full-text search
     op.create_index(
-        'ix_media_objects_search_vector',
-        'media_objects',
-        ['search_vector'],
-        postgresql_using='gin'
+        "ix_media_objects_search_vector",
+        "media_objects",
+        ["search_vector"],
+        postgresql_using="gin",
     )
 
 
 def downgrade() -> None:
     """Remove full-text search support."""
-    
+
     # Drop indexes
-    op.drop_index('ix_media_objects_search_vector')
-    
+    op.drop_index("ix_media_objects_search_vector")
+
     # Drop the generated column
-    op.drop_column('media_objects', 'search_vector')
-    
+    op.drop_column("media_objects", "search_vector")
+
     # Drop the function
     op.execute("DROP FUNCTION IF EXISTS media_object_search_vector(text, jsonb);")

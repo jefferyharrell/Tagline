@@ -29,9 +29,11 @@ class MediaObjectRecord:
         self.last_modified = last_modified
 
     @classmethod
-    def from_orm(cls, orm_obj: ORMMediaObject, load_binary_fields: bool = True) -> "MediaObjectRecord":
+    def from_orm(
+        cls, orm_obj: ORMMediaObject, load_binary_fields: bool = True
+    ) -> "MediaObjectRecord":
         """Convert ORM object to domain object.
-        
+
         Args:
             orm_obj: The ORM MediaObject
             load_binary_fields: Deprecated parameter, kept for backward compatibility

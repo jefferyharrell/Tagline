@@ -1,5 +1,5 @@
 import logging
-from typing import List, cast, Optional
+from typing import List, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -26,21 +26,21 @@ def search_media(
 ) -> PaginatedMediaResponse:
     """
     Search media objects using full-text search.
-    
+
     The search will tokenize the query and find media objects that contain
     ALL search terms in their searchable fields (description, keywords, filename).
-    
+
     Example: searching for "red dress" will find items with both "red" AND "dress"
     in any combination across the searchable fields.
     """
     media_records, total_count = repo.search(query=q, limit=limit, offset=offset)
-    
+
     # Convert to Pydantic models
     media_objects = [record.to_pydantic() for record in media_records]
-    
+
     # Calculate total pages
     pages = (total_count + limit - 1) // limit if limit > 0 else 0
-    
+
     return PaginatedMediaResponse(
         items=media_objects,
         total=total_count,
@@ -149,8 +149,11 @@ def list_media_objects(
 
     # Note: The total_count might slightly differ from len(media_objects) if filtering occurred.
     # This is generally acceptable for pagination display but could be refined if needed.
+    # Calculate pages
+    pages = (total_count + limit - 1) // limit if limit > 0 else 0
+
     return PaginatedMediaResponse(
-        items=media_objects, total=total_count, limit=limit, offset=offset
+        items=media_objects, total=total_count, limit=limit, offset=offset, pages=pages
     )
 
 
@@ -215,8 +218,7 @@ def patch_media_object(
 
 @router.get("/media/{id}/thumbnail", response_class=Response, tags=["media"])
 def get_media_thumbnail(
-    id: UUID,
-    repo: MediaObjectRepository = Depends(get_media_object_repository)
+    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
 ):
     """
     Returns the thumbnail bytes for a media object by UUID, or 404 if not found or no thumbnail exists.
@@ -224,19 +226,18 @@ def get_media_thumbnail(
     media_object = repo.get_by_id(id)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
-    
+
     thumbnail_data = repo.get_thumbnail(id)
     if not thumbnail_data:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
-    
+
     data, mimetype = thumbnail_data
     return Response(content=data, media_type=mimetype)
 
 
 @router.get("/media/{id}/proxy", response_class=Response, tags=["media"])
 def get_media_proxy(
-    id: UUID,
-    repo: MediaObjectRepository = Depends(get_media_object_repository)
+    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
 ):
     """
     Returns the proxy bytes for a media object by UUID, or 404 if not found or no proxy exists.
@@ -244,11 +245,11 @@ def get_media_proxy(
     media_object = repo.get_by_id(id)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
-    
+
     proxy_data = repo.get_proxy(id)
     if not proxy_data:
         raise HTTPException(status_code=404, detail="Proxy not found")
-    
+
     data, mimetype = proxy_data
     return Response(content=data, media_type=mimetype)
 
@@ -260,7 +261,9 @@ class AdjacentMediaResponse(BaseModel):
     next: MediaObject | None = None
 
 
-@router.get("/media/{id}/adjacent", response_model=AdjacentMediaResponse, tags=["media"])
+@router.get(
+    "/media/{id}/adjacent", response_model=AdjacentMediaResponse, tags=["media"]
+)
 def get_adjacent_media(
     id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
 ) -> AdjacentMediaResponse:
@@ -272,12 +275,12 @@ def get_adjacent_media(
     current = repo.get_by_id(id)
     if not current or current.id is None or current.object_key is None:
         raise HTTPException(status_code=404, detail="Media object not found")
-    
+
     # Get adjacent media objects
     previous_obj, next_obj = repo.get_adjacent(id)
-    
+
     # Convert to pydantic models if they exist
     previous = previous_obj.to_pydantic() if previous_obj else None
     next = next_obj.to_pydantic() if next_obj else None
-    
+
     return AdjacentMediaResponse(previous=previous, next=next)

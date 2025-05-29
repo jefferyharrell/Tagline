@@ -25,14 +25,14 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
 
     # Convert to domain record for further processing
     domain_record = MediaObjectRecord.from_stored(stored_media_object)
-    
+
     # Create a database session for this task
     db_gen = get_db()
     db = next(db_gen)
-    
+
     try:
         repo = MediaObjectRepository(db)
-        
+
         # Use domain_record for downstream logic
         try:
             # 1. Try to get the appropriate processor
@@ -129,11 +129,15 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
             # 6. Update proxy if generated successfully
             if proxy_bytes and proxy_mimetype:
                 if domain_record.object_key is None:
-                    logger.error("domain_record.object_key is None; cannot update proxy.")
+                    logger.error(
+                        "domain_record.object_key is None; cannot update proxy."
+                    )
                 elif not repo.update_proxy(
                     domain_record.object_key, proxy_bytes, proxy_mimetype
                 ):
-                    logger.error(f"Failed to update proxy for {domain_record.object_key}")
+                    logger.error(
+                        f"Failed to update proxy for {domain_record.object_key}"
+                    )
                     # Decide if this is a critical failure or just a warning
 
             logger.info(
