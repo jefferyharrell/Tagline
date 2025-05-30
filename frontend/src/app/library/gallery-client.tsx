@@ -5,6 +5,7 @@ import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
 import MediaDetailClient from "./[id]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { MediaObject } from "@/types/media";
 
 interface PaginatedResponse {
@@ -259,10 +260,15 @@ export default function GalleryClient() {
 
   return (
     <div className="h-full bg-white">
-      {/* Search Bar */}
+      {/* Header with Sidebar Trigger and Search Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
+        <div className="flex items-center gap-4">
+          {/* Sidebar Trigger */}
+          <SidebarTrigger />
+          
+          {/* Search Bar */}
+          <div className="flex-1 max-w-2xl">
+            <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
                 className="h-5 w-5 text-gray-400"
@@ -308,12 +314,13 @@ export default function GalleryClient() {
                 </svg>
               </button>
             )}
+            </div>
+            {searchQuery !== "" && (
+              <p className="mt-2 text-sm text-gray-600">
+                Searching for: <span className="font-medium">{searchQuery}</span>
+              </p>
+            )}
           </div>
-          {searchQuery !== "" && (
-            <p className="mt-2 text-sm text-gray-600">
-              Searching for: <span className="font-medium">{searchQuery}</span>
-            </p>
-          )}
         </div>
       </div>
       {isLoading && mediaObjects.length === 0 ? (
