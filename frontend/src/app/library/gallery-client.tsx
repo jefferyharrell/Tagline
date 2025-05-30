@@ -262,13 +262,16 @@ export default function GalleryClient() {
     <div className="h-full bg-white">
       {/* Header with Sidebar Trigger and Search Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center gap-4">
-          {/* Sidebar Trigger */}
-          <SidebarTrigger />
+        <div className="flex items-center">
+          {/* Left: Sidebar Trigger */}
+          <div className="flex-1">
+            <SidebarTrigger />
+          </div>
           
-          {/* Search Bar */}
-          <div className="flex-1 max-w-2xl">
-            <div className="relative">
+          {/* Center: Search Bar */}
+          <div className="flex-[3] flex justify-center">
+            <div className="w-full max-w-2xl">
+              <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
                 className="h-5 w-5 text-gray-400"
@@ -314,12 +317,18 @@ export default function GalleryClient() {
                 </svg>
               </button>
             )}
+              </div>
+              {searchQuery !== "" && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Searching for: <span className="font-medium">{searchQuery}</span>
+                </p>
+              )}
             </div>
-            {searchQuery !== "" && (
-              <p className="mt-2 text-sm text-gray-600">
-                Searching for: <span className="font-medium">{searchQuery}</span>
-              </p>
-            )}
+          </div>
+          
+          {/* Right: Reserved space */}
+          <div className="flex-1">
+            {/* Reserved for future use */}
           </div>
         </div>
       </div>
