@@ -105,7 +105,7 @@ export default function LibrarySidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="pb-4">
         <UserAvatar />
       </SidebarFooter>
       <SidebarRail />
