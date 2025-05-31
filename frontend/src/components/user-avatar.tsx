@@ -82,7 +82,9 @@ export function UserAvatar() {
         <button className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors w-full text-left">
           <Avatar>
             <AvatarImage src={undefined} alt={getDisplayName()} />
-            <AvatarFallback>{getInitials()}</AvatarFallback>
+            <AvatarFallback className="bg-jl-red text-white font-medium">
+              {getInitials()}
+            </AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-medium truncate">{getDisplayName()}</span>
