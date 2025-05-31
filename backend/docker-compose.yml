@@ -52,7 +52,7 @@ services:
 
   ingest-orchestrator:
     build: .
-    command: uv run rq worker orchestrator
+    command: rq worker orchestrator
     environment:
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app
@@ -75,7 +75,7 @@ services:
 
   ingest-worker:
     build: .
-    command: uv run rq worker ingest
+    command: rq worker ingest
     environment:
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app

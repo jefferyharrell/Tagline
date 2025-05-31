@@ -26,11 +26,11 @@ COPY alembic/ ./alembic/
 # Copy the rest of the application
 COPY app/ ./app/
 
-# Install Python dependencies using uv
-RUN uv sync
+# Install Python dependencies using uv at system level
+RUN uv pip install --system -r pyproject.toml
 
 # Expose the PORT env variable
 EXPOSE ${PORT:-8000}
 
 # Start the application - bind to :: and use the PORT environment variable
-CMD ["sh", "-c", "uv run uvicorn app.main:app --host '' --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn app.main:app --host '' --port ${PORT:-8000}"]
