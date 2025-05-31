@@ -222,6 +222,9 @@ export default function LoginPage() {
                         );
                       }
 
+                      // Trigger auth state change event
+                      window.dispatchEvent(new Event('auth-state-change'));
+
                       // Redirect to library
                       router.push("/library");
                     } catch (error) {

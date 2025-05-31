@@ -6,6 +6,8 @@ import type { JWTVerifyResult } from "jose";
 export interface JwtPayload {
   user_id: string;
   email: string;
+  firstname: string | null;
+  lastname: string | null;
   roles: string[];
   exp: number;
 }
@@ -62,6 +64,8 @@ export async function getCurrentUser(request: NextRequest) {
   return {
     id: payload.user_id,
     email: payload.email,
+    firstname: payload.firstname,
+    lastname: payload.lastname,
     roles: payload.roles,
   };
 }

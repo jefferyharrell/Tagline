@@ -12,6 +12,7 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
@@ -20,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface SidebarSection {
   title: string;
@@ -103,6 +105,9 @@ export default function LibrarySidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <UserAvatar />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

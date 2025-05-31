@@ -138,6 +138,8 @@ async def authenticate_user(
     jwt_payload = {
         "user_id": user.id,
         "email": user.email,
+        "firstname": user.firstname,
+        "lastname": user.lastname,
         "roles": user_roles,
         "session_token": auth_response.session_token,
     }
@@ -225,6 +227,35 @@ async def get_all_roles(
     return role_repo.get_all()
 
 
+@router.get("/me", response_model=schemas.User)
+async def get_current_user_info(
+    current_user: schemas.User = Depends(get_current_user),
+):
+    """Get current user information"""
+    return current_user
+
+
+@router.patch("/me", response_model=schemas.User)
+async def update_current_user_info(
+    user_update: schemas.UserUpdate,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update current user information"""
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_id(current_user.id)
+    
+    if user_update.firstname is not None:
+        user.firstname = user_update.firstname
+    if user_update.lastname is not None:
+        user.lastname = user_update.lastname
+    
+    db.commit()
+    db.refresh(user)
+    
+    return schemas.User.from_orm(user)
+
+
 @router.post("/bypass", response_model=schemas.AuthResponse)
 async def bypass_auth(
     email_data: schemas.EmailVerifyRequest,
@@ -290,6 +321,8 @@ async def bypass_auth(
     jwt_payload = {
         "user_id": user.id,
         "email": user.email,
+        "firstname": user.firstname,
+        "lastname": user.lastname,
         "roles": user_roles,
         "session_token": "dev-session",  # Dummy session token for dev
     }

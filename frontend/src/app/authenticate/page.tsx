@@ -44,6 +44,9 @@ function AuthenticateContent() {
 
         await response.json();
 
+        // Trigger auth state change event
+        window.dispatchEvent(new Event('auth-state-change'));
+
         // Redirect to library on success
         router.push("/library");
       } catch (error) {

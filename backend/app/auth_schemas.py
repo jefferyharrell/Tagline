@@ -42,10 +42,17 @@ class Role(RoleBase):
 # User schemas
 class UserBase(BaseModel):
     email: EmailStr
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
 
 
 class UserCreate(UserBase):
     pass
+
+
+class UserUpdate(BaseModel):
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
 
 
 class User(UserBase):

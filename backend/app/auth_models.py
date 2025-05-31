@@ -63,6 +63,8 @@ class User(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String, unique=True, nullable=False, index=True)
+    firstname = Column(String(100), nullable=True)
+    lastname = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True)
     stytch_user_id = Column(String, unique=True, nullable=True)  # Stytch's user ID
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -69,7 +69,17 @@ logs:
     docker compose logs -f frontend
 
 shell:
-    docker exec -it tagline-frontend sh
+    docker exec -it tagline-frontend-dev sh
+
+# Install npm packages inside the container
+npm-install *args:
+    docker exec -it tagline-frontend-dev npm install {{args}}
+    echo "Packages installed in container. If you also need them locally, run: npm install {{args}}"
+
+# Sync local package.json changes to container
+sync-deps:
+    docker exec tagline-frontend-dev npm ci
+    echo "Dependencies synced with package-lock.json"
 
 prune:
     docker system prune -f
