@@ -222,7 +222,7 @@ const IngestClient = () => {
   const currentPrefix = generatePrefix();
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200">
         <div className="px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
@@ -232,117 +232,109 @@ const IngestClient = () => {
         </div>
       </div>
       
-      <div className="container mx-auto py-8">
-        <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {/* Breadcrumb Navigation */}
-          <Breadcrumb className="p-3 bg-gray-50 rounded-lg">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink
-                  asChild
-                  className="flex items-center text-jl-red hover:text-jl-red-700 cursor-pointer"
-                >
-                  <button onClick={navigateToRoot}>
-                    <Home className="w-4 h-4 mr-1" />
-                    Root
-                  </button>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              
-              {currentPath.map((segment, index) => (
-                <React.Fragment key={index}>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    {index === currentPath.length - 1 ? (
-                      <BreadcrumbPage className="text-gray-900">
-                        {segment}
-                      </BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink
-                        asChild
-                        className="text-jl-red hover:text-jl-red-700 cursor-pointer"
-                      >
-                        <button onClick={() => navigateToBreadcrumb(index)}>
+          <div className="px-6 py-4 border-b border-gray-200">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    asChild
+                    className="flex items-center text-jl-red hover:text-jl-red-700 cursor-pointer"
+                  >
+                    <button onClick={navigateToRoot}>
+                      <Home className="w-4 h-4 mr-1" />
+                      Root
+                    </button>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                
+                {currentPath.map((segment, index) => (
+                  <React.Fragment key={index}>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      {index === currentPath.length - 1 ? (
+                        <BreadcrumbPage className="text-gray-900">
                           {segment}
-                        </button>
-                      </BreadcrumbLink>
-                    )}
-                  </BreadcrumbItem>
-                </React.Fragment>
-              ))}
-            </BreadcrumbList>
-          </Breadcrumb>
+                        </BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink
+                          asChild
+                          className="text-jl-red hover:text-jl-red-700 cursor-pointer"
+                        >
+                          <button onClick={() => navigateToBreadcrumb(index)}>
+                            {segment}
+                          </button>
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                  </React.Fragment>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
 
           {/* Folder Table */}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="border-b">
+          <div>
+            <div className="border-b border-gray-200">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-left p-4 font-medium text-gray-700">Folder Name</th>
-                    <th className="text-left p-4 font-medium text-gray-700">Action</th>
+                    <th className="text-left px-6 py-3 text-sm font-medium text-gray-700">Folder Name</th>
+                    <th className="text-right px-6 py-3 text-sm font-medium text-gray-700">Action</th>
                   </tr>
                 </thead>
               </table>
             </div>
-            <ScrollArea className="h-[400px]">
-              <Table>
-                <TableBody>
-                {subfolders.length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={2} className="p-8 text-center text-gray-500">
-                      No subfolders in this directory
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  subfolders.map((folder) => (
-                    <TableRow key={folder}>
-                      <TableCell className="p-4">
-                        <div className="flex items-center">
-                          <Folder className="w-5 h-5 text-jl-red mr-3" />
-                          <span className="font-medium">{folder}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="p-4">
-                        <button
-                          onClick={() => navigateToFolder(folder)}
-                          className="text-jl-red hover:text-jl-red-700 transition-colors font-medium"
-                        >
-                          Enter →
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            </ScrollArea>
+            <div className="divide-y divide-gray-200">
+              {subfolders.length === 0 ? (
+                <div className="px-6 py-8 text-center text-gray-500">
+                  No subfolders in this directory
+                </div>
+              ) : (
+                subfolders.slice(0, 8).map((folder) => (
+                  <div key={folder} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
+                    <div className="flex items-center">
+                      <Folder className="w-5 h-5 text-jl-red mr-3" />
+                      <span className="text-sm">{folder}</span>
+                    </div>
+                    <button
+                      onClick={() => navigateToFolder(folder)}
+                      className="text-sm text-jl-red hover:text-jl-red-700 transition-colors"
+                    >
+                      Enter →
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => setCurrentPath(currentPath.slice(0, -1))}
-              disabled={currentPath.length === 0}
-              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Go Back
-            </button>
+          {/* Action Buttons and Object Prefix */}
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setCurrentPath(currentPath.slice(0, -1))}
+                disabled={currentPath.length === 0}
+                className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Go Back
+              </button>
+              
+              <button
+                onClick={selectCurrentPath}
+                className="px-4 py-2 bg-jl-red text-white text-sm rounded-md hover:bg-jl-red-700 transition-colors"
+              >
+                Use This Path for Batch Ingest
+              </button>
+            </div>
             
-            <button
-              onClick={selectCurrentPath}
-              className="px-6 py-2 bg-jl-red text-white rounded-lg hover:bg-jl-red-700 transition-colors font-medium"
-            >
-              Use This Path for Batch Ingest
-            </button>
-          </div>
-
-          {/* Object Prefix Display */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="p-4 bg-jl-red-50 rounded-lg">
+            {/* Object Prefix Display */}
+            <div className="mt-4 p-3 bg-jl-red-50 rounded-md">
               <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-gray-700">Object Prefix:</span>
-                <span className="font-mono text-lg text-gray-900">
+                <span className="text-sm text-gray-600">Object Prefix:</span>
+                <span className="font-mono text-sm font-medium text-gray-900">
                   {currentPrefix || '<root>'}
                 </span>
               </div>
@@ -350,7 +342,7 @@ const IngestClient = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
