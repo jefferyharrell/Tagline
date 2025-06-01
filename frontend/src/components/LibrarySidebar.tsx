@@ -7,6 +7,7 @@ import {
   Images,
   Calendar,
   LayoutDashboard,
+  FolderSync,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,6 +54,12 @@ export default function LibrarySidebar() {
         { title: "2023-2024", href: "#", icon: Calendar },
         { title: "2022-2023", href: "#", icon: Calendar },
         { title: "2021-2022", href: "#", icon: Calendar },
+      ],
+    },
+    {
+      title: "Admin",
+      items: [
+        { title: "Batch Ingest", href: "/ingest", isActive: pathname === "/ingest", icon: FolderSync },
       ],
     },
     {
