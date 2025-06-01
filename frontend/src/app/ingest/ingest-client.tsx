@@ -11,6 +11,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 // Mock data structure representing your Dropbox folders
 const mockFolderStructure = {
@@ -150,46 +158,42 @@ const IngestClient = () => {
 
           {/* Folder Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-4 font-medium text-gray-700">
-                    Folder Name
-                  </th>
-                  <th className="text-left p-4 font-medium text-gray-700">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="text-gray-700">Folder Name</TableHead>
+                  <TableHead className="text-gray-700">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {subfolders.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="p-8 text-center text-gray-500">
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={2} className="p-8 text-center text-gray-500">
                       No subfolders in this directory
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   subfolders.map((folder) => (
-                    <tr key={folder} className="border-t hover:bg-gray-50 transition-colors">
-                      <td className="p-4">
+                    <TableRow key={folder}>
+                      <TableCell className="p-4">
                         <div className="flex items-center">
                           <Folder className="w-5 h-5 text-jl-red mr-3" />
                           <span className="font-medium">{folder}</span>
                         </div>
-                      </td>
-                      <td className="p-4">
+                      </TableCell>
+                      <TableCell className="p-4">
                         <button
                           onClick={() => navigateToFolder(folder)}
                           className="text-jl-red hover:text-jl-red-700 transition-colors font-medium"
                         >
                           Enter →
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {/* Action Buttons */}
