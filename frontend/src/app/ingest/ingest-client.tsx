@@ -278,14 +278,9 @@ const IngestClient = () => {
           {/* Folder Table */}
           <div>
             <div className="border-b border-gray-200">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left px-6 py-3 text-sm font-medium text-gray-700">Folder Name</th>
-                    <th className="text-right px-6 py-3 text-sm font-medium text-gray-700">Action</th>
-                  </tr>
-                </thead>
-              </table>
+              <div className="bg-gray-50 px-6 py-3">
+                <h3 className="text-sm font-medium text-gray-700">Folders</h3>
+              </div>
             </div>
             <div className="divide-y divide-gray-200">
               {subfolders.length === 0 ? (
@@ -294,18 +289,14 @@ const IngestClient = () => {
                 </div>
               ) : (
                 subfolders.slice(0, 8).map((folder) => (
-                  <div key={folder} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
-                    <div className="flex items-center">
-                      <Folder className="w-5 h-5 text-jl-red mr-3" />
-                      <span className="text-sm">{folder}</span>
-                    </div>
-                    <button
-                      onClick={() => navigateToFolder(folder)}
-                      className="text-sm text-jl-red hover:text-jl-red-700 transition-colors"
-                    >
-                      Enter →
-                    </button>
-                  </div>
+                  <button
+                    key={folder}
+                    onClick={() => navigateToFolder(folder)}
+                    className="w-full flex items-center px-6 py-3 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <Folder className="w-5 h-5 text-jl-red mr-3" />
+                    <span className="text-sm">{folder}</span>
+                  </button>
                 ))
               )}
             </div>
