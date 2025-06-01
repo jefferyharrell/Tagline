@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ChevronRight, Folder, Home } from 'lucide-react';
+import { Folder, Home } from 'lucide-react';
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 // Mock data structure representing your Dropbox folders
 const mockFolderStructure = {
@@ -101,30 +109,44 @@ const IngestClient = () => {
       
       <div className="container mx-auto py-8">
         <div className="w-full max-w-4xl mx-auto space-y-6">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-              <button 
-                onClick={navigateToRoot}
-                className="flex items-center text-jl-red hover:text-jl-red-700 transition-colors"
-              >
-                <Home className="w-4 h-4 mr-1" />
-                Root
-              </button>
+          {/* Breadcrumb Navigation */}
+          <Breadcrumb className="p-3 bg-gray-50 rounded-lg">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  asChild
+                  className="flex items-center text-jl-red hover:text-jl-red-700 cursor-pointer"
+                >
+                  <button onClick={navigateToRoot}>
+                    <Home className="w-4 h-4 mr-1" />
+                    Root
+                  </button>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
               
               {currentPath.map((segment, index) => (
                 <React.Fragment key={index}>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                  <button
-                    onClick={() => navigateToBreadcrumb(index)}
-                    className="text-jl-red hover:text-jl-red-700 transition-colors"
-                  >
-                    {segment}
-                  </button>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    {index === currentPath.length - 1 ? (
+                      <BreadcrumbPage className="text-gray-900">
+                        {segment}
+                      </BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        asChild
+                        className="text-jl-red hover:text-jl-red-700 cursor-pointer"
+                      >
+                        <button onClick={() => navigateToBreadcrumb(index)}>
+                          {segment}
+                        </button>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
                 </React.Fragment>
               ))}
-            </div>
-          </div>
+            </BreadcrumbList>
+          </Breadcrumb>
 
           {/* Folder Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -171,23 +193,21 @@ const IngestClient = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex justify-between items-center">
-              <button
-                onClick={() => setCurrentPath(currentPath.slice(0, -1))}
-                disabled={currentPath.length === 0}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ← Go Back
-              </button>
-              
-              <button
-                onClick={selectCurrentPath}
-                className="px-6 py-2 bg-jl-red text-white rounded-lg hover:bg-jl-red-700 transition-colors font-medium"
-              >
-                Use This Path for Batch Ingest
-              </button>
-            </div>
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setCurrentPath(currentPath.slice(0, -1))}
+              disabled={currentPath.length === 0}
+              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Go Back
+            </button>
+            
+            <button
+              onClick={selectCurrentPath}
+              className="px-6 py-2 bg-jl-red text-white rounded-lg hover:bg-jl-red-700 transition-colors font-medium"
+            >
+              Use This Path for Batch Ingest
+            </button>
           </div>
 
           {/* Object Prefix Display */}
