@@ -101,9 +101,7 @@ const IngestClient = () => {
       
       <div className="container mx-auto py-8">
         <div className="w-full max-w-4xl mx-auto space-y-6">
-          <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-            <h2 className="text-2xl font-semibold">Select Batch Ingest Folder</h2>
-            
+          <div className="bg-white rounded-lg shadow-sm p-6">
             {/* Breadcrumb Navigation */}
             <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
               <button 
@@ -125,14 +123,6 @@ const IngestClient = () => {
                   </button>
                 </React.Fragment>
               ))}
-            </div>
-
-            {/* Current Path Display */}
-            <div className="p-3 bg-jl-red-50 rounded-lg">
-              <div className="text-sm text-gray-600 mb-1">Current Object Prefix:</div>
-              <div className="font-mono text-lg">
-                {currentPrefix || '<root>'}
-              </div>
             </div>
           </div>
 
@@ -200,13 +190,17 @@ const IngestClient = () => {
             </div>
           </div>
 
-          {/* Selected Prefix Display */}
-          {selectedPrefix && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="text-sm text-green-700 mb-1">Selected for batch ingest:</div>
-              <div className="font-mono text-lg text-green-800">{selectedPrefix}</div>
+          {/* Object Prefix Display */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="p-4 bg-jl-red-50 rounded-lg">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-medium text-gray-700">Object Prefix:</span>
+                <span className="font-mono text-lg text-gray-900">
+                  {currentPrefix || '<root>'}
+                </span>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </>
