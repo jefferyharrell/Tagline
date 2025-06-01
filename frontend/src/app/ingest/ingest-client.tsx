@@ -19,19 +19,68 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Mock data structure representing your Dropbox folders
 const mockFolderStructure = {
   "2024": {
     "Spring Gala": {
-      "Photos": {},
-      "Videos": {}
+      "Photos": {
+        "Arrivals": {},
+        "Cocktail Hour": {},
+        "Dinner": {},
+        "Speeches": {},
+        "Dancing": {},
+        "Group Photos": {},
+        "Candids": {},
+        "Venue Shots": {},
+        "Decorations": {},
+        "Behind the Scenes": {}
+      },
+      "Videos": {
+        "Highlights Reel": {},
+        "Full Speeches": {},
+        "Dance Floor": {},
+        "Interviews": {},
+        "B-Roll": {}
+      }
     },
     "Volunteer Fair": {
       "Setup": {},
       "Event": {},
       "Cleanup": {}
-    }
+    },
+    "Annual Fundraiser": {},
+    "Board Meetings": {
+      "January": {},
+      "February": {},
+      "March": {},
+      "April": {},
+      "May": {},
+      "June": {},
+      "July": {},
+      "August": {},
+      "September": {},
+      "October": {},
+      "November": {},
+      "December": {}
+    },
+    "Community Outreach": {
+      "School Visits": {},
+      "Hospital Programs": {},
+      "Food Bank": {},
+      "Literacy Initiative": {},
+      "Senior Center": {}
+    },
+    "Member Events": {
+      "New Member Orientation": {},
+      "Monthly Mixers": {},
+      "Leadership Training": {},
+      "Workshops": {}
+    },
+    "Marketing Materials": {},
+    "Press Coverage": {},
+    "Social Media Content": {}
   },
   "2023": {
     "Holiday Party": {
@@ -42,13 +91,81 @@ const mockFolderStructure = {
     "Summer Picnic": {
       "Games": {},
       "Activities": {}
-    }
+    },
+    "Fall Fashion Show": {},
+    "Winter Ball": {},
+    "Spring Luncheon": {},
+    "Charity Auction": {},
+    "Golf Tournament": {},
+    "5K Run": {},
+    "Book Club Events": {},
+    "Wine Tasting": {},
+    "Art Exhibition": {},
+    "Cooking Classes": {},
+    "Mentorship Program": {},
+    "Professional Development": {},
+    "Volunteer Recognition": {}
+  },
+  "2022": {
+    "Annual Meeting": {},
+    "Gala": {},
+    "Community Service": {},
+    "Educational Programs": {},
+    "Fundraising Events": {},
+    "Member Activities": {},
+    "Board Documentation": {},
+    "Financial Records": {},
+    "Newsletter Archives": {},
+    "Partnership Events": {}
+  },
+  "2021": {
+    "Virtual Events": {},
+    "Hybrid Meetings": {},
+    "Online Fundraisers": {},
+    "Digital Workshops": {},
+    "Zoom Socials": {}
+  },
+  "2020": {
+    "Pre-Pandemic Events": {},
+    "Transition Period": {},
+    "Virtual Pivot": {},
+    "Year End Review": {}
   },
   "Archives": {
-    "2022": {
-      "Annual Meeting": {}
-    },
-    "Historical": {}
+    "2019": {},
+    "2018": {},
+    "2017": {},
+    "2016": {},
+    "2015": {},
+    "2014": {},
+    "2013": {},
+    "2012": {},
+    "2011": {},
+    "2010": {},
+    "Historical": {
+      "Founding Documents": {},
+      "Legacy Photos": {},
+      "Milestone Events": {},
+      "Anniversary Celebrations": {},
+      "Leadership History": {}
+    }
+  },
+  "Administrative": {
+    "Bylaws and Policies": {},
+    "Meeting Minutes": {},
+    "Financial Documents": {},
+    "Legal Records": {},
+    "Insurance": {},
+    "Contracts": {},
+    "Vendor Information": {},
+    "Member Database Exports": {}
+  },
+  "Special Projects": {
+    "Capital Campaign": {},
+    "Building Renovation": {},
+    "Scholarship Program": {},
+    "Endowment Fund": {},
+    "Strategic Planning": {}
   }
 };
 
@@ -158,14 +275,19 @@ const IngestClient = () => {
 
           {/* Folder Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-50">
-                  <TableHead className="text-gray-700">Folder Name</TableHead>
-                  <TableHead className="text-gray-700">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="border-b">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left p-4 font-medium text-gray-700">Folder Name</th>
+                    <th className="text-left p-4 font-medium text-gray-700">Action</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableBody>
                 {subfolders.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={2} className="p-8 text-center text-gray-500">
@@ -194,6 +316,7 @@ const IngestClient = () => {
                 )}
               </TableBody>
             </Table>
+            </ScrollArea>
           </div>
 
           {/* Action Buttons */}
