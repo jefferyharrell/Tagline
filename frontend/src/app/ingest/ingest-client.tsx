@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Folder, Home } from 'lucide-react';
+import React, { useState } from "react";
+import { Folder, Home } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -11,86 +11,77 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Mock data structure representing your Dropbox folders
 const mockFolderStructure = {
   "2024": {
     "Spring Gala": {
-      "Photos": {
-        "Arrivals": {},
+      Photos: {
+        Arrivals: {},
         "Cocktail Hour": {},
-        "Dinner": {},
-        "Speeches": {},
-        "Dancing": {},
+        Dinner: {},
+        Speeches: {},
+        Dancing: {},
         "Group Photos": {},
-        "Candids": {},
+        Candids: {},
         "Venue Shots": {},
-        "Decorations": {},
-        "Behind the Scenes": {}
+        Decorations: {},
+        "Behind the Scenes": {},
       },
-      "Videos": {
+      Videos: {
         "Highlights Reel": {},
         "Full Speeches": {},
         "Dance Floor": {},
-        "Interviews": {},
-        "B-Roll": {}
-      }
+        Interviews: {},
+        "B-Roll": {},
+      },
     },
     "Volunteer Fair": {
-      "Setup": {},
-      "Event": {},
-      "Cleanup": {}
+      Setup: {},
+      Event: {},
+      Cleanup: {},
     },
     "Annual Fundraiser": {},
     "Board Meetings": {
-      "January": {},
-      "February": {},
-      "March": {},
-      "April": {},
-      "May": {},
-      "June": {},
-      "July": {},
-      "August": {},
-      "September": {},
-      "October": {},
-      "November": {},
-      "December": {}
+      January: {},
+      February: {},
+      March: {},
+      April: {},
+      May: {},
+      June: {},
+      July: {},
+      August: {},
+      September: {},
+      October: {},
+      November: {},
+      December: {},
     },
     "Community Outreach": {
       "School Visits": {},
       "Hospital Programs": {},
       "Food Bank": {},
       "Literacy Initiative": {},
-      "Senior Center": {}
+      "Senior Center": {},
     },
     "Member Events": {
       "New Member Orientation": {},
       "Monthly Mixers": {},
       "Leadership Training": {},
-      "Workshops": {}
+      Workshops: {},
     },
     "Marketing Materials": {},
     "Press Coverage": {},
-    "Social Media Content": {}
+    "Social Media Content": {},
   },
   "2023": {
     "Holiday Party": {
-      "Decorations": {},
-      "Guests": {},
-      "Food": {}
+      Decorations: {},
+      Guests: {},
+      Food: {},
     },
     "Summer Picnic": {
-      "Games": {},
-      "Activities": {}
+      Games: {},
+      Activities: {},
     },
     "Fall Fashion Show": {},
     "Winter Ball": {},
@@ -104,11 +95,11 @@ const mockFolderStructure = {
     "Cooking Classes": {},
     "Mentorship Program": {},
     "Professional Development": {},
-    "Volunteer Recognition": {}
+    "Volunteer Recognition": {},
   },
   "2022": {
     "Annual Meeting": {},
-    "Gala": {},
+    Gala: {},
     "Community Service": {},
     "Educational Programs": {},
     "Fundraising Events": {},
@@ -116,22 +107,22 @@ const mockFolderStructure = {
     "Board Documentation": {},
     "Financial Records": {},
     "Newsletter Archives": {},
-    "Partnership Events": {}
+    "Partnership Events": {},
   },
   "2021": {
     "Virtual Events": {},
     "Hybrid Meetings": {},
     "Online Fundraisers": {},
     "Digital Workshops": {},
-    "Zoom Socials": {}
+    "Zoom Socials": {},
   },
   "2020": {
     "Pre-Pandemic Events": {},
     "Transition Period": {},
     "Virtual Pivot": {},
-    "Year End Review": {}
+    "Year End Review": {},
   },
-  "Archives": {
+  Archives: {
     "2019": {},
     "2018": {},
     "2017": {},
@@ -142,36 +133,35 @@ const mockFolderStructure = {
     "2012": {},
     "2011": {},
     "2010": {},
-    "Historical": {
+    Historical: {
       "Founding Documents": {},
       "Legacy Photos": {},
       "Milestone Events": {},
       "Anniversary Celebrations": {},
-      "Leadership History": {}
-    }
+      "Leadership History": {},
+    },
   },
-  "Administrative": {
+  Administrative: {
     "Bylaws and Policies": {},
     "Meeting Minutes": {},
     "Financial Documents": {},
     "Legal Records": {},
-    "Insurance": {},
-    "Contracts": {},
+    Insurance: {},
+    Contracts: {},
     "Vendor Information": {},
-    "Member Database Exports": {}
+    "Member Database Exports": {},
   },
   "Special Projects": {
     "Capital Campaign": {},
     "Building Renovation": {},
     "Scholarship Program": {},
     "Endowment Fund": {},
-    "Strategic Planning": {}
-  }
+    "Strategic Planning": {},
+  },
 };
 
 const IngestClient = () => {
   const [currentPath, setCurrentPath] = useState([]);
-  const [selectedPrefix, setSelectedPrefix] = useState("");
 
   // Navigate through the folder structure based on current path
   const getCurrentFolder = () => {
@@ -185,8 +175,8 @@ const IngestClient = () => {
   // Get the subfolders in the current directory
   const getSubfolders = () => {
     const current = getCurrentFolder();
-    return Object.keys(current).filter(key => 
-      typeof current[key] === 'object' && current[key] !== null
+    return Object.keys(current).filter(
+      (key) => typeof current[key] === "object" && current[key] !== null,
     );
   };
 
@@ -207,7 +197,7 @@ const IngestClient = () => {
 
   // Generate the object prefix from current path
   const generatePrefix = () => {
-    return currentPath.join('/') + (currentPath.length > 0 ? '/' : '');
+    return currentPath.join("/") + (currentPath.length > 0 ? "/" : "");
   };
 
   // Handle selecting this path as the batch prefix
@@ -215,7 +205,7 @@ const IngestClient = () => {
     const prefix = generatePrefix();
     setSelectedPrefix(prefix);
     // In real implementation, this would trigger the batch ingest workflow
-    console.log('Selected prefix:', prefix);
+    console.log("Selected prefix:", prefix);
   };
 
   const subfolders = getSubfolders();
@@ -227,11 +217,13 @@ const IngestClient = () => {
         <div className="px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <SidebarTrigger />
-            <h1 className="text-2xl font-semibold text-gray-900">Batch Ingest</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Batch Ingest
+            </h1>
           </div>
         </div>
       </div>
-      
+
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {/* Breadcrumb Navigation */}
@@ -249,7 +241,7 @@ const IngestClient = () => {
                     </button>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                
+
                 {currentPath.map((segment, index) => (
                   <React.Fragment key={index}>
                     <BreadcrumbSeparator />
@@ -305,7 +297,7 @@ const IngestClient = () => {
               >
                 ← Go Back
               </button>
-              
+
               <button
                 onClick={selectCurrentPath}
                 className="px-4 py-2 bg-jl-red text-white text-sm rounded-md hover:bg-jl-red-700 transition-colors"
@@ -313,13 +305,13 @@ const IngestClient = () => {
                 Use This Path for Batch Ingest
               </button>
             </div>
-            
+
             {/* Object Prefix Display */}
             <div className="mt-4 p-3 bg-jl-red-50 rounded-md">
               <div className="flex items-baseline gap-2">
                 <span className="text-sm text-gray-600">Object Prefix:</span>
                 <span className="font-mono text-sm font-medium text-gray-900">
-                  {currentPrefix || '<root>'}
+                  {currentPrefix || "<root>"}
                 </span>
               </div>
             </div>

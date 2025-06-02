@@ -31,17 +31,17 @@ export default async function Dashboard({
     <SidebarProvider>
       <LibrarySidebar />
       <SidebarInset className="min-h-screen bg-gray-50">
-        <DashboardClient 
-          errorMessage={errorMessage} 
-          successMessage={successMessage} 
+        <DashboardClient
+          errorMessage={errorMessage}
+          successMessage={successMessage}
         />
         <main>
           <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
             <div className="bg-white rounded-lg shadow-lg p-8">
               <h2 className="text-xl font-bold mb-6">Welcome to Tagline</h2>
               <p className="text-gray-600 mb-8">
-                Tagline is a media management system for the Junior League of Los
-                Angeles.
+                Tagline is a media management system for the Junior League of
+                Los Angeles.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -74,10 +74,12 @@ export default async function Dashboard({
                 </div>
 
                 <div className="border border-gray-200 rounded-lg p-6 hover:border-indigo-300 hover:shadow transition-all">
-                  <h3 className="text-lg font-semibold mb-2">User Management</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    User Management
+                  </h3>
                   <p className="text-gray-600 mb-4">
-                    Manage user accounts, permissions, and access controls (coming
-                    soon).
+                    Manage user accounts, permissions, and access controls
+                    (coming soon).
                   </p>
                   <span className="inline-flex items-center text-gray-400">
                     Coming Soon

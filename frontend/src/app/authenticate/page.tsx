@@ -45,7 +45,7 @@ function AuthenticateContent() {
         await response.json();
 
         // Trigger auth state change event
-        window.dispatchEvent(new Event('auth-state-change'));
+        window.dispatchEvent(new Event("auth-state-change"));
 
         // Redirect to library on success
         router.push("/library");
@@ -104,17 +104,19 @@ function AuthenticateContent() {
 
 export default function AuthenticatePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-sm">
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-3/4 mx-auto" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6 mx-auto" />
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-sm">
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-3/4 mx-auto" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6 mx-auto" />
+            </div>
           </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <AuthenticateContent />
     </Suspense>
   );

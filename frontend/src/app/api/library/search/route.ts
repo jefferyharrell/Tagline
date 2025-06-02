@@ -10,7 +10,10 @@ export async function GET(request: NextRequest) {
   const offset = searchParams.get("offset") || "0";
 
   if (!query) {
-    return NextResponse.json({ error: "Query parameter is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Query parameter is required" },
+      { status: 400 },
+    );
   }
 
   const cookieStore = await cookies();
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
         { error: errorData.detail || "Failed to search media" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
     console.error("Error searching media:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

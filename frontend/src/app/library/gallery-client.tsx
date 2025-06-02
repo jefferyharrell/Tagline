@@ -28,13 +28,13 @@ export default function GalleryClient() {
   const loadingRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
-  
+
   // Modal state
   const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const ITEMS_PER_PAGE = 36;
-  
+
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
     // Fetch full media details
@@ -45,43 +45,43 @@ export default function GalleryClient() {
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
         // Update URL without navigation
-        window.history.pushState({}, '', `/library/${media.id}`);
+        window.history.pushState({}, "", `/library/${media.id}`);
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       // Fall back to using the basic media object
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, '', `/library/${media.id}`);
+      window.history.pushState({}, "", `/library/${media.id}`);
     }
   }, []);
-  
+
   // Handle closing modal
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedMedia(null);
     // Return to gallery URL
-    window.history.pushState({}, '', '/library');
+    window.history.pushState({}, "", "/library");
   }, []);
-  
+
   // Handle browser back/forward buttons
   useEffect(() => {
     let isMounted = false;
-    
+
     const handlePopState = async () => {
       const path = window.location.pathname;
       const match = path.match(/\/library\/([a-zA-Z0-9_-]+)$/);
-      
+
       if (match && match[1]) {
         // We're on a detail URL, find and show the media
         const mediaId = match[1];
-        
+
         // Don't fetch on initial mount - the page component will handle that
         if (!isMounted) {
           return;
         }
-        
-        const media = mediaObjects.find(m => m.id === mediaId);
+
+        const media = mediaObjects.find((m) => m.id === mediaId);
         if (media) {
           // Fetch full media details
           try {
@@ -115,22 +115,22 @@ export default function GalleryClient() {
             setSelectedMedia(null);
           }
         }
-      } else if (path === '/library' || path === '/library/') {
+      } else if (path === "/library" || path === "/library/") {
         // We're on the gallery URL, close modal
         setIsModalOpen(false);
         setSelectedMedia(null);
       }
     };
-    
-    window.addEventListener('popstate', handlePopState);
-    
+
+    window.addEventListener("popstate", handlePopState);
+
     // Small delay before checking initial URL to ensure component is ready
     setTimeout(() => {
       isMounted = true;
       handlePopState();
     }, 100);
-    
-    return () => window.removeEventListener('popstate', handlePopState);
+
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [mediaObjects]);
 
   const fetchMediaObjects = useCallback(
@@ -143,10 +143,11 @@ export default function GalleryClient() {
       setError(null);
 
       try {
-        const url = searchQuery && searchQuery.trim() !== ""
-          ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
-          : `/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
-        
+        const url =
+          searchQuery && searchQuery.trim() !== ""
+            ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
+            : `/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
+
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -167,8 +168,10 @@ export default function GalleryClient() {
         } else {
           setMediaObjects((prev) => {
             // Create a Set of existing IDs to prevent duplicates
-            const existingIds = new Set(prev.map(item => item.id));
-            const newItems = sanitizedItems.filter(item => !existingIds.has(item.id));
+            const existingIds = new Set(prev.map((item) => item.id));
+            const newItems = sanitizedItems.filter(
+              (item) => !existingIds.has(item.id),
+            );
             return [...prev, ...newItems];
           });
         }
@@ -237,12 +240,12 @@ export default function GalleryClient() {
   // Handle search input with debounce
   const handleSearchInput = (value: string) => {
     setSearchInput(value);
-    
+
     // Clear existing timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     // Set new timeout for debounced search
     searchTimeoutRef.current = setTimeout(() => {
       setSearchQuery(value);
@@ -267,76 +270,78 @@ export default function GalleryClient() {
           <div className="flex-1">
             <SidebarTrigger />
           </div>
-          
+
           {/* Center: Search Bar */}
           <div className="flex-[3] flex justify-center">
             <div className="w-full max-w-2xl">
               <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-jl-red focus:border-transparent"
+                  placeholder="Search photos by keyword..."
+                  value={searchInput}
+                  onChange={(e) => handleSearchInput(e.target.value)}
                 />
-              </svg>
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-jl-red focus:border-transparent"
-              placeholder="Search photos by keyword..."
-              value={searchInput}
-              onChange={(e) => handleSearchInput(e.target.value)}
-            />
-            {searchInput && (
-              <button
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => {
-                  setSearchInput("");
-                  setSearchQuery("");
-                }}
-              >
-                <svg
-                  className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
+                {searchInput && (
+                  <button
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => {
+                      setSearchInput("");
+                      setSearchQuery("");
+                    }}
+                  >
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
               </div>
               {searchQuery !== "" && (
                 <p className="mt-2 text-sm text-gray-600">
-                  Searching for: <span className="font-medium">{searchQuery}</span>
+                  Searching for:{" "}
+                  <span className="font-medium">{searchQuery}</span>
                 </p>
               )}
             </div>
           </div>
-          
+
           {/* Right: Reserved space */}
-          <div className="flex-1">
-            {/* Reserved for future use */}
-          </div>
+          <div className="flex-1">{/* Reserved for future use */}</div>
         </div>
       </div>
       {isLoading && mediaObjects.length === 0 ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 p-6">
           {/* Show skeleton placeholders for initial load */}
           {Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
-            <div key={`skeleton-${index}`} className="bg-white overflow-hidden shadow-sm">
+            <div
+              key={`skeleton-${index}`}
+              className="bg-white overflow-hidden shadow-sm"
+            >
               <div className="relative aspect-square">
                 <Skeleton className="absolute inset-0" />
                 {/* Skeleton for description overlay */}
@@ -378,7 +383,7 @@ export default function GalleryClient() {
             {searchQuery ? "No results found" : "No media objects"}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchQuery 
+            {searchQuery
               ? `No photos match your search for "${searchQuery}"`
               : "Media objects will be displayed here once available."}
           </p>
@@ -407,7 +412,11 @@ export default function GalleryClient() {
         <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 p-6 mt-2">
             {mediaObjects.map((media) => (
-              <MediaThumbnail key={media.id} media={media} onClick={handleMediaClick} />
+              <MediaThumbnail
+                key={media.id}
+                media={media}
+                onClick={handleMediaClick}
+              />
             ))}
           </div>
 
@@ -416,7 +425,10 @@ export default function GalleryClient() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 px-6 pb-6">
               {/* Show 12 skeleton items when loading more */}
               {Array.from({ length: 12 }).map((_, index) => (
-                <div key={`skeleton-more-${index}`} className="bg-white overflow-hidden shadow-sm">
+                <div
+                  key={`skeleton-more-${index}`}
+                  className="bg-white overflow-hidden shadow-sm"
+                >
                   <div className="relative aspect-square">
                     <Skeleton className="absolute inset-0" />
                     <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -428,7 +440,7 @@ export default function GalleryClient() {
               ))}
             </div>
           )}
-          
+
           <div ref={loadingRef} className="py-8">
             {!hasMore && mediaObjects.length > 0 && (
               <p className="text-gray-500 text-sm text-center">
@@ -438,12 +450,12 @@ export default function GalleryClient() {
           </div>
         </>
       )}
-      
+
       {/* Modal for media detail */}
       <MediaModal isOpen={isModalOpen} onClose={handleCloseModal}>
         {selectedMedia && (
-          <MediaDetailClient 
-            initialMediaObject={selectedMedia} 
+          <MediaDetailClient
+            initialMediaObject={selectedMedia}
             isModal={true}
             onClose={handleCloseModal}
           />

@@ -12,25 +12,25 @@ export default function MediaDetailLoading() {
           <div className="min-h-screen">
             {/* Photo Section Skeleton */}
             <div className="relative flex justify-center">
-              <div 
+              <div
                 className="relative w-full max-w-4xl"
-                style={{ 
-                  maxHeight: '80vh',
-                  aspectRatio: '4 / 3'
+                style={{
+                  maxHeight: "80vh",
+                  aspectRatio: "4 / 3",
                 }}
               >
                 {/* Image skeleton */}
                 <Skeleton className="absolute inset-0" />
-                
+
                 {/* Description Section Skeleton */}
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <div className="relative">
                     {/* Status text placeholder */}
                     <div className="flex justify-end mb-2 h-6" />
-                    
+
                     {/* Textarea skeleton */}
                     <Skeleton className="h-24 w-full rounded-lg" />
-                    
+
                     {/* Lock button skeleton */}
                     <Skeleton className="absolute top-10 right-2 h-7 w-7 rounded-full" />
                   </div>

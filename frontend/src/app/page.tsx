@@ -11,7 +11,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [authStatus, setAuthStatus] = useState<"idle" | "error" | "success">("idle");
+  const [authStatus, setAuthStatus] = useState<"idle" | "error" | "success">(
+    "idle",
+  );
   const [statusMessage, setStatusMessage] = useState("");
   const [isAnimating, setIsAnimating] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +80,10 @@ export default function LoginPage() {
         setIsAnimating(true);
         setTimeout(() => {
           setAuthStatus("error");
-          setStatusMessage(error || "Please contact the Junior League of Los Angeles for access.");
+          setStatusMessage(
+            error ||
+              "Please contact the Junior League of Los Angeles for access.",
+          );
           setIsAnimating(false);
           // Select the email text after animation
           setTimeout(() => {
@@ -103,7 +108,9 @@ export default function LoginPage() {
       setIsAnimating(true);
       setTimeout(() => {
         setAuthStatus("success");
-        setStatusMessage("We've sent you a magic link. It should arrive within a minute.");
+        setStatusMessage(
+          "We've sent you a magic link. It should arrive within a minute.",
+        );
         setIsAnimating(false);
       }, 125);
     } catch (error) {
@@ -112,7 +119,9 @@ export default function LoginPage() {
       setIsAnimating(true);
       setTimeout(() => {
         setAuthStatus("error");
-        setStatusMessage("Something went wrong. Please try again or contact support.");
+        setStatusMessage(
+          "Something went wrong. Please try again or contact support.",
+        );
         setIsAnimating(false);
       }, 125);
     } finally {
@@ -134,14 +143,20 @@ export default function LoginPage() {
               priority={true}
             />
           </div>
-          <div className={`transition-opacity duration-[125ms] ${isAnimating ? 'opacity-0' : 'opacity-100'}`}>
+          <div
+            className={`transition-opacity duration-[125ms] ${isAnimating ? "opacity-0" : "opacity-100"}`}
+          >
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              {authStatus === "error" ? "This email is not authorized" : 
-               authStatus === "success" ? "Check your email" : 
-               "Sign in to your account"}
+              {authStatus === "error"
+                ? "This email is not authorized"
+                : authStatus === "success"
+                  ? "Check your email"
+                  : "Sign in to your account"}
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              {authStatus === "idle" ? "Enter your email to receive a magic link" : statusMessage}
+              {authStatus === "idle"
+                ? "Enter your email to receive a magic link"
+                : statusMessage}
             </p>
           </div>
         </div>
@@ -188,68 +203,68 @@ export default function LoginPage() {
 
           {/* Dev Login Button - Only visible when bypass is enabled */}
           {process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true" && (
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      setIsLoading(true);
-                      const devEmail =
-                        email ||
-                        process.env.NEXT_PUBLIC_AUTH_BYPASS_DEFAULT_EMAIL ||
-                        "";
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setIsLoading(true);
+                    const devEmail =
+                      email ||
+                      process.env.NEXT_PUBLIC_AUTH_BYPASS_DEFAULT_EMAIL ||
+                      "";
 
-                      if (!devEmail) {
-                        toast.error(
-                          "Please enter an email address for dev login",
-                        );
-                        setIsLoading(false);
-                        return;
-                      }
-
-                      const response = await fetch("/api/auth/dev-login", {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({ email: devEmail }),
-                      });
-
-                      if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(
-                          error.message || "Development login failed",
-                        );
-                      }
-
-                      // Trigger auth state change event
-                      window.dispatchEvent(new Event('auth-state-change'));
-
-                      // Redirect to library
-                      router.push("/library");
-                    } catch (error) {
-                      console.error("Dev login error:", error);
+                    if (!devEmail) {
                       toast.error(
-                        (error as Error).message || "Development login failed",
+                        "Please enter an email address for dev login",
                       );
-                    } finally {
                       setIsLoading(false);
+                      return;
                     }
-                  }}
-                  disabled={isLoading || !email}
-                  className={`w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                    isLoading || !email
-                      ? "bg-purple-300"
-                      : "bg-purple-600 hover:bg-purple-700"
-                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500`}
-                >
-                  ⚙️ Developer Login
-                </button>
-                <div className="mt-1 text-xs text-center text-gray-500">
-                  Bypasses email verification (admin use only)
-                </div>
+
+                    const response = await fetch("/api/auth/dev-login", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ email: devEmail }),
+                    });
+
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(
+                        error.message || "Development login failed",
+                      );
+                    }
+
+                    // Trigger auth state change event
+                    window.dispatchEvent(new Event("auth-state-change"));
+
+                    // Redirect to library
+                    router.push("/library");
+                  } catch (error) {
+                    console.error("Dev login error:", error);
+                    toast.error(
+                      (error as Error).message || "Development login failed",
+                    );
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading || !email}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                  isLoading || !email
+                    ? "bg-purple-300"
+                    : "bg-purple-600 hover:bg-purple-700"
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500`}
+              >
+                ⚙️ Developer Login
+              </button>
+              <div className="mt-1 text-xs text-center text-gray-500">
+                Bypasses email verification (admin use only)
               </div>
-            )}
+            </div>
+          )}
         </form>
       </div>
     </div>

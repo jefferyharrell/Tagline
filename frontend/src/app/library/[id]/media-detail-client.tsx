@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Lock, Unlock, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import {
+  Lock,
+  Unlock,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -42,18 +48,18 @@ export default function MediaDetailClient({
   }>({ previous: null, next: null });
   const [isNavigating, setIsNavigating] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(true);
-  
+
   // Cache for media data to avoid re-fetching
   const mediaCache = useRef<Map<string, MediaObject>>(new Map());
-  
+
   // Track the last saved description for reverting on error
   const [lastSavedDescription, setLastSavedDescription] = useState(
     mediaObject.metadata.description || "",
   );
-  
+
   // Track if we're in an optimistic update state
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
-  
+
   // Cache the initial media object
   useEffect(() => {
     mediaCache.current.set(initialMediaObject.id, initialMediaObject);
@@ -64,7 +70,7 @@ export default function MediaDetailClient({
     setDescription(mediaObject.metadata.description || "");
     setLastSavedDescription(mediaObject.metadata.description || "");
   }, [mediaObject.metadata.description]);
-  
+
   // Fetch media data client-side with caching
   const fetchMediaData = useCallback(async (mediaId: string) => {
     // Check cache first
@@ -72,7 +78,7 @@ export default function MediaDetailClient({
     if (cached) {
       return cached;
     }
-    
+
     try {
       const response = await fetch(`/api/library/${mediaId}`);
       if (!response.ok) {
@@ -80,10 +86,10 @@ export default function MediaDetailClient({
       }
       const data = await response.json();
       const mediaObject = data as MediaObject;
-      
+
       // Cache the result
       mediaCache.current.set(mediaId, mediaObject);
-      
+
       return mediaObject;
     } catch (error) {
       console.error("Error fetching media data:", error);
@@ -91,14 +97,14 @@ export default function MediaDetailClient({
       return null;
     }
   }, []);
-  
+
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = async () => {
       // Extract media ID from URL
-      const pathParts = window.location.pathname.split('/');
+      const pathParts = window.location.pathname.split("/");
       const mediaId = pathParts[pathParts.length - 1];
-      
+
       if (mediaId && mediaId !== mediaObject.id) {
         setIsNavigating(true);
         setImageLoaded(false);
@@ -112,11 +118,11 @@ export default function MediaDetailClient({
         setIsNavigating(false);
       }
     };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [mediaObject.id, fetchMediaData]);
-  
+
   // Fetch adjacent media when component mounts or mediaObject changes
   useEffect(() => {
     const fetchAdjacentMedia = async () => {
@@ -125,31 +131,31 @@ export default function MediaDetailClient({
         if (response.ok) {
           const data = await response.json();
           setAdjacentMedia(data);
-          
+
           // Preload adjacent images for faster navigation
           if (data.previous) {
             // Prefetch the proxy image
             const prevImg = new window.Image();
             prevImg.src = `/api/library/${data.previous.id}/proxy`;
-            
+
             // Prefetch and cache the media data too
             fetch(`/api/library/${data.previous.id}`)
-              .then(res => res.json())
-              .then(mediaData => {
+              .then((res) => res.json())
+              .then((mediaData) => {
                 mediaCache.current.set(data.previous.id, mediaData);
               })
               .catch(() => {});
           }
-          
+
           if (data.next) {
             // Prefetch the proxy image
             const nextImg = new window.Image();
             nextImg.src = `/api/library/${data.next.id}/proxy`;
-            
+
             // Prefetch and cache the media data too
             fetch(`/api/library/${data.next.id}`)
-              .then(res => res.json())
-              .then(mediaData => {
+              .then((res) => res.json())
+              .then((mediaData) => {
                 mediaCache.current.set(data.next.id, mediaData);
               })
               .catch(() => {});
@@ -159,47 +165,59 @@ export default function MediaDetailClient({
         console.error("Error fetching adjacent media:", error);
       }
     };
-    
+
     fetchAdjacentMedia();
   }, [mediaObject.id, mediaCache]);
 
   // Navigation functions
-  const navigateToMedia = useCallback(async (media: MediaObject | null) => {
-    if (!media || isNavigating) return;
-    
-    // Check if there are unsaved changes
-    if (!isDescriptionLocked && description !== lastSavedDescription) {
-      const confirmed = window.confirm("You have unsaved changes. Do you want to leave without saving?");
-      if (!confirmed) return;
-    }
-    
-    setIsNavigating(true);
-    setImageLoaded(false);
-    
-    // Fetch the new media data
-    const newMediaData = await fetchMediaData(media.id);
-    if (newMediaData) {
-      // Update the URL without full page reload (only in modal mode)
-      if (isModal) {
-        window.history.pushState({}, '', `/library/${media.id}`);
+  const navigateToMedia = useCallback(
+    async (media: MediaObject | null) => {
+      if (!media || isNavigating) return;
+
+      // Check if there are unsaved changes
+      if (!isDescriptionLocked && description !== lastSavedDescription) {
+        const confirmed = window.confirm(
+          "You have unsaved changes. Do you want to leave without saving?",
+        );
+        if (!confirmed) return;
       }
-      
-      // Update the media object state
-      setMediaObject(newMediaData);
-      
-      // Reset description states
-      setDescription(newMediaData.metadata.description || "");
-      setLastSavedDescription(newMediaData.metadata.description || "");
-      setIsDescriptionLocked(true);
-    }
-    
-    setIsNavigating(false);
-  }, [isDescriptionLocked, description, lastSavedDescription, isNavigating, fetchMediaData, isModal]);
-  
+
+      setIsNavigating(true);
+      setImageLoaded(false);
+
+      // Fetch the new media data
+      const newMediaData = await fetchMediaData(media.id);
+      if (newMediaData) {
+        // Update the URL without full page reload (only in modal mode)
+        if (isModal) {
+          window.history.pushState({}, "", `/library/${media.id}`);
+        }
+
+        // Update the media object state
+        setMediaObject(newMediaData);
+
+        // Reset description states
+        setDescription(newMediaData.metadata.description || "");
+        setLastSavedDescription(newMediaData.metadata.description || "");
+        setIsDescriptionLocked(true);
+      }
+
+      setIsNavigating(false);
+    },
+    [
+      isDescriptionLocked,
+      description,
+      lastSavedDescription,
+      isNavigating,
+      fetchMediaData,
+      isModal,
+    ],
+  );
+
   const handlePrevious = useCallback(() => {
     navigateToMedia(adjacentMedia.previous);
   }, [adjacentMedia.previous, navigateToMedia]);
-  
+
   const handleNext = useCallback(() => {
     navigateToMedia(adjacentMedia.next);
   }, [adjacentMedia.next, navigateToMedia]);
@@ -208,20 +226,20 @@ export default function MediaDetailClient({
     // Start optimistic update
     setIsLoading(true);
     setIsOptimisticUpdate(true);
-    
+
     // Save the current description as the new "last saved" optimistically
     const optimisticDescription = description;
     setLastSavedDescription(optimisticDescription);
-    
+
     // Optimistically update the media object
-    setMediaObject(prev => ({
+    setMediaObject((prev) => ({
       ...prev,
       metadata: {
         ...prev.metadata,
         description: optimisticDescription,
       },
     }));
-    
+
     // Lock the field immediately
     setIsDescriptionLocked(true);
 
@@ -252,14 +270,14 @@ export default function MediaDetailClient({
       setMediaObject(updatedMediaObject);
       setDescription(updatedMediaObject.metadata.description || "");
       setLastSavedDescription(updatedMediaObject.metadata.description || "");
-      
+
       // Show success message after server confirms
       toast.success("Description saved successfully");
     } catch (err) {
       console.error("PATCH - Error updating media object:", err);
-      
+
       // Revert on error
-      setMediaObject(prev => ({
+      setMediaObject((prev) => ({
         ...prev,
         metadata: {
           ...prev.metadata,
@@ -268,10 +286,10 @@ export default function MediaDetailClient({
       }));
       setDescription(mediaObject.metadata.description || "");
       setLastSavedDescription(mediaObject.metadata.description || "");
-      
+
       // Unlock on error so user can try again
       setIsDescriptionLocked(false);
-      
+
       toast.error((err as Error).message || "Failed to save description");
     } finally {
       setIsLoading(false);
@@ -292,13 +310,13 @@ export default function MediaDetailClient({
         handleCancel();
         return;
       }
-      
+
       // Don't navigate if user is typing in textarea
       const activeElement = document.activeElement;
       if (activeElement && activeElement.tagName === "TEXTAREA") {
         return;
       }
-      
+
       // Arrow keys for navigation
       if (event.key === "ArrowLeft") {
         handlePrevious();
@@ -336,16 +354,25 @@ export default function MediaDetailClient({
   const handleBackToGallery = useCallback(() => {
     // Check if there are unsaved changes
     if (!isDescriptionLocked && description !== lastSavedDescription) {
-      const confirmed = window.confirm("You have unsaved changes. Do you want to leave without saving?");
+      const confirmed = window.confirm(
+        "You have unsaved changes. Do you want to leave without saving?",
+      );
       if (!confirmed) return;
     }
-    
+
     if (isModal && onClose) {
       onClose();
     } else {
-      router.push('/library');
+      router.push("/library");
     }
-  }, [router, isDescriptionLocked, description, lastSavedDescription, isModal, onClose]);
+  }, [
+    router,
+    isDescriptionLocked,
+    description,
+    lastSavedDescription,
+    isModal,
+    onClose,
+  ]);
 
   return (
     <div className="min-h-screen">
@@ -365,35 +392,41 @@ export default function MediaDetailClient({
           </div>
         </div>
       )}
-      
+
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
-        <div className={`relative flex justify-center ${isModal ? 'h-full items-center p-4' : 'pt-4'}`}>
-          <div 
-            className={`relative ${isModal ? 'w-full h-full flex items-center justify-center' : 'w-full max-w-4xl'}`}
-            style={!isModal ? { 
-              maxHeight: '80vh',
-              aspectRatio: mediaObject.metadata.intrinsic 
-                ? `${mediaObject.metadata.intrinsic.width} / ${mediaObject.metadata.intrinsic.height}`
-                : '4 / 3'
-            } : {}}
+        <div
+          className={`relative flex justify-center ${isModal ? "h-full items-center p-4" : "pt-4"}`}
+        >
+          <div
+            className={`relative ${isModal ? "w-full h-full flex items-center justify-center" : "w-full max-w-4xl"}`}
+            style={
+              !isModal
+                ? {
+                    maxHeight: "80vh",
+                    aspectRatio: mediaObject.metadata.intrinsic
+                      ? `${mediaObject.metadata.intrinsic.width} / ${mediaObject.metadata.intrinsic.height}`
+                      : "4 / 3",
+                  }
+                : {}
+            }
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/api/library/${mediaObject.id}/proxy`}
               alt={mediaObject.metadata.description || "Media preview"}
-              className={`${isModal ? 'max-w-full max-h-full w-auto h-auto object-contain' : 'absolute inset-0 w-full h-full object-contain'} transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-              style={isModal ? { maxHeight: 'calc(100vh - 8rem)' } : {}}
+              className={`${isModal ? "max-w-full max-h-full w-auto h-auto object-contain" : "absolute inset-0 w-full h-full object-contain"} transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              style={isModal ? { maxHeight: "calc(100vh - 8rem)" } : {}}
               onLoad={() => setImageLoaded(true)}
             />
-            
+
             {/* Loading overlay */}
             {(isNavigating || !imageLoaded) && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
               </div>
             )}
-            
+
             {/* Navigation Buttons */}
             <button
               onClick={handlePrevious}
@@ -407,7 +440,7 @@ export default function MediaDetailClient({
             >
               <ChevronLeft className="h-6 w-6 text-gray-700" />
             </button>
-            
+
             <button
               onClick={handleNext}
               disabled={!adjacentMedia.next || isNavigating}
@@ -420,31 +453,41 @@ export default function MediaDetailClient({
             >
               <ChevronRight className="h-6 w-6 text-gray-700" />
             </button>
-            
+
             {/* Description Section - Positioned at Bottom of Photo */}
-            <div className={`absolute bottom-0 ${isModal ? 'left-4 right-4 sm:left-8 sm:right-8' : 'left-0 right-0'} p-4`}>
+            <div
+              className={`absolute bottom-0 ${isModal ? "left-4 right-4 sm:left-8 sm:right-8" : "left-0 right-0"} p-4`}
+            >
               <div className="relative max-w-3xl mx-auto">
-                
                 {/* Helper text and status - positioned above textarea */}
                 <div className="flex justify-end mb-2 h-6">
                   {/* Helper text when editing */}
                   {!isDescriptionLocked && !isOptimisticUpdate && (
                     <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
-                      Click the lock icon to save changes, or press Escape to cancel
+                      Click the lock icon to save changes, or press Escape to
+                      cancel
                     </p>
                   )}
 
                   {/* Subtle loading indicator for optimistic updates */}
                   {isOptimisticUpdate && (
                     <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
-                      <svg className="animate-pulse h-3 w-3 mr-1.5 text-jl-red" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <svg
+                        className="animate-pulse h-3 w-3 mr-1.5 text-jl-red"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Saving...
                     </div>
                   )}
                 </div>
-                
+
                 <Textarea
                   value={description || ""}
                   onChange={(e) => setDescription(e.target.value)}
@@ -472,16 +515,14 @@ export default function MediaDetailClient({
                   onClick={toggleDescriptionLock}
                   disabled={isLoading}
                   className={`absolute top-10 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
-                    isLoading
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
+                    isLoading ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                   title={
                     isLoading
                       ? "Saving..."
                       : isDescriptionLocked
-                      ? "Click to edit description"
-                      : "Click to save and lock description"
+                        ? "Click to edit description"
+                        : "Click to save and lock description"
                   }
                 >
                   {isLoading ? (
@@ -494,12 +535,11 @@ export default function MediaDetailClient({
                 </button>
               </div>
             </div>
-
           </div>
         </div>
 
         {/* Raw Metadata Card */}
-        <div className={`${isModal ? 'max-w-5xl' : 'max-w-4xl'} mx-auto p-4`}>
+        <div className={`${isModal ? "max-w-5xl" : "max-w-4xl"} mx-auto p-4`}>
           <Card>
             <CardHeader>
               <CardTitle>Raw Metadata</CardTitle>
@@ -515,16 +555,19 @@ export default function MediaDetailClient({
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Object Key:</span>
-                        <span className="font-mono text-xs break-all">{mediaObject.object_key}</span>
+                        <span className="font-mono text-xs break-all">
+                          {mediaObject.object_key}
+                        </span>
                       </div>
                     </div>
                   </div>
-
                 </div>
 
                 {/* Raw JSON */}
                 <div className="border-t pt-4">
-                  <h4 className="font-medium text-sm text-gray-700 mb-2">Raw JSON</h4>
+                  <h4 className="font-medium text-sm text-gray-700 mb-2">
+                    Raw JSON
+                  </h4>
                   <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
                     <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
                       {JSON.stringify(mediaObject, null, 2)}
@@ -544,7 +587,8 @@ export default function MediaDetailClient({
                 Save Changes?
               </h3>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to save the changes to this description? This action cannot be undone.
+                Are you sure you want to save the changes to this description?
+                This action cannot be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <button
@@ -564,7 +608,6 @@ export default function MediaDetailClient({
             </div>
           </div>
         )}
-
       </Sheet>
     </div>
   );

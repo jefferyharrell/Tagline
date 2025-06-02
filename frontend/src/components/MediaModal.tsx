@@ -9,8 +9,11 @@ interface MediaModalProps {
   children: React.ReactNode;
 }
 
-export default function MediaModal({ isOpen, onClose, children }: MediaModalProps) {
-
+export default function MediaModal({
+  isOpen,
+  onClose,
+  children,
+}: MediaModalProps) {
   // Handle ESC key to close modal
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -32,16 +35,19 @@ export default function MediaModal({ isOpen, onClose, children }: MediaModalProp
   }, [isOpen, onClose]);
 
   // Handle backdrop click
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }, [onClose]);
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    },
+    [onClose],
+  );
 
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
@@ -54,11 +60,9 @@ export default function MediaModal({ isOpen, onClose, children }: MediaModalProp
         >
           <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-700" />
         </button>
-        
+
         {/* Modal content */}
-        <div className="h-full overflow-auto">
-          {children}
-        </div>
+        <div className="h-full overflow-auto">{children}</div>
       </div>
     </div>
   );

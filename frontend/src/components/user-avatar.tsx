@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -20,17 +20,17 @@ export function UserAvatar() {
     try {
       // Clear user data immediately for better UX
       clearUser();
-      
+
       // Clear the auth cookie
-      await fetch('/api/auth/logout', { method: 'POST' });
-      
+      await fetch("/api/auth/logout", { method: "POST" });
+
       // Trigger auth state change event
       window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
-      
+
       // Redirect to home page
-      router.push('/');
+      router.push("/");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -60,7 +60,7 @@ export function UserAvatar() {
       return user.lastname.substring(0, 2).toUpperCase();
     } else {
       // Use email if no name is available
-      const emailParts = user.email.split('@')[0].split('.');
+      const emailParts = user.email.split("@")[0].split(".");
       if (emailParts.length >= 2) {
         return `${emailParts[0][0]}${emailParts[1][0]}`.toUpperCase();
       }
@@ -71,9 +71,9 @@ export function UserAvatar() {
   // Display name logic
   const getDisplayName = () => {
     if (user.firstname || user.lastname) {
-      return `${user.firstname || ''} ${user.lastname || ''}`.trim();
+      return `${user.firstname || ""} ${user.lastname || ""}`.trim();
     }
-    return user.email.split('@')[0];
+    return user.email.split("@")[0];
   };
 
   return (
@@ -87,8 +87,12 @@ export function UserAvatar() {
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium truncate">{getDisplayName()}</span>
-            <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+            <span className="text-sm font-medium truncate">
+              {getDisplayName()}
+            </span>
+            <span className="text-xs text-muted-foreground truncate">
+              {user.email}
+            </span>
           </div>
         </button>
       </DropdownMenuTrigger>

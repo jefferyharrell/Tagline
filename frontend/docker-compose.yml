@@ -1,4 +1,4 @@
-# Development docker-compose configuration  
+# Development docker-compose configuration
 services:
   frontend:
     build:

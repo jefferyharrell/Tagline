@@ -37,10 +37,7 @@ export async function POST(request: NextRequest) {
 
     // On success, redirect back to library with success message
     return NextResponse.redirect(
-      new URL(
-        "/library?success=Ingest task started successfully",
-        request.url,
-      ),
+      new URL("/library?success=Ingest task started successfully", request.url),
     );
   } catch (error) {
     console.error("Error starting ingest task:", error);

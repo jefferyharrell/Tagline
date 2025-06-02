@@ -6,14 +6,17 @@ interface MediaThumbnailProps {
   onClick?: (media: MediaObject) => void;
 }
 
-export default function MediaThumbnail({ media, onClick }: MediaThumbnailProps) {
+export default function MediaThumbnail({
+  media,
+  onClick,
+}: MediaThumbnailProps) {
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     // Check for modifier keys - if present, let the browser handle as normal link
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
       // Let the browser handle it normally (open in new tab/window)
       return;
     }
-    
+
     // Otherwise, prevent default and call onClick if provided
     if (onClick) {
       e.preventDefault();
@@ -22,9 +25,9 @@ export default function MediaThumbnail({ media, onClick }: MediaThumbnailProps) 
   };
 
   return (
-    <a 
-      href={`/library/${media.id}`} 
-      className="block group" 
+    <a
+      href={`/library/${media.id}`}
+      className="block group"
       onClick={handleClick}
       target="_self"
     >
@@ -44,7 +47,7 @@ export default function MediaThumbnail({ media, onClick }: MediaThumbnailProps) 
               </p>
             </div>
           )}
-          
+
           {/* Subtle hover overlay */}
           <div className="absolute inset-0 bg-jl-red/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>

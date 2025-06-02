@@ -11,13 +11,13 @@ const nextConfig: NextConfig = {
         poll: 1000,
         aggregateTimeout: 300,
         ignored: [
-          '**/node_modules/**',
-          '**/.next/**',
-          '**/next.config.*',
-          '**/.git/**',
-          '**/docker-compose*.yml',
-          '**/Dockerfile*',
-          '**/.dockerignore',
+          "**/node_modules/**",
+          "**/.next/**",
+          "**/next.config.*",
+          "**/.git/**",
+          "**/docker-compose*.yml",
+          "**/Dockerfile*",
+          "**/.dockerignore",
         ],
       };
     }

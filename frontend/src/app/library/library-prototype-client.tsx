@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Folder, Home } from 'lucide-react';
+import { Folder, Home } from "lucide-react";
 import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
 import MediaDetailClient from "./[id]/media-detail-client";
@@ -28,30 +28,30 @@ interface PaginatedResponse {
 const mockFolderStructure = {
   "2024": {
     "Spring Gala": {
-      "Photos": {
-        "Arrivals": {},
+      Photos: {
+        Arrivals: {},
         "Cocktail Hour": {},
-        "Dinner": {},
-        "Speeches": {},
-        "Dancing": {},
+        Dinner: {},
+        Speeches: {},
+        Dancing: {},
         "Group Photos": {},
-        "Candids": {},
+        Candids: {},
         "Venue Shots": {},
-        "Decorations": {},
-        "Behind the Scenes": {}
+        Decorations: {},
+        "Behind the Scenes": {},
       },
-      "Videos": {
+      Videos: {
         "Highlights Reel": {},
         "Full Speeches": {},
         "Dance Floor": {},
-        "Interviews": {},
-        "B-Roll": {}
-      }
+        Interviews: {},
+        "B-Roll": {},
+      },
     },
     "Volunteer Fair": {
-      "Setup": {},
-      "Event": {},
-      "Cleanup": {}
+      Setup: {},
+      Event: {},
+      Cleanup: {},
     },
     "Annual Fundraiser": {},
     "Board Meetings": {},
@@ -59,7 +59,7 @@ const mockFolderStructure = {
     "Member Events": {},
     "Marketing Materials": {},
     "Press Coverage": {},
-    "Social Media Content": {}
+    "Social Media Content": {},
   },
   "2023": {
     "Holiday Party": {},
@@ -76,14 +76,14 @@ const mockFolderStructure = {
     "Cooking Classes": {},
     "Mentorship Program": {},
     "Professional Development": {},
-    "Volunteer Recognition": {}
+    "Volunteer Recognition": {},
   },
   "2022": {},
   "2021": {},
   "2020": {},
-  "Archives": {},
-  "Administrative": {},
-  "Special Projects": {}
+  Archives: {},
+  Administrative: {},
+  "Special Projects": {},
 };
 
 export default function LibraryPrototypeClient() {
@@ -91,7 +91,7 @@ export default function LibraryPrototypeClient() {
   const [mediaObjects, setMediaObjects] = useState<MediaObject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -101,7 +101,7 @@ export default function LibraryPrototypeClient() {
   const loadingRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
-  
+
   // Modal state
   const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,9 +110,9 @@ export default function LibraryPrototypeClient() {
 
   // Navigate through the folder structure based on current path
   const getCurrentFolder = () => {
-    let current: any = mockFolderStructure;
+    let current: Record<string, unknown> = mockFolderStructure;
     for (const segment of currentPath) {
-      current = current[segment] || {};
+      current = (current[segment] as Record<string, unknown>) || {};
     }
     return current;
   };
@@ -120,8 +120,8 @@ export default function LibraryPrototypeClient() {
   // Get the subfolders in the current directory
   const getSubfolders = () => {
     const current = getCurrentFolder();
-    return Object.keys(current).filter(key => 
-      typeof current[key] === 'object' && current[key] !== null
+    return Object.keys(current).filter(
+      (key) => typeof current[key] === "object" && current[key] !== null,
     );
   };
 
@@ -150,9 +150,10 @@ export default function LibraryPrototypeClient() {
   };
 
   // Generate the object prefix from current path
-  const generatePrefix = () => {
-    return currentPath.join('/') + (currentPath.length > 0 ? '/' : '');
-  };
+  // Keeping for future use when we implement path-based filtering
+  // const generatePrefix = () => {
+  //   return currentPath.join("/") + (currentPath.length > 0 ? "/" : "");
+  // };
 
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
@@ -162,21 +163,21 @@ export default function LibraryPrototypeClient() {
         const fullMedia = await response.json();
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
-        window.history.pushState({}, '', `/library/${media.id}`);
+        window.history.pushState({}, "", `/library/${media.id}`);
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, '', `/library/${media.id}`);
+      window.history.pushState({}, "", `/library/${media.id}`);
     }
   }, []);
-  
+
   // Handle closing modal
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedMedia(null);
-    window.history.pushState({}, '', '/library');
+    window.history.pushState({}, "", "/library");
   }, []);
 
   const fetchMediaObjects = useCallback(
@@ -185,7 +186,7 @@ export default function LibraryPrototypeClient() {
 
       const currentOffset = reset ? 0 : offset;
       isFetchingRef.current = true;
-      
+
       // Only show loading for initial load or when appending more items
       if (reset && mediaObjects.length > 0) {
         setIsTransitioning(true);
@@ -196,11 +197,12 @@ export default function LibraryPrototypeClient() {
 
       try {
         // In a real implementation, we would filter by the current path
-        const prefix = generatePrefix();
-        const url = searchQuery && searchQuery.trim() !== ""
-          ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
-          : `/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
-        
+        // const prefix = generatePrefix(); // Keeping for future use
+        const url =
+          searchQuery && searchQuery.trim() !== ""
+            ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
+            : `/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
+
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -220,8 +222,10 @@ export default function LibraryPrototypeClient() {
           setMediaObjects(sanitizedItems);
         } else {
           setMediaObjects((prev) => {
-            const existingIds = new Set(prev.map(item => item.id));
-            const newItems = sanitizedItems.filter(item => !existingIds.has(item.id));
+            const existingIds = new Set(prev.map((item) => item.id));
+            const newItems = sanitizedItems.filter(
+              (item) => !existingIds.has(item.id),
+            );
             return [...prev, ...newItems];
           });
         }
@@ -239,7 +243,7 @@ export default function LibraryPrototypeClient() {
         setIsTransitioning(false);
       }
     },
-    [offset, isLoading, hasMore, searchQuery, currentPath, mediaObjects.length],
+    [offset, isLoading, hasMore, searchQuery, mediaObjects.length],
   );
 
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -250,23 +254,23 @@ export default function LibraryPrototypeClient() {
       fetchMediaObjects(true);
       setHasInitialized(true);
     }
-  }, []);
+  }, [hasInitialized, fetchMediaObjects]);
 
   // Reload when path changes
   useEffect(() => {
     if (hasInitialized) {
       fetchMediaObjects(true);
     }
-  }, [currentPath]);
+  }, [currentPath, hasInitialized, fetchMediaObjects]);
 
   // Handle search input with debounce
   const handleSearchInput = (value: string) => {
     setSearchInput(value);
-    
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     searchTimeoutRef.current = setTimeout(() => {
       setSearchQuery(value);
     }, 300);
@@ -306,7 +310,7 @@ export default function LibraryPrototypeClient() {
           <div className="flex-1">
             <SidebarTrigger />
           </div>
-          
+
           {/* Center: Search Bar */}
           <div className="flex-[3] flex justify-center">
             <div className="w-full max-w-2xl">
@@ -359,11 +363,9 @@ export default function LibraryPrototypeClient() {
               </div>
             </div>
           </div>
-          
+
           {/* Right: Reserved space */}
-          <div className="flex-1">
-            {/* Reserved for future use */}
-          </div>
+          <div className="flex-1">{/* Reserved for future use */}</div>
         </div>
       </div>
 
@@ -385,7 +387,7 @@ export default function LibraryPrototypeClient() {
                     </button>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                
+
                 {currentPath.map((segment, index) => (
                   <React.Fragment key={index}>
                     <BreadcrumbSeparator />
@@ -426,7 +428,7 @@ export default function LibraryPrototypeClient() {
               ))}
             </div>
           )}
-          
+
           {/* No subfolders message */}
           {subfolders.length === 0 && (
             <div className="px-6 py-4 text-center text-gray-500 text-sm">
@@ -463,7 +465,10 @@ export default function LibraryPrototypeClient() {
           // Show skeletons only on initial load
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {Array.from({ length: 12 }).map((_, index) => (
-              <div key={`skeleton-${index}`} className="bg-white overflow-hidden shadow-sm rounded-lg">
+              <div
+                key={`skeleton-${index}`}
+                className="bg-white overflow-hidden shadow-sm rounded-lg"
+              >
                 <div className="relative aspect-square">
                   <Skeleton className="absolute inset-0" />
                 </div>
@@ -472,9 +477,15 @@ export default function LibraryPrototypeClient() {
           </div>
         ) : (
           <>
-            <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 ${isTransitioning ? 'opacity-50' : ''} transition-opacity duration-200`}>
+            <div
+              className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 ${isTransitioning ? "opacity-50" : ""} transition-opacity duration-200`}
+            >
               {mediaObjects.map((media) => (
-                <MediaThumbnail key={media.id} media={media} onClick={handleMediaClick} />
+                <MediaThumbnail
+                  key={media.id}
+                  media={media}
+                  onClick={handleMediaClick}
+                />
               ))}
             </div>
 
@@ -482,7 +493,10 @@ export default function LibraryPrototypeClient() {
             {isLoading && mediaObjects.length > 0 && !isTransitioning && (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 mt-6">
                 {Array.from({ length: 12 }).map((_, index) => (
-                  <div key={`skeleton-more-${index}`} className="bg-white overflow-hidden shadow-sm rounded-lg">
+                  <div
+                    key={`skeleton-more-${index}`}
+                    className="bg-white overflow-hidden shadow-sm rounded-lg"
+                  >
                     <div className="relative aspect-square">
                       <Skeleton className="absolute inset-0" />
                     </div>
@@ -490,7 +504,7 @@ export default function LibraryPrototypeClient() {
                 ))}
               </div>
             )}
-            
+
             <div ref={loadingRef} className="py-8">
               {!hasMore && mediaObjects.length > 0 && (
                 <p className="text-gray-500 text-sm text-center">
@@ -501,12 +515,12 @@ export default function LibraryPrototypeClient() {
           </>
         )}
       </div>
-      
+
       {/* Modal for media detail */}
       <MediaModal isOpen={isModalOpen} onClose={handleCloseModal}>
         {selectedMedia && (
-          <MediaDetailClient 
-            initialMediaObject={selectedMedia} 
+          <MediaDetailClient
+            initialMediaObject={selectedMedia}
             isModal={true}
             onClose={handleCloseModal}
           />

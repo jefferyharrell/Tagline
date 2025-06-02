@@ -32,7 +32,6 @@ all:
     just format
     just lint
     just test
-    just pre-commit
 
 everything:
     just all

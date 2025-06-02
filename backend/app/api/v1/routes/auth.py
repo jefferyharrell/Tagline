@@ -154,12 +154,6 @@ async def authenticate_user(
     }
 
 
-@router.get("/me", response_model=schemas.User)
-async def get_current_user_info(current_user: schemas.User = Depends(get_current_user)):
-    """Get information about the current authenticated user"""
-    return current_user
-
-
 @router.post("/roles/assign", response_model=schemas.User)
 async def assign_role(
     role_data: schemas.RoleAssign,
@@ -244,15 +238,20 @@ async def update_current_user_info(
     """Update current user information"""
     user_repo = UserRepository(db)
     user = user_repo.get_by_id(current_user.id)
-    
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
     if user_update.firstname is not None:
-        user.firstname = user_update.firstname
+        user.firstname = user_update.firstname  # type: ignore[assignment]
     if user_update.lastname is not None:
-        user.lastname = user_update.lastname
-    
+        user.lastname = user_update.lastname  # type: ignore[assignment]
+
     db.commit()
     db.refresh(user)
-    
+
     return schemas.User.from_orm(user)
 
 

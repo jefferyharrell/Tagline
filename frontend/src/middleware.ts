@@ -14,10 +14,7 @@ const publicPaths = [
 ];
 
 // Paths that are handled by API routes (they do their own auth)
-const apiPaths = [
-  "/api/library",
-  "/api/ingest",
-];
+const apiPaths = ["/api/library", "/api/ingest"];
 
 // Stytch magic link redirect pattern
 const STYTCH_REDIRECT_PATTERN = /test\.stytch\.com\/v1\/magic_links\/redirect/;
@@ -30,7 +27,8 @@ function isPublicPath(path: string): boolean {
   }
 
   // Check if it's a static file
-  const isStaticFile = /\.(svg|png|jpg|jpeg|gif|ico|css|js|woff|woff2|ttf|eot)$/i.test(path);
+  const isStaticFile =
+    /\.(svg|png|jpg|jpeg|gif|ico|css|js|woff|woff2|ttf|eot)$/i.test(path);
   if (isStaticFile) {
     return true;
   }
@@ -71,9 +69,9 @@ export async function middleware(request: NextRequest) {
   if (isPublicPath(pathname) || isPublicPath(request.url)) {
     return NextResponse.next();
   }
-  
+
   // Allow API paths (they handle their own auth)
-  if (apiPaths.some(apiPath => pathname.startsWith(apiPath))) {
+  if (apiPaths.some((apiPath) => pathname.startsWith(apiPath))) {
     return NextResponse.next();
   }
 

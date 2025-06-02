@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const cookieStore = await cookies();
@@ -28,7 +28,7 @@ export async function GET(
       const errorData = await response.json();
       return NextResponse.json(
         { error: errorData.detail || "Failed to fetch adjacent media" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -38,7 +38,7 @@ export async function GET(
     console.error("Error fetching adjacent media:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

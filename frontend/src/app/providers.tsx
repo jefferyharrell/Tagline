@@ -18,9 +18,7 @@ export function StytchProvider({ children }: ProvidersProps) {
 
   return (
     <Stytch stytch={stytch}>
-      <UserProvider>
-        {children}
-      </UserProvider>
+      <UserProvider>{children}</UserProvider>
     </Stytch>
   );
 }
