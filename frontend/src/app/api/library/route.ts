@@ -15,13 +15,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "24", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
+    const prefix = searchParams.get("prefix");
 
     // Call the backend API to get media objects with pagination
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(
-      `${backendUrl}/v1/media?limit=${limit}&offset=${offset}`,
+    // Build URL with parameters
+    const url = new URL(`${backendUrl}/v1/media`);
+    url.searchParams.set("limit", limit.toString());
+    url.searchParams.set("offset", offset.toString());
+    if (prefix) {
+      url.searchParams.set("prefix", prefix);
+    }
+
+    const response = await fetch(url.toString(),
       {
         headers: {
           Authorization: `Bearer ${authToken.value}`,

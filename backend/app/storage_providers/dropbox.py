@@ -5,11 +5,11 @@ from typing import Iterable, List, Optional, cast
 
 import dropbox
 from dropbox.exceptions import ApiError, RateLimitError
-from dropbox.files import FileMetadata, ListFolderResult
+from dropbox.files import FileMetadata, FolderMetadata, ListFolderResult
 
 from app.schemas import StoredMediaObject
 from app.storage_exceptions import StorageProviderException
-from app.storage_providers.base import StorageProviderBase
+from app.storage_providers.base import DirectoryItem, StorageProviderBase
 
 
 class DropboxStorageProvider(StorageProviderBase):
@@ -35,6 +35,81 @@ class DropboxStorageProvider(StorageProviderBase):
             app_secret=app_secret,
             oauth2_refresh_token=refresh_token,
         )
+
+    def list_directory(
+        self,
+        prefix: Optional[str] = None,
+    ) -> List[DirectoryItem]:
+        """List files and folders at the given prefix path.
+        
+        Args:
+            prefix: Path prefix to list (None for root directory)
+            
+        Returns:
+            List of DirectoryItem objects representing files and folders
+        """
+        try:
+            # Compose the path to list
+            list_path = self.root_path
+            if prefix:
+                # Remove leading slash to avoid double-slash in Dropbox path
+                prefix_path = prefix.lstrip("/")
+                list_path = os.path.join(self.root_path, prefix_path)
+
+            items: List[DirectoryItem] = []
+            
+            # List the directory (non-recursive to get immediate children only)
+            res = cast(
+                ListFolderResult,
+                self.dbx.files_list_folder(list_path, recursive=False),
+            )
+
+            for entry in res.entries:
+                if isinstance(entry, FolderMetadata):
+                    # This is a folder
+                    items.append(DirectoryItem(
+                        name=entry.name,
+                        is_folder=True,
+                        object_key=None,  # Folders don't have object keys
+                        size=None,
+                        last_modified=None,
+                        mimetype=None,
+                    ))
+                elif isinstance(entry, FileMetadata):
+                    # This is a file
+                    rel_path = os.path.relpath(entry.path_display, self.root_path)
+                    rel_path = "/" + rel_path.lstrip("/")
+                    
+                    mime_type, _ = mimetypes.guess_type(rel_path)
+                    last_modified = (
+                        entry.server_modified.isoformat()
+                        if entry.server_modified
+                        else None
+                    )
+                    
+                    items.append(DirectoryItem(
+                        name=entry.name,
+                        is_folder=False,
+                        object_key=rel_path,
+                        size=entry.size,
+                        last_modified=last_modified,
+                        mimetype=mime_type,
+                    ))
+
+            # Sort items: folders first, then files, both alphabetically
+            items.sort(key=lambda x: (not x.is_folder, x.name.lower()))
+            
+            return items
+
+        except RateLimitError as e:
+            raise StorageProviderException("Dropbox rate limit exceeded") from e
+        except ApiError as e:
+            if e.error and e.error.is_path() and e.error.get_path().is_not_found():
+                # Directory doesn't exist, return empty list
+                return []
+            raise StorageProviderException(f"Dropbox API error: {e}") from e
+        except Exception as e:
+            raise StorageProviderException(f"Dropbox error: {e}") from e
 
     def list_media_objects(
         self,

@@ -218,14 +218,20 @@ class MediaObjectRepository:
         """
         return self.create(record)
 
-    def get_all(self, limit: int = 100, offset: int = 0) -> List[MediaObjectRecord]:
+    def get_all(self, limit: int = 100, offset: int = 0, prefix: Optional[str] = None) -> List[MediaObjectRecord]:
         """Retrieves a paginated list of all MediaObjectRecords."""
         try:
             logger.debug(
-                f"Querying for all MediaObjects with limit={limit}, offset={offset}"
+                f"Querying for all MediaObjects with limit={limit}, offset={offset}, prefix={prefix}"
             )
+            query = self.db.query(ORMMediaObject)
+            
+            # Apply prefix filter if provided
+            if prefix:
+                query = query.filter(ORMMediaObject.object_key.startswith(prefix))
+            
             orm_objs = (
-                self.db.query(ORMMediaObject)
+                query
                 .order_by(ORMMediaObject.created_at.desc())
                 .offset(offset)
                 .limit(limit)
@@ -275,11 +281,17 @@ class MediaObjectRepository:
             self.db.rollback()
             raise
 
-    def count(self) -> int:
+    def count(self, prefix: Optional[str] = None) -> int:
         """Returns the total count of MediaObjectRecords in the database."""
         try:
-            logger.debug("Querying for total count of MediaObjects.")
-            total = self.db.query(ORMMediaObject).count()
+            logger.debug(f"Querying for total count of MediaObjects with prefix={prefix}")
+            query = self.db.query(ORMMediaObject)
+            
+            # Apply prefix filter if provided
+            if prefix:
+                query = query.filter(ORMMediaObject.object_key.startswith(prefix))
+            
+            total = query.count()
             logger.debug(f"Total count: {total}")
             return total
         except SQLAlchemyError as e:

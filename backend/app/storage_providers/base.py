@@ -3,8 +3,42 @@ from typing import Iterable, List, Optional, Protocol
 from app.schemas import StoredMediaObject
 
 
+class DirectoryItem:
+    """Represents a file or folder in a directory listing."""
+    
+    def __init__(
+        self,
+        name: str,
+        is_folder: bool,
+        object_key: Optional[str] = None,
+        size: Optional[int] = None,
+        last_modified: Optional[str] = None,
+        mimetype: Optional[str] = None,
+    ):
+        self.name = name
+        self.is_folder = is_folder
+        self.object_key = object_key  # Relative path for files, None for folders
+        self.size = size
+        self.last_modified = last_modified
+        self.mimetype = mimetype
+
+
 class StorageProviderBase(Protocol):
     provider_name: str
+
+    def list_directory(
+        self,
+        prefix: Optional[str] = None,
+    ) -> List[DirectoryItem]:
+        """List files and folders at the given prefix path.
+        
+        Args:
+            prefix: Path prefix to list (None for root directory)
+            
+        Returns:
+            List of DirectoryItem objects representing files and folders
+        """
+        ...
 
     def list_media_objects(
         self,

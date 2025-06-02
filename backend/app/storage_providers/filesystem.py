@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 from app.schemas import StoredMediaObject
-from app.storage_providers.base import StorageProviderBase
+from app.storage_providers.base import DirectoryItem, StorageProviderBase
 
 
 class FilesystemStorageProvider(StorageProviderBase):
@@ -24,6 +24,72 @@ class FilesystemStorageProvider(StorageProviderBase):
             raise ValueError(
                 f"Filesystem root path '{self.root_path}' does not exist or is not a directory."
             )
+
+    def list_directory(
+        self,
+        prefix: Optional[str] = None,
+    ) -> List[DirectoryItem]:
+        """List files and folders at the given prefix path.
+        
+        Args:
+            prefix: Path prefix to list (None for root directory)
+            
+        Returns:
+            List of DirectoryItem objects representing files and folders
+        """
+        # Determine the directory to list
+        if prefix:
+            # Remove leading slash for filesystem path resolution
+            prefix_path = prefix.lstrip("/")
+            target_dir = self.root_path / prefix_path
+        else:
+            target_dir = self.root_path
+
+        if not target_dir.is_dir():
+            # Directory doesn't exist, return empty list
+            return []
+
+        items: List[DirectoryItem] = []
+        
+        try:
+            # List immediate children only (no recursion)
+            for item_path in target_dir.iterdir():
+                if item_path.is_dir():
+                    # This is a folder
+                    items.append(DirectoryItem(
+                        name=item_path.name,
+                        is_folder=True,
+                        object_key=None,  # Folders don't have object keys
+                        size=None,
+                        last_modified=None,
+                        mimetype=None,
+                    ))
+                elif item_path.is_file():
+                    # This is a file
+                    rel_path = "/" + str(item_path.relative_to(self.root_path))
+                    stat = item_path.stat()
+                    last_modified = datetime.fromtimestamp(
+                        stat.st_mtime, tz=timezone.utc
+                    ).isoformat()
+                    mime_type, _ = mimetypes.guess_type(rel_path)
+                    
+                    items.append(DirectoryItem(
+                        name=item_path.name,
+                        is_folder=False,
+                        object_key=rel_path,
+                        size=stat.st_size,
+                        last_modified=last_modified,
+                        mimetype=mime_type,
+                    ))
+
+            # Sort items: folders first, then files, both alphabetically
+            items.sort(key=lambda x: (not x.is_folder, x.name.lower()))
+            
+            return items
+
+        except (PermissionError, OSError):
+            # Handle permission errors or other OS errors
+            return []
 
     def list_media_objects(
         self,

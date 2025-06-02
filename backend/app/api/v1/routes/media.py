@@ -124,13 +124,15 @@ class PaginatedMediaObjectList(BaseModel):
 def list_media_objects(
     limit: int = Query(100, ge=1, le=500, description="Number of items per page."),
     offset: int = Query(0, ge=0, description="Pagination offset."),
+    prefix: str = Query(None, description="Filter objects by object_key prefix."),
     repo: MediaObjectRepository = Depends(get_media_object_repository),
 ) -> PaginatedMediaResponse:
     """
     Retrieves a paginated list of media objects stored in the database.
+    Optionally filtered by object_key prefix (e.g., "/2024/Spring Gala/").
     """
-    total_count = repo.count()
-    media_records = repo.get_all(limit=limit, offset=offset)
+    total_count = repo.count(prefix=prefix)
+    media_records = repo.get_all(limit=limit, offset=offset, prefix=prefix)
 
     # Filter records missing essential fields and convert to API schema
     media_objects = []

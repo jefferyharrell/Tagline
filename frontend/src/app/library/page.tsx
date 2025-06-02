@@ -1,12 +1,7 @@
-import React from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import LibrarySidebar from "@/components/LibrarySidebar";
-// import GalleryClient from "./gallery-client";
-import LibraryPrototypeClient from "./library-prototype-client";
 
-export default async function Gallery() {
+export default async function Library() {
   // Check if the user is authenticated
   const cookieStore = await cookies();
   const authToken = cookieStore.get("auth_token");
@@ -15,12 +10,6 @@ export default async function Gallery() {
     redirect("/");
   }
 
-  return (
-    <SidebarProvider>
-      <LibrarySidebar />
-      <SidebarInset className="min-h-screen bg-gray-50">
-        <LibraryPrototypeClient />
-      </SidebarInset>
-    </SidebarProvider>
-  );
+  // Redirect to the browse route
+  redirect("/library/browse");
 }
