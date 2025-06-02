@@ -36,7 +36,7 @@ export default function MediaDetailClient({
   const [mediaObject, setMediaObject] =
     useState<MediaObject>(initialMediaObject);
   const [description, setDescription] = useState(
-    mediaObject.metadata.description || "",
+    mediaObject.metadata?.description || "",
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
@@ -54,7 +54,7 @@ export default function MediaDetailClient({
 
   // Track the last saved description for reverting on error
   const [lastSavedDescription, setLastSavedDescription] = useState(
-    mediaObject.metadata.description || "",
+    mediaObject.metadata?.description || "",
   );
 
   // Track if we're in an optimistic update state
@@ -62,25 +62,25 @@ export default function MediaDetailClient({
 
   // Cache the initial media object
   useEffect(() => {
-    mediaCache.current.set(initialMediaObject.id, initialMediaObject);
+    mediaCache.current.set(initialMediaObject.object_key, initialMediaObject);
   }, [initialMediaObject]);
 
   // Sync description when mediaObject changes
   useEffect(() => {
-    setDescription(mediaObject.metadata.description || "");
-    setLastSavedDescription(mediaObject.metadata.description || "");
-  }, [mediaObject.metadata.description]);
+    setDescription(mediaObject.metadata?.description || "");
+    setLastSavedDescription(mediaObject.metadata?.description || "");
+  }, [mediaObject.metadata?.description]);
 
   // Fetch media data client-side with caching
-  const fetchMediaData = useCallback(async (mediaId: string) => {
+  const fetchMediaData = useCallback(async (objectKey: string) => {
     // Check cache first
-    const cached = mediaCache.current.get(mediaId);
+    const cached = mediaCache.current.get(objectKey);
     if (cached) {
       return cached;
     }
 
     try {
-      const response = await fetch(`/api/library/${mediaId}`);
+      const response = await fetch(`/api/library/${encodeURIComponent(objectKey)}`);
       if (!response.ok) {
         throw new Error("Failed to fetch media");
       }
@@ -88,7 +88,7 @@ export default function MediaDetailClient({
       const mediaObject = data as MediaObject;
 
       // Cache the result
-      mediaCache.current.set(mediaId, mediaObject);
+      mediaCache.current.set(objectKey, mediaObject);
 
       return mediaObject;
     } catch (error) {
@@ -101,18 +101,18 @@ export default function MediaDetailClient({
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = async () => {
-      // Extract media ID from URL
+      // Extract object key from URL
       const pathParts = window.location.pathname.split("/");
-      const mediaId = pathParts[pathParts.length - 1];
+      const objectKey = decodeURIComponent(pathParts[pathParts.length - 1]);
 
-      if (mediaId && mediaId !== mediaObject.id) {
+      if (objectKey && objectKey !== mediaObject.object_key) {
         setIsNavigating(true);
         setImageLoaded(false);
-        const newMediaData = await fetchMediaData(mediaId);
+        const newMediaData = await fetchMediaData(objectKey);
         if (newMediaData) {
           setMediaObject(newMediaData);
-          setDescription(newMediaData.metadata.description || "");
-          setLastSavedDescription(newMediaData.metadata.description || "");
+          setDescription(newMediaData.metadata?.description || "");
+          setLastSavedDescription(newMediaData.metadata?.description || "");
           setIsDescriptionLocked(true);
         }
         setIsNavigating(false);
@@ -121,13 +121,13 @@ export default function MediaDetailClient({
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [mediaObject.id, fetchMediaData]);
+  }, [mediaObject.object_key, fetchMediaData]);
 
   // Fetch adjacent media when component mounts or mediaObject changes
   useEffect(() => {
     const fetchAdjacentMedia = async () => {
       try {
-        const response = await fetch(`/api/library/${mediaObject.id}/adjacent`);
+        const response = await fetch(`/api/library/${encodeURIComponent(mediaObject.object_key)}/adjacent`);
         if (response.ok) {
           const data = await response.json();
           setAdjacentMedia(data);
@@ -136,13 +136,13 @@ export default function MediaDetailClient({
           if (data.previous) {
             // Prefetch the proxy image
             const prevImg = new window.Image();
-            prevImg.src = `/api/library/${data.previous.id}/proxy`;
+            prevImg.src = `/api/library/${encodeURIComponent(data.previous.object_key)}/proxy`;
 
             // Prefetch and cache the media data too
-            fetch(`/api/library/${data.previous.id}`)
+            fetch(`/api/library/${encodeURIComponent(data.previous.object_key)}`)
               .then((res) => res.json())
               .then((mediaData) => {
-                mediaCache.current.set(data.previous.id, mediaData);
+                mediaCache.current.set(data.previous.object_key, mediaData);
               })
               .catch(() => {});
           }
@@ -150,13 +150,13 @@ export default function MediaDetailClient({
           if (data.next) {
             // Prefetch the proxy image
             const nextImg = new window.Image();
-            nextImg.src = `/api/library/${data.next.id}/proxy`;
+            nextImg.src = `/api/library/${encodeURIComponent(data.next.object_key)}/proxy`;
 
             // Prefetch and cache the media data too
-            fetch(`/api/library/${data.next.id}`)
+            fetch(`/api/library/${encodeURIComponent(data.next.object_key)}`)
               .then((res) => res.json())
               .then((mediaData) => {
-                mediaCache.current.set(data.next.id, mediaData);
+                mediaCache.current.set(data.next.object_key, mediaData);
               })
               .catch(() => {});
           }
@@ -167,7 +167,7 @@ export default function MediaDetailClient({
     };
 
     fetchAdjacentMedia();
-  }, [mediaObject.id, mediaCache]);
+  }, [mediaObject.object_key, mediaCache]);
 
   // Navigation functions
   const navigateToMedia = useCallback(
@@ -186,19 +186,19 @@ export default function MediaDetailClient({
       setImageLoaded(false);
 
       // Fetch the new media data
-      const newMediaData = await fetchMediaData(media.id);
+      const newMediaData = await fetchMediaData(media.object_key);
       if (newMediaData) {
         // Update the URL without full page reload (only in modal mode)
         if (isModal) {
-          window.history.pushState({}, "", `/library/${media.id}`);
+          window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
         }
 
         // Update the media object state
         setMediaObject(newMediaData);
 
         // Reset description states
-        setDescription(newMediaData.metadata.description || "");
-        setLastSavedDescription(newMediaData.metadata.description || "");
+        setDescription(newMediaData.metadata?.description || "");
+        setLastSavedDescription(newMediaData.metadata?.description || "");
         setIsDescriptionLocked(true);
       }
 
@@ -245,13 +245,13 @@ export default function MediaDetailClient({
 
     const requestBody = {
       metadata: {
-        ...mediaObject.metadata,
+        ...(mediaObject.metadata || {}),
         description: optimisticDescription,
       },
     };
 
     try {
-      const response = await fetch(`/api/library/${mediaObject.id}`, {
+      const response = await fetch(`/api/library/${encodeURIComponent(mediaObject.object_key)}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -268,8 +268,8 @@ export default function MediaDetailClient({
 
       // Server confirmed - update with server response
       setMediaObject(updatedMediaObject);
-      setDescription(updatedMediaObject.metadata.description || "");
-      setLastSavedDescription(updatedMediaObject.metadata.description || "");
+      setDescription(updatedMediaObject.metadata?.description || "");
+      setLastSavedDescription(updatedMediaObject.metadata?.description || "");
 
       // Show success message after server confirms
       toast.success("Description saved successfully");
@@ -281,11 +281,11 @@ export default function MediaDetailClient({
         ...prev,
         metadata: {
           ...prev.metadata,
-          description: mediaObject.metadata.description || "",
+          description: mediaObject.metadata?.description || "",
         },
       }));
-      setDescription(mediaObject.metadata.description || "");
-      setLastSavedDescription(mediaObject.metadata.description || "");
+      setDescription(mediaObject.metadata?.description || "");
+      setLastSavedDescription(mediaObject.metadata?.description || "");
 
       // Unlock on error so user can try again
       setIsDescriptionLocked(false);
@@ -404,7 +404,7 @@ export default function MediaDetailClient({
               !isModal
                 ? {
                     maxHeight: "80vh",
-                    aspectRatio: mediaObject.metadata.intrinsic
+                    aspectRatio: mediaObject.metadata?.intrinsic
                       ? `${mediaObject.metadata.intrinsic.width} / ${mediaObject.metadata.intrinsic.height}`
                       : "4 / 3",
                   }
@@ -413,8 +413,8 @@ export default function MediaDetailClient({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`/api/library/${mediaObject.id}/proxy`}
-              alt={mediaObject.metadata.description || "Media preview"}
+              src={`/api/library/${encodeURIComponent(mediaObject.object_key)}/proxy`}
+              alt={mediaObject.metadata?.description || "Media preview"}
               className={`${isModal ? "max-w-full max-h-full w-auto h-auto object-contain" : "absolute inset-0 w-full h-full object-contain"} transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
               style={isModal ? { maxHeight: "calc(100vh - 8rem)" } : {}}
               onLoad={() => setImageLoaded(true)}

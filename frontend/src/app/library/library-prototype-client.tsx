@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Folder, Home } from "lucide-react";
 import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
-import MediaDetailClient from "./[id]/media-detail-client";
+import MediaDetailClient from "./[object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -158,18 +158,18 @@ export default function LibraryPrototypeClient() {
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
     try {
-      const response = await fetch(`/api/library/${media.id}`);
+      const response = await fetch(`/api/library/${encodeURIComponent(media.object_key)}`);
       if (response.ok) {
         const fullMedia = await response.json();
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
-        window.history.pushState({}, "", `/library/${media.id}`);
+        window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, "", `/library/${media.id}`);
+      window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
     }
   }, []);
 
@@ -222,9 +222,9 @@ export default function LibraryPrototypeClient() {
           setMediaObjects(sanitizedItems);
         } else {
           setMediaObjects((prev) => {
-            const existingIds = new Set(prev.map((item) => item.id));
+            const existingKeys = new Set(prev.map((item) => item.object_key));
             const newItems = sanitizedItems.filter(
-              (item) => !existingIds.has(item.id),
+              (item) => !existingKeys.has(item.object_key),
             );
             return [...prev, ...newItems];
           });
@@ -482,7 +482,7 @@ export default function LibraryPrototypeClient() {
             >
               {mediaObjects.map((media) => (
                 <MediaThumbnail
-                  key={media.id}
+                  key={media.object_key}
                   media={media}
                   onClick={handleMediaClick}
                 />

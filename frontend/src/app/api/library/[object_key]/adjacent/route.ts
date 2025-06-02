@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ object_key: string }> },
 ) {
-  const { id } = await params;
+  const { object_key } = await params;
   const cookieStore = await cookies();
   const authToken = cookieStore.get("auth_token");
 
@@ -17,7 +17,7 @@ export async function GET(
   const backendApiKey = process.env.BACKEND_API_KEY;
 
   try {
-    const response = await fetch(`${backendUrl}/v1/media/${id}/adjacent`, {
+    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}/adjacent`, {
       headers: {
         Authorization: `Bearer ${authToken.value}`,
         "X-API-Key": backendApiKey || "",

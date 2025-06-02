@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ object_key: string }> },
 ) {
   try {
     // Get the auth token from cookies
@@ -14,11 +14,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { object_key } = await params;
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(`${backendUrl}/v1/media/${id}`, {
+    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}`, {
       headers: {
         Authorization: `Bearer ${authToken.value}`,
         "X-API-Key": backendApiKey || "",
@@ -46,7 +46,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ object_key: string }> },
 ) {
   try {
     // Get the auth token from cookies
@@ -57,13 +57,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { object_key } = await params;
     const body = await request.json();
 
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(`${backendUrl}/v1/media/${id}`, {
+    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}`, {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${authToken.value}`,

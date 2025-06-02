@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
-import MediaDetailClient from "./[id]/media-detail-client";
+import MediaDetailClient from "./[object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { MediaObject } from "@/types/media";
@@ -39,20 +39,20 @@ export default function GalleryClient() {
   const handleMediaClick = useCallback(async (media: MediaObject) => {
     // Fetch full media details
     try {
-      const response = await fetch(`/api/library/${media.id}`);
+      const response = await fetch(`/api/library/${encodeURIComponent(media.object_key)}`);
       if (response.ok) {
         const fullMedia = await response.json();
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
         // Update URL without navigation
-        window.history.pushState({}, "", `/library/${media.id}`);
+        window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       // Fall back to using the basic media object
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, "", `/library/${media.id}`);
+      window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
     }
   }, []);
 
@@ -81,11 +81,11 @@ export default function GalleryClient() {
           return;
         }
 
-        const media = mediaObjects.find((m) => m.id === mediaId);
+        const media = mediaObjects.find((m) => m.object_key === decodeURIComponent(mediaId));
         if (media) {
           // Fetch full media details
           try {
-            const response = await fetch(`/api/library/${mediaId}`);
+            const response = await fetch(`/api/library/${encodeURIComponent(decodeURIComponent(mediaId))}`);
             if (response.ok) {
               const fullMedia = await response.json();
               setSelectedMedia(fullMedia);
@@ -167,10 +167,10 @@ export default function GalleryClient() {
           setMediaObjects(sanitizedItems);
         } else {
           setMediaObjects((prev) => {
-            // Create a Set of existing IDs to prevent duplicates
-            const existingIds = new Set(prev.map((item) => item.id));
+            // Create a Set of existing object keys to prevent duplicates
+            const existingKeys = new Set(prev.map((item) => item.object_key));
             const newItems = sanitizedItems.filter(
-              (item) => !existingIds.has(item.id),
+              (item) => !existingKeys.has(item.object_key),
             );
             return [...prev, ...newItems];
           });
@@ -413,7 +413,7 @@ export default function GalleryClient() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 p-6 mt-2">
             {mediaObjects.map((media) => (
               <MediaThumbnail
-                key={media.id}
+                key={media.object_key}
                 media={media}
                 onClick={handleMediaClick}
               />

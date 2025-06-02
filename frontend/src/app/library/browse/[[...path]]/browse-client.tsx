@@ -5,7 +5,7 @@ import { Folder, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
-import MediaDetailClient from "../../[id]/media-detail-client";
+import MediaDetailClient from "../../[object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -30,18 +30,11 @@ interface DirectoryItem {
 
 interface BrowseResponse {
   folders: DirectoryItem[];
-  files: DirectoryItem[];
-  total_folders: number;
-  total_files: number;
-  ingestion_queued: number;
-  queued_files: DirectoryItem[];
-}
-
-interface PaginatedResponse {
-  items: MediaObject[];
+  media_objects: MediaObject[];
   total: number;
   limit: number;
   offset: number;
+  has_more: boolean;
 }
 
 interface BrowseClientProps {
@@ -66,8 +59,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   const [ingestStatus, setIngestStatus] = useState<string>("");
   const [, setIngestedObjects] = useState<Set<string>>(new Set());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [queuedFiles, setQueuedFiles] = useState<DirectoryItem[]>([]);
-  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
+  const [pendingMediaObjects, setPendingMediaObjects] = useState<MediaObject[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -79,10 +71,6 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
 
   const ITEMS_PER_PAGE = 36;
 
-  // Get the current path as a string for API calls
-  const getCurrentPathString = useCallback(() => {
-    return currentPath.length > 0 ? currentPath.join('/') : '';
-  }, [currentPath]);
 
   // Handle real-time ingest updates
   const handleMediaIngested = useCallback((objectKey: string) => {
@@ -91,15 +79,9 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     // Add to ingested objects set
     setIngestedObjects(prev => new Set(prev).add(objectKey));
     
-    // Remove from processing files
-    setProcessingFiles(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(objectKey);
-      return newSet;
-    });
     
-    // Remove from queued files if present
-    setQueuedFiles(prev => prev.filter(file => file.object_key !== objectKey));
+    // Remove from pending media objects if present
+    setPendingMediaObjects(prev => prev.filter(obj => obj.object_key !== objectKey));
     
     // Check if this object is in the current path context
     const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
@@ -172,18 +154,18 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
     try {
-      const response = await fetch(`/api/library/${media.id}`);
+      const response = await fetch(`/api/library/${media.object_key}`);
       if (response.ok) {
         const fullMedia = await response.json();
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
-        window.history.pushState({}, "", `/library/${media.id}`);
+        window.history.pushState({}, "", `/library/${media.object_key}`);
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, "", `/library/${media.id}`);
+      window.history.pushState({}, "", `/library/${media.object_key}`);
     }
   }, []);
 
@@ -196,54 +178,104 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     window.history.pushState({}, "", url);
   }, [currentPath]);
 
-  // Fetch browse data (folders and files) - simplified to reduce dependencies
-  const fetchBrowseData = useCallback(async () => {
+  // Fetch browse data (folders and media objects) - unified API call
+  const fetchBrowseData = useCallback(async (reset: boolean = false) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
     try {
       const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
-      const url = pathString 
-        ? `/api/storage/browse?path=${encodeURIComponent(pathString)}`
-        : '/api/storage/browse';
+      const currentOffset = reset ? 0 : offset;
+      
+      // Build URL with search or path-based filtering
+      const url = searchQuery && searchQuery.trim() !== ""
+        ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
+        : pathString 
+          ? `/api/storage/browse?path=${encodeURIComponent(pathString)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
+          : `/api/storage/browse?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
 
       const response = await fetch(url);
       if (response.ok) {
-        const data: BrowseResponse = await response.json();
-        setFolders(data.folders);
-        setQueuedFiles(data.queued_files || []);
-        
-        // Mark queued files as processing
-        setProcessingFiles(prev => {
-          const newSet = new Set(prev);
-          data.queued_files?.forEach(file => {
-            if (file.object_key) {
-              newSet.add(file.object_key);
-            }
-          });
-          return newSet;
-        });
-        
-        if (data.ingestion_queued > 0) {
-          setIngestStatus(`${data.ingestion_queued} files queued for processing...`);
-          setTimeout(() => setIngestStatus(""), 5000);
+        if (searchQuery && searchQuery.trim() !== "") {
+          // Handle search response (different structure)
+          const data: { items: MediaObject[]; total: number; limit: number; offset: number } = await response.json();
+          const sanitizedItems = data.items.map((item) => ({
+            ...item,
+            metadata: item.metadata || {},
+          }));
+          
+          if (reset) {
+            setFolders([]); // No folders in search results
+            setMediaObjects(sanitizedItems);
+            setOffset(data.items.length);
+          } else {
+            setMediaObjects((prev) => {
+              const existingIds = new Set(prev.map((item) => item.object_key));
+              const newItems = sanitizedItems.filter(
+                (item) => !existingIds.has(item.object_key),
+              );
+              return [...prev, ...newItems];
+            });
+            setOffset(currentOffset + data.items.length);
+          }
+          
+          setHasMore(currentOffset + data.items.length < data.total);
+          setPendingMediaObjects([]);
+        } else {
+          // Handle browse response
+          const data: BrowseResponse = await response.json();
+          const sanitizedItems = data.media_objects.map((item) => ({
+            ...item,
+            metadata: item.metadata || {},
+          }));
+          
+          if (reset) {
+            setFolders(data.folders);
+            setMediaObjects(sanitizedItems);
+            setOffset(data.media_objects.length);
+          } else {
+            setMediaObjects((prev) => {
+              const existingIds = new Set(prev.map((item) => item.object_key));
+              const newItems = sanitizedItems.filter(
+                (item) => !existingIds.has(item.object_key),
+              );
+              return [...prev, ...newItems];
+            });
+            setOffset(currentOffset + data.media_objects.length);
+          }
+          
+          setHasMore(data.has_more);
+          
+          // Identify pending media objects (those without thumbnails)
+          const pending = sanitizedItems.filter(obj => 
+            obj.ingestion_status === 'pending' || !obj.has_thumbnail
+          );
+          setPendingMediaObjects(pending);
+          
+          
+          if (pending.length > 0) {
+            setIngestStatus(`${pending.length} files queued for processing...`);
+            setTimeout(() => setIngestStatus(""), 5000);
+          }
         }
+        
+        setInitialLoad(false);
       }
     } catch (err) {
       console.error("Error fetching browse data:", err);
       setFolders([]);
+      setMediaObjects([]);
     } finally {
       isFetchingRef.current = false;
+      setIsLoading(false);
+      setIsTransitioning(false);
     }
-  }, [currentPath]);
+  }, [currentPath, searchQuery, offset]);
 
-  // Fetch media objects with prefix filtering - simplified dependencies
-  const fetchMediaObjects = useCallback(
+  // Unified fetch function that gets both folders and media objects
+  const fetchData = useCallback(
     async (reset: boolean = false) => {
       if ((!hasMore && !reset) || isFetchingRef.current) return;
-
-      const currentOffset = reset ? 0 : offset;
-      isFetchingRef.current = true;
 
       if (reset && mediaObjects.length > 0) {
         setIsTransitioning(true);
@@ -251,49 +283,9 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         setIsLoading(true);
       }
 
-      try {
-        const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
-        const prefix = pathString ? `/${pathString}/` : '';
-        
-        const url = searchQuery && searchQuery.trim() !== ""
-          ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
-          : `/api/library?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}${prefix ? `&prefix=${encodeURIComponent(prefix)}` : ''}`;
-
-        const response = await fetch(url);
-
-        if (response.ok) {
-          const data: PaginatedResponse = await response.json();
-          const sanitizedItems = data.items.map((item) => ({
-            ...item,
-            metadata: item.metadata || {},
-          }));
-
-          if (reset) {
-            setMediaObjects(sanitizedItems);
-            setOffset(data.items.length);
-          } else {
-            setMediaObjects((prev) => {
-              const existingIds = new Set(prev.map((item) => item.id));
-              const newItems = sanitizedItems.filter(
-                (item) => !existingIds.has(item.id),
-              );
-              return [...prev, ...newItems];
-            });
-            setOffset(currentOffset + data.items.length);
-          }
-
-          setHasMore(currentOffset + data.items.length < data.total);
-          setInitialLoad(false);
-        }
-      } catch (err) {
-        console.error("Error fetching media objects:", err);
-      } finally {
-        isFetchingRef.current = false;
-        setIsLoading(false);
-        setIsTransitioning(false);
-      }
+      await fetchBrowseData(reset);
     },
-    [currentPath, searchQuery, offset, hasMore, mediaObjects.length],
+    [fetchBrowseData, hasMore, mediaObjects.length],
   );
 
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -301,33 +293,31 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   // Initialize data load
   useEffect(() => {
     if (!hasInitialized) {
-      fetchBrowseData();
-      fetchMediaObjects(true);
+      fetchData(true);
       setHasInitialized(true);
     }
-  }, [hasInitialized, fetchBrowseData, fetchMediaObjects]);
+  }, [hasInitialized, fetchData]);
 
   // Reload when path changes
   useEffect(() => {
     if (hasInitialized) {
-      fetchBrowseData();
-      fetchMediaObjects(true);
+      fetchData(true);
     }
-  }, [currentPath, hasInitialized, fetchBrowseData, fetchMediaObjects]);
+  }, [currentPath, hasInitialized, fetchData]);
 
   // Reload when search query changes
   useEffect(() => {
     if (hasInitialized) {
-      fetchMediaObjects(true);
+      fetchData(true);
     }
-  }, [searchQuery, hasInitialized, fetchMediaObjects]);
+  }, [searchQuery, hasInitialized, fetchData]);
 
   // Handle refresh trigger from SSE events
   useEffect(() => {
     if (hasInitialized && refreshTrigger > 0) {
-      fetchMediaObjects(true);
+      fetchData(true);
     }
-  }, [refreshTrigger, hasInitialized, fetchMediaObjects]);
+  }, [refreshTrigger, hasInitialized, fetchData]);
 
   // Handle search input with debounce
   const handleSearchInput = (value: string) => {
@@ -349,7 +339,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         (entries) => {
           const [entry] = entries;
           if (entry.isIntersecting && hasMore && !isLoading) {
-            fetchMediaObjects();
+            fetchData();
           }
         },
         { threshold: 0.5 },
@@ -363,7 +353,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         observerRef.current.disconnect();
       }
     };
-  }, [fetchMediaObjects, hasMore, isLoading, initialLoad, mediaObjects.length]);
+  }, [fetchData, hasMore, isLoading, initialLoad, mediaObjects.length]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -521,7 +511,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         </div>
 
         {/* Media Gallery */}
-        {mediaObjects.length === 0 && queuedFiles.length === 0 && !isLoading && !isTransitioning ? (
+        {mediaObjects.length === 0 && pendingMediaObjects.length === 0 && !isLoading && !isTransitioning ? (
           <div className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center">
             <svg
               className="mx-auto h-12 w-12 text-gray-400"
@@ -544,7 +534,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
               Navigate to a folder with photos or try searching
             </p>
           </div>
-        ) : isLoading && mediaObjects.length === 0 && queuedFiles.length === 0 ? (
+        ) : isLoading && mediaObjects.length === 0 && pendingMediaObjects.length === 0 ? (
           // Show skeletons only on initial load
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {Array.from({ length: 12 }).map((_, index) => (
@@ -563,37 +553,45 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
             <div
               className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 ${isTransitioning ? "opacity-50" : ""} transition-opacity duration-200`}
             >
-              {/* Real media objects */}
-              {mediaObjects.map((media) => (
-                <MediaThumbnail
-                  key={media.id}
-                  media={media}
-                  onClick={handleMediaClick}
-                />
-              ))}
-              
-              {/* Skeleton thumbnails for queued files */}
-              {queuedFiles.map((file) => (
-                <div
-                  key={`queued-${file.object_key}`}
-                  className="bg-white overflow-hidden shadow-sm rounded-lg relative"
-                >
-                  <div className="relative aspect-square">
-                    <Skeleton className="absolute inset-0" />
-                    {/* Processing indicator */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
-                      <div className="text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
-                        Processing...
+              {/* Render media objects - both completed and pending */}
+              {mediaObjects.map((media) => {
+                // Check if this media object is pending (no thumbnail)
+                const isPending = media.ingestion_status === 'pending' || !media.has_thumbnail;
+                
+                if (isPending) {
+                  // Show skeleton for pending media objects
+                  return (
+                    <div
+                      key={`pending-${media.object_key}`}
+                      className="bg-white overflow-hidden shadow-sm rounded-lg relative"
+                    >
+                      <div className="relative aspect-square">
+                        <Skeleton className="absolute inset-0" />
+                        {/* Processing indicator */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
+                          <div className="text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
+                            Processing...
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <div className="text-sm text-gray-600 truncate">
+                          {media.object_key?.split('/').pop() || 'Unknown file'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-sm text-gray-600 truncate">
-                      {file.name}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                }
+                
+                // Show regular thumbnail for completed media objects
+                return (
+                  <MediaThumbnail
+                    key={media.object_key}
+                    media={media}
+                    onClick={handleMediaClick}
+                  />
+                );
+              })}
             </div>
 
             {/* Loading indicator for infinite scroll */}

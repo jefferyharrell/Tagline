@@ -6,7 +6,7 @@ import LibrarySidebar from "@/components/LibrarySidebar";
 import MediaDetailClient from "./media-detail-client";
 
 // This will handle fetching the media object on the server side
-async function getMediaObject(mediaId: string) {
+async function getMediaObject(objectKey: string) {
   const cookieStore = await cookies();
   const authToken = cookieStore.get("auth_token");
 
@@ -18,7 +18,7 @@ async function getMediaObject(mediaId: string) {
   const backendApiKey = process.env.BACKEND_API_KEY;
 
   try {
-    const response = await fetch(`${backendUrl}/v1/media/${mediaId}`, {
+    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(objectKey)}`, {
       headers: {
         Authorization: `Bearer ${authToken.value}`,
         "X-API-Key": backendApiKey || "",
@@ -41,18 +41,18 @@ async function getMediaObject(mediaId: string) {
 export default async function MediaDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ object_key: string }>;
 }) {
   // Await both dynamic APIs
   const cookieStore = await cookies();
-  const { id } = await params;
+  const { object_key } = await params;
   const authToken = cookieStore.get("auth_token");
 
   if (!authToken) {
     redirect("/");
   }
 
-  const mediaObject = await getMediaObject(id);
+  const mediaObject = await getMediaObject(object_key);
 
   if (!mediaObject) {
     redirect("/library");

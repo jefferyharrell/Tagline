@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ object_key: string }> },
 ) {
   try {
     // Get the auth token from cookies
@@ -14,11 +14,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { object_key } = await params;
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(`${backendUrl}/v1/media/${id}/thumbnail`, {
+    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}/thumbnail`, {
       headers: {
         Authorization: `Bearer ${authToken.value}`,
         "X-API-Key": backendApiKey || "",
@@ -37,8 +37,8 @@ export async function GET(
     const thumbnailBuffer = await response.arrayBuffer();
     const contentType = response.headers.get("content-type") || "image/jpeg";
 
-    // Generate a simple ETag based on the media ID
-    const etag = `"${id}-thumbnail"`;
+    // Generate a simple ETag based on the object key
+    const etag = `"${object_key}-thumbnail"`;
 
     // Check if client has a cached version
     const ifNoneMatch = request.headers.get("if-none-match");
