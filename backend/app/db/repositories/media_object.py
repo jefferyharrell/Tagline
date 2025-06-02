@@ -2,13 +2,14 @@
 
 import logging
 from typing import List, Optional
+from datetime import datetime
 
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.domain_media_object import MediaObjectRecord
-from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject
+from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject, IngestionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -27,23 +28,8 @@ class MediaObjectRepository:
         self.db = db
         logger.debug("MediaObjectRepository initialized successfully.")
 
-    def get_by_id(self, id) -> Optional[MediaObjectRecord]:
-        """Retrieves a MediaObjectRecord by its UUID."""
-        try:
-            logger.debug(f"Querying for MediaObject with id: {id}")
-            orm_obj = self.db.query(ORMMediaObject).filter_by(id=id).first()
-            if orm_obj:
-                logger.debug(f"Found MediaObject: {orm_obj.id}")
-                return MediaObjectRecord.from_orm(orm_obj)
-            else:
-                logger.debug("MediaObject not found for id: %s", id)
-                return None
-        except SQLAlchemyError as e:
-            logger.error(f"Database error querying for id {id}: {e}")
-            return None
-
     def get_by_object_key(self, object_key: str) -> Optional[MediaObjectRecord]:
-        """Retrieves a MediaObjectRecord by its object_key."""
+        """Retrieves a MediaObjectRecord by its object_key (primary key)."""
         assert object_key is not None, "object_key must not be None"
         try:
             logger.debug(f"Querying for MediaObject with object_key: {object_key}")
@@ -51,13 +37,59 @@ class MediaObjectRepository:
                 self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if orm_obj:
-                logger.debug(f"Found MediaObject: {orm_obj.id}")
+                logger.debug(f"Found MediaObject: {orm_obj.object_key}")
                 return MediaObjectRecord.from_orm(orm_obj)
             else:
                 logger.debug("MediaObject not found for key: %s", object_key)
                 return None
         except SQLAlchemyError as e:
             logger.error(f"Database error querying for object_key {object_key}: {e}")
+            return None
+
+    def create_sparse(self, object_key: str, file_size: Optional[int] = None,
+                     file_mimetype: Optional[str] = None, 
+                     file_last_modified: Optional[datetime] = None) -> Optional[MediaObjectRecord]:
+        """Creates a sparse MediaObject record during discovery.
+        
+        Args:
+            object_key: The storage object key (without leading slash)
+            file_size: File size in bytes
+            file_mimetype: MIME type of the file
+            file_last_modified: Last modified timestamp
+            
+        Returns:
+            The created MediaObjectRecord or None on error
+        """
+        from app.models import IngestionStatus
+        from datetime import datetime as dt
+        
+        try:
+            logger.debug(f"Creating sparse MediaObject for key: {object_key}")
+            
+            orm_obj = ORMMediaObject(
+                object_key=object_key,
+                ingestion_status=IngestionStatus.PENDING.value,
+                file_size=file_size,
+                file_mimetype=file_mimetype,
+                file_last_modified=file_last_modified,
+                object_metadata={},
+                created_at=dt.utcnow(),
+                updated_at=dt.utcnow()
+            )
+            
+            self.db.add(orm_obj)
+            self.db.commit()
+            
+            logger.info(f"Successfully created sparse MediaObject for key: {object_key}")
+            return MediaObjectRecord.from_orm(orm_obj)
+            
+        except IntegrityError:
+            self.db.rollback()
+            logger.debug(f"MediaObject already exists for key: {object_key}")
+            return self.get_by_object_key(object_key)
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"Database error creating sparse MediaObject: {e}")
             return None
 
     def create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
@@ -72,7 +104,7 @@ class MediaObjectRepository:
                 self.db.add(orm_obj)
             self.db.commit()
             logger.info(
-                f"Successfully created MediaObject: {orm_obj.id} for key {orm_obj.object_key}"
+                f"Successfully created MediaObject for key: {orm_obj.object_key}"
             )
             return MediaObjectRecord.from_orm(orm_obj)
         except IntegrityError:
@@ -83,7 +115,7 @@ class MediaObjectRepository:
             existing_obj = self.get_by_object_key(record.object_key)
             if existing_obj:
                 logger.info(
-                    f"Found existing MediaObject: {existing_obj.id} for key {existing_obj.object_key}"
+                    f"Found existing MediaObject for key: {existing_obj.object_key}"
                 )
             else:
                 logger.error(
@@ -98,12 +130,12 @@ class MediaObjectRepository:
             return None
 
     def register_thumbnail(
-        self, media_object_id, s3_key: str, mimetype: str, size: Optional[int] = None
+        self, object_key: str, s3_key: str, mimetype: str, size: Optional[int] = None
     ) -> bool:
         """Registers thumbnail S3 key for a MediaObject by creating/updating a MediaBinary record.
 
         Args:
-            media_object_id: The ID of the MediaObject.
+            object_key: The object_key of the MediaObject.
             s3_key: The S3 key where the thumbnail is stored.
             mimetype: The mimetype of the thumbnail.
             size: Optional size of the thumbnail in bytes.
@@ -113,14 +145,14 @@ class MediaObjectRepository:
         """
         try:
             logger.debug(
-                f"Attempting to register thumbnail for media_object_id: {media_object_id}"
+                f"Attempting to register thumbnail for object_key: {object_key}"
             )
 
             # Check if thumbnail record already exists
             existing_binary = (
                 self.db.query(ORMMediaBinary)
                 .filter_by(
-                    media_object_id=media_object_id, type=MediaBinaryType.THUMBNAIL
+                    media_object_key=object_key, type=MediaBinaryType.THUMBNAIL
                 )
                 .first()
             )
@@ -133,7 +165,7 @@ class MediaObjectRepository:
             else:
                 # Create new
                 new_binary = ORMMediaBinary(
-                    media_object_id=media_object_id,
+                    media_object_key=object_key,
                     type=MediaBinaryType.THUMBNAIL,
                     s3_key=s3_key,
                     mimetype=mimetype,
@@ -143,23 +175,23 @@ class MediaObjectRepository:
 
             self.db.commit()
             logger.info(
-                f"Successfully registered thumbnail for media_object_id: {media_object_id}"
+                f"Successfully registered thumbnail for object_key: {object_key}"
             )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(
-                f"Database error registering thumbnail for {media_object_id}: {e}"
+                f"Database error registering thumbnail for {object_key}: {e}"
             )
             return False
 
     def register_proxy(
-        self, media_object_id, s3_key: str, mimetype: str, size: Optional[int] = None
+        self, object_key: str, s3_key: str, mimetype: str, size: Optional[int] = None
     ) -> bool:
         """Registers proxy S3 key for a MediaObject by creating/updating a MediaBinary record.
 
         Args:
-            media_object_id: The ID of the MediaObject.
+            object_key: The object_key of the MediaObject.
             s3_key: The S3 key where the proxy is stored.
             mimetype: The mimetype of the proxy.
             size: Optional size of the proxy in bytes.
@@ -169,13 +201,13 @@ class MediaObjectRepository:
         """
         try:
             logger.debug(
-                f"Attempting to register proxy for media_object_id: {media_object_id}"
+                f"Attempting to register proxy for object_key: {object_key}"
             )
 
             # Check if proxy record already exists
             existing_binary = (
                 self.db.query(ORMMediaBinary)
-                .filter_by(media_object_id=media_object_id, type=MediaBinaryType.PROXY)
+                .filter_by(media_object_key=object_key, type=MediaBinaryType.PROXY)
                 .first()
             )
 
@@ -187,7 +219,7 @@ class MediaObjectRepository:
             else:
                 # Create new
                 new_binary = ORMMediaBinary(
-                    media_object_id=media_object_id,
+                    media_object_key=object_key,
                     type=MediaBinaryType.PROXY,
                     s3_key=s3_key,
                     mimetype=mimetype,
@@ -197,12 +229,12 @@ class MediaObjectRepository:
 
             self.db.commit()
             logger.info(
-                f"Successfully registered proxy for media_object_id: {media_object_id}"
+                f"Successfully registered proxy for object_key: {object_key}"
             )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error registering proxy for {media_object_id}: {e}")
+            logger.error(f"Database error registering proxy for {object_key}: {e}")
             return False
 
     def get_or_create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
@@ -219,7 +251,7 @@ class MediaObjectRepository:
         return self.create(record)
 
     def get_all(self, limit: int = 100, offset: int = 0, prefix: Optional[str] = None) -> List[MediaObjectRecord]:
-        """Retrieves a paginated list of all MediaObjectRecords."""
+        """Retrieves a paginated list of all MediaObjectRecords with natural sort order."""
         try:
             logger.debug(
                 f"Querying for all MediaObjects with limit={limit}, offset={offset}, prefix={prefix}"
@@ -228,17 +260,33 @@ class MediaObjectRepository:
             
             # Apply prefix filter if provided
             if prefix:
-                query = query.filter(ORMMediaObject.object_key.startswith(prefix))
+                # For exact folder matching, we need to filter by prefix but exclude subfolders
+                # E.g., prefix="/folder/" should match "/folder/file.jpg" but not "/folder/subfolder/file.jpg"
+                query = query.filter(
+                    ORMMediaObject.object_key.startswith(prefix)
+                ).filter(
+                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                )
             
+            # Natural sort by extracting numeric parts
+            # This SQL will sort "IMG_2.jpg" before "IMG_10.jpg"
             orm_objs = (
                 query
-                .order_by(ORMMediaObject.created_at.desc())
+                .order_by(
+                    func.regexp_replace(
+                        ORMMediaObject.object_key, 
+                        r'(\d+)', 
+                        r'000000000\1'
+                    ).label('natural_sort')
+                )
                 .offset(offset)
                 .limit(limit)
                 .all()
             )
+            
+            # Eagerly load binaries for has_thumbnail/has_proxy
             records = [
-                MediaObjectRecord.from_orm(obj, load_binary_fields=False)
+                MediaObjectRecord.from_orm(obj, load_binary_fields=True)
                 for obj in orm_objs
             ]
             logger.debug(f"Found {len(records)} MediaObjects.")
@@ -247,39 +295,65 @@ class MediaObjectRepository:
             logger.error(f"Database error querying for all MediaObjects: {e}")
             return []
 
-    def save(self, record: MediaObjectRecord) -> MediaObjectRecord:
+    def update_ingestion_status(self, object_key: str, status: str) -> bool:
+        """Updates the ingestion status of a MediaObject.
+        
+        Args:
+            object_key: The object key of the MediaObject
+            status: New ingestion status (pending, processing, completed, failed)
+            
+        Returns:
+            True if successful, False otherwise
         """
-        Updates an existing MediaObjectRecord in the database.
-        Raises MediaObjectNotFound if not found.
-        Returns the updated MediaObjectRecord.
-        """
-        assert record.id is not None, "id must not be None for update/save"
         try:
-            orm_obj = self.db.query(ORMMediaObject).filter_by(id=record.id).first()
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             if orm_obj is None:
-                raise MediaObjectNotFound(f"MediaObject with id {record.id} not found.")
-            # Update fields
-            from typing import cast
-
-            if record.object_key is not None:
-                orm_obj.object_key = cast(str, record.object_key)  # type: ignore[assignment]
-            if record.metadata is not None:
-                orm_obj.object_metadata = cast(dict, record.metadata)  # type: ignore[assignment]
-            # updated_at expects a datetime
-            from datetime import datetime
-
-            if record.last_modified:
-                try:
-                    # Try to parse ISO8601 string to datetime
-                    new_updated_at = datetime.fromisoformat(record.last_modified)
-                    orm_obj.updated_at = new_updated_at  # type: ignore[assignment]
-                except Exception:
-                    pass  # fallback: do not update if parsing fails
+                logger.error(f"MediaObject with key {object_key} not found for status update")
+                return False
+                
+            orm_obj.ingestion_status = status  # type: ignore[assignment]
+            orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
+            
             self.db.commit()
-            return MediaObjectRecord.from_orm(orm_obj)
-        except SQLAlchemyError:
+            logger.info(f"Updated ingestion status for {object_key} to {status}")
+            return True
+        except SQLAlchemyError as e:
             self.db.rollback()
-            raise
+            logger.error(f"Database error updating ingestion status: {e}")
+            return False
+            
+    def update_after_ingestion(self, object_key: str, metadata: dict) -> bool:
+        """Updates a MediaObject after successful ingestion.
+        
+        Args:
+            object_key: The object key of the MediaObject
+            metadata: The extracted metadata to merge
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            if orm_obj is None:
+                logger.error(f"MediaObject with key {object_key} not found for post-ingest update")
+                return False
+                
+            # Merge metadata
+            if orm_obj.object_metadata:
+                orm_obj.object_metadata.update(metadata)  # type: ignore[union-attr]
+            else:
+                orm_obj.object_metadata = metadata  # type: ignore[assignment]
+                
+            orm_obj.ingestion_status = IngestionStatus.COMPLETED.value  # type: ignore[assignment]
+            orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
+            
+            self.db.commit()
+            logger.info(f"Updated MediaObject {object_key} after ingestion")
+            return True
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"Database error updating after ingestion: {e}")
+            return False
 
     def count(self, prefix: Optional[str] = None) -> int:
         """Returns the total count of MediaObjectRecords in the database."""
@@ -299,36 +373,56 @@ class MediaObjectRepository:
             return 0
 
     def get_adjacent(
-        self, id
+        self, object_key: str
     ) -> tuple[Optional[MediaObjectRecord], Optional[MediaObjectRecord]]:
-        """Gets the previous and next MediaObjectRecords relative to the given id.
+        """Gets the previous and next MediaObjectRecords relative to the given object_key.
 
-        Returns a tuple of (previous, next) MediaObjectRecords.
+        Returns a tuple of (previous, next) MediaObjectRecords based on natural sort order.
         Either or both may be None if at the beginning/end of the collection.
         """
         try:
             # Get the current media object to find its position
-            current = self.db.query(ORMMediaObject).filter_by(id=id).first()
+            current = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             if not current:
                 return (None, None)
+                
+            # Extract the folder path from the current object
+            folder_path = "/".join(current.object_key.split("/")[:-1])
+            prefix = f"{folder_path}/" if folder_path else ""
 
-            # Get the previous media object (newer than current, since we're showing newest first)
-            previous_obj = (
-                self.db.query(ORMMediaObject)
-                .filter(ORMMediaObject.created_at > current.created_at)
-                .order_by(ORMMediaObject.created_at)
-                .first()
-            )
+            # Build base query for same folder
+            base_query = self.db.query(ORMMediaObject)
+            if prefix:
+                base_query = base_query.filter(
+                    ORMMediaObject.object_key.startswith(prefix)
+                ).filter(
+                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                )
 
-            # Get the next media object (older than current, since we're showing newest first)
-            next_obj = (
-                self.db.query(ORMMediaObject)
-                .filter(ORMMediaObject.created_at < current.created_at)
-                .order_by(ORMMediaObject.created_at.desc())
-                .first()
-            )
+            # Get all items in natural sort order to find position
+            all_items = base_query.order_by(
+                func.regexp_replace(
+                    ORMMediaObject.object_key, 
+                    r'(\d+)', 
+                    r'000000000\1'
+                )
+            ).all()
+            
+            # Find current position
+            current_idx = None
+            for idx, item in enumerate(all_items):
+                if item.object_key == object_key:
+                    current_idx = idx
+                    break
+                    
+            if current_idx is None:
+                return (None, None)
 
-            # Convert to domain objects (skip binary fields for performance)
+            # Get previous and next based on position
+            previous_obj = all_items[current_idx - 1] if current_idx > 0 else None
+            next_obj = all_items[current_idx + 1] if current_idx < len(all_items) - 1 else None
+
+            # Convert to domain objects
             previous = (
                 MediaObjectRecord.from_orm(previous_obj, load_binary_fields=False)
                 if previous_obj
@@ -343,11 +437,11 @@ class MediaObjectRepository:
             return (previous, next)
         except SQLAlchemyError as e:
             logger.error(
-                f"Database error getting adjacent MediaObjects for id {id}: {e}"
+                f"Database error getting adjacent MediaObjects for key {object_key}: {e}"
             )
             return (None, None)
 
-    def get_thumbnail_s3_key(self, media_object_id) -> Optional[tuple[str, str]]:
+    def get_thumbnail_s3_key(self, object_key: str) -> Optional[tuple[str, str]]:
         """Get thumbnail S3 key for a media object.
 
         Returns:
@@ -357,7 +451,7 @@ class MediaObjectRepository:
             binary = (
                 self.db.query(ORMMediaBinary)
                 .filter_by(
-                    media_object_id=media_object_id, type=MediaBinaryType.THUMBNAIL
+                    media_object_key=object_key, type=MediaBinaryType.THUMBNAIL
                 )
                 .first()
             )
@@ -365,10 +459,10 @@ class MediaObjectRepository:
                 return (binary.s3_key, binary.mimetype)  # type: ignore[return-value]
             return None
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting thumbnail for {media_object_id}: {e}")
+            logger.error(f"Database error getting thumbnail for {object_key}: {e}")
             return None
 
-    def get_proxy_s3_key(self, media_object_id) -> Optional[tuple[str, str]]:
+    def get_proxy_s3_key(self, object_key: str) -> Optional[tuple[str, str]]:
         """Get proxy S3 key for a media object.
 
         Returns:
@@ -377,14 +471,14 @@ class MediaObjectRepository:
         try:
             binary = (
                 self.db.query(ORMMediaBinary)
-                .filter_by(media_object_id=media_object_id, type=MediaBinaryType.PROXY)
+                .filter_by(media_object_key=object_key, type=MediaBinaryType.PROXY)
                 .first()
             )
             if binary:
                 return (binary.s3_key, binary.mimetype)  # type: ignore[return-value]
             return None
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting proxy for {media_object_id}: {e}")
+            logger.error(f"Database error getting proxy for {object_key}: {e}")
             return None
 
     def search(
@@ -415,7 +509,7 @@ class MediaObjectRepository:
             logger.debug(f"Searching for: {query} (tsquery: {tsquery})")
 
             # First get the total count
-            count_query = self.db.query(func.count(ORMMediaObject.id)).filter(
+            count_query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
                 text("search_vector @@ to_tsquery('english', :query)").bindparams(
                     query=tsquery
                 )

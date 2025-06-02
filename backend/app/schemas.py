@@ -1,5 +1,5 @@
 from typing import List, Optional
-from uuid import UUID
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -32,10 +32,16 @@ class StoredMediaObject(BaseModel):
 class MediaObject(BaseModel):
     """Schema for MediaObject API representation."""
 
-    id: UUID
-    object_key: str
-    last_modified: Optional[str] = None  # or datetime
+    object_key: str  # Now the primary key
+    ingestion_status: str = "pending"
+    file_size: Optional[int] = None
+    file_mimetype: Optional[str] = None
+    file_last_modified: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     metadata: Optional[dict] = None
+    has_thumbnail: bool = False  # Computed field for frontend
+    has_proxy: bool = False  # Computed field for frontend
 
 
 class MediaObjectPatch(BaseModel):

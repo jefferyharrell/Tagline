@@ -23,18 +23,29 @@ class MediaBinaryType(str, Enum):
     PROXY = "proxy"
 
 
+class IngestionStatus(str, Enum):
+    """Enum for media object ingestion status."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class ORMMediaObject(Base):
     __tablename__ = "media_objects"
 
-    id = Column(
-        PG_UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
+    object_key = Column(String(255), primary_key=True, nullable=False)
+    ingestion_status = Column(
+        String(20), 
+        nullable=False, 
+        default=IngestionStatus.PENDING.value,
+        index=True
     )
-    object_key = Column(String(255), unique=True, nullable=False)
-    object_metadata = Column(JSONB, nullable=False, default=dict)
+    object_metadata = Column(JSONB, nullable=True, default=dict)  # Nullable until ingested
+    file_size = Column(Integer, nullable=True)  # Store file size from discovery
+    file_mimetype = Column(String(255), nullable=True)  # Store mimetype from discovery
+    file_last_modified = Column(DateTime, nullable=True)  # Store last modified from discovery
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -46,7 +57,7 @@ class ORMMediaObject(Base):
     )
 
     def __repr__(self):
-        return f"<OrmMediaObject(id={self.id}, object_key={self.object_key})>"
+        return f"<OrmMediaObject(object_key={self.object_key}, status={self.ingestion_status})>"
 
 
 class ORMMediaBinary(Base):
@@ -59,9 +70,9 @@ class ORMMediaBinary(Base):
         unique=True,
         nullable=False,
     )
-    media_object_id = Column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("media_objects.id", ondelete="CASCADE"),
+    media_object_key = Column(
+        String(255),
+        ForeignKey("media_objects.object_key", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -76,8 +87,8 @@ class ORMMediaBinary(Base):
 
     # Unique constraint to prevent duplicate types per media object
     __table_args__ = (
-        UniqueConstraint("media_object_id", "type", name="uq_media_object_type"),
+        UniqueConstraint("media_object_key", "type", name="uq_media_object_type"),
     )
 
     def __repr__(self):
-        return f"<ORMMediaBinary(id={self.id}, media_object_id={self.media_object_id}, type={self.type})>"
+        return f"<ORMMediaBinary(id={self.id}, media_object_key={self.media_object_key}, type={self.type})>"

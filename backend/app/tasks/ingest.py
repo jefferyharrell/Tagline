@@ -5,6 +5,7 @@ from app.config import get_settings
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
 from app.domain_media_object import MediaObjectRecord
+from app.models import IngestionStatus
 
 # Import processor modules to trigger registration via decorators
 # The noqa comment prevents linters from flagging unused import, which is needed here.
@@ -17,16 +18,17 @@ from app.schemas import StoredMediaObject
 logger = logging.getLogger(__name__)
 
 
-# TODO: Add `intrinsic_metadata` field to MediaObject model and repository update method
-async def ingest(stored_media_object: StoredMediaObject) -> bool:
-    """Processes a single stored media object: extracts metadata and commits to DB."""
-    logger.info(
-        f"Starting processing for stored media object: {stored_media_object.object_key}"
-    )
+async def ingest(object_key: str) -> bool:
+    """Processes a single media object: extracts metadata and generates thumbnails/proxies.
+    
+    Args:
+        object_key: The object key of the MediaObject to process
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    logger.info(f"Starting ingestion for object_key: {object_key}")
     intrinsic_metadata = {}
-
-    # Convert to domain record for further processing
-    domain_record = MediaObjectRecord.from_stored(stored_media_object)
 
     # Create a database session for this task
     db_gen = get_db()
@@ -34,6 +36,17 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
 
     try:
         repo = MediaObjectRepository(db)
+        
+        # Update status to processing
+        if not repo.update_ingestion_status(object_key, IngestionStatus.PROCESSING.value):
+            logger.error(f"MediaObject not found for key: {object_key}")
+            return False
+
+        # Get the MediaObject from database
+        media_obj = repo.get_by_object_key(object_key)
+        if not media_obj:
+            logger.error(f"Failed to retrieve MediaObject for key: {object_key}")
+            return False
 
         # Initialize S3 storage (required)
         settings = get_settings()
@@ -48,6 +61,7 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
             logger.error(
                 "S3 configuration is incomplete. S3 storage is required for Tagline."
             )
+            repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
             return False
 
         config = S3Config(
@@ -59,26 +73,30 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
         )
         s3_storage = S3BinaryStorage(config)
 
-        # Use domain_record for downstream logic
+        # Create a StoredMediaObject for processor compatibility
+        stored_media_obj = StoredMediaObject(
+            object_key=object_key,
+            last_modified=media_obj.file_last_modified.isoformat() if media_obj.file_last_modified else None,
+            metadata={
+                "size": media_obj.file_size,
+                "mimetype": media_obj.file_mimetype,
+            }
+        )
+
         try:
             # 1. Try to get the appropriate processor
-            processor = get_processor(stored_media_object)
+            processor = get_processor(stored_media_obj)
 
             # 2. Extract intrinsic metadata if processor found
             intrinsic_metadata = await processor.extract_intrinsic_metadata()
             if intrinsic_metadata:
                 logger.info(
-                    f"Extracted intrinsic metadata for {domain_record.object_key}: "
+                    f"Extracted intrinsic metadata for {object_key}: "
                     f"{intrinsic_metadata}"
                 )
-                # Update the metadata on the Pydantic object before saving
-                domain_record.metadata = (
-                    domain_record.metadata or {}
-                )  # Ensure metadata dict exists
-                domain_record.metadata["intrinsic"] = intrinsic_metadata
             else:
                 logger.warning(
-                    f"No intrinsic metadata extracted for {domain_record.object_key}"
+                    f"No intrinsic metadata extracted for {object_key}"
                 )
 
             content = None  # Initialize content
@@ -90,14 +108,14 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                 if thumbnail_result:
                     thumbnail_bytes, thumbnail_mimetype = thumbnail_result
                     logger.info(
-                        f"Generated thumbnail for {domain_record.object_key} with mimetype {thumbnail_mimetype}"
+                        f"Generated thumbnail for {object_key} with mimetype {thumbnail_mimetype}"
                     )
                 else:
                     thumbnail_bytes = None
                     thumbnail_mimetype = None
             except Exception as thumb_exc:
                 logger.warning(
-                    f"Failed to generate thumbnail for {domain_record.object_key}: {thumb_exc}",
+                    f"Failed to generate thumbnail for {object_key}: {thumb_exc}",
                     exc_info=True,  # Log traceback for debugging
                 )
                 thumbnail_bytes = None  # Ensure it's None on failure
@@ -110,89 +128,81 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
                     if proxy_result:
                         proxy_bytes, proxy_mimetype = proxy_result
                         logger.info(
-                            f"Generated proxy for {domain_record.object_key} with mimetype {proxy_mimetype}"
+                            f"Generated proxy for {object_key} with mimetype {proxy_mimetype}"
                         )
                     else:
                         proxy_bytes = None
                         proxy_mimetype = None
                 except Exception as proxy_exc:
                     logger.warning(
-                        f"Failed to generate proxy for {domain_record.object_key}: {proxy_exc}",
+                        f"Failed to generate proxy for {object_key}: {proxy_exc}",
                         exc_info=True,
                     )
                     proxy_bytes = None
                     proxy_mimetype = None
             else:
                 logger.warning(
-                    f"Skipping proxy generation for {domain_record.object_key} due to earlier content retrieval failure."
+                    f"Skipping proxy generation for {object_key} due to earlier content retrieval failure."
                 )
                 proxy_bytes = None
                 proxy_mimetype = None
 
-            # 4. Get or create the MediaObject record in the database
-            db_media_object = repo.get_or_create(domain_record)
-
-            if not db_media_object:
-                logger.error(
-                    f"Failed to commit MediaObject via repository for key: {domain_record.object_key}"
-                )
-                return False  # Indicate failure
-
-            # 5. Store thumbnail if generated successfully
-            if (
-                thumbnail_bytes
-                and thumbnail_mimetype
-                and db_media_object
-                and db_media_object.id
-            ):
+            # 4. Store thumbnail if generated successfully
+            if thumbnail_bytes and thumbnail_mimetype:
                 try:
-                    # Store in S3
+                    # Store in S3 using object_key as the identifier
                     s3_key = s3_storage.put_thumbnail(
-                        str(db_media_object.id), thumbnail_bytes, thumbnail_mimetype
+                        object_key, thumbnail_bytes, thumbnail_mimetype
                     )
                     # Register S3 key in database
                     repo.register_thumbnail(
-                        db_media_object.id,
+                        object_key,
                         s3_key,
                         thumbnail_mimetype,
                         len(thumbnail_bytes),
                     )
                     logger.info(
-                        f"Stored thumbnail in S3 for {domain_record.object_key}"
+                        f"Stored thumbnail in S3 for {object_key}"
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to store thumbnail in S3 for {domain_record.object_key}: {e}"
+                        f"Failed to store thumbnail in S3 for {object_key}: {e}"
                     )
-                    # S3 storage failure is critical
+                    repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
                     return False
 
-            # 6. Store proxy if generated successfully
-            if (
-                proxy_bytes
-                and proxy_mimetype
-                and db_media_object
-                and db_media_object.id
-            ):
+            # 5. Store proxy if generated successfully
+            if proxy_bytes and proxy_mimetype:
                 try:
-                    # Store in S3
+                    # Store in S3 using object_key as the identifier
                     s3_key = s3_storage.put_proxy(
-                        str(db_media_object.id), proxy_bytes, proxy_mimetype
+                        object_key, proxy_bytes, proxy_mimetype
                     )
                     # Register S3 key in database
                     repo.register_proxy(
-                        db_media_object.id, s3_key, proxy_mimetype, len(proxy_bytes)
+                        object_key, s3_key, proxy_mimetype, len(proxy_bytes)
                     )
-                    logger.info(f"Stored proxy in S3 for {domain_record.object_key}")
+                    logger.info(f"Stored proxy in S3 for {object_key}")
                 except Exception as e:
                     logger.error(
-                        f"Failed to store proxy in S3 for {domain_record.object_key}: {e}"
+                        f"Failed to store proxy in S3 for {object_key}: {e}"
                     )
-                    # S3 storage failure is critical
+                    repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
                     return False
 
+            # 6. Update MediaObject with extracted metadata
+            metadata_to_update = {}
+            if intrinsic_metadata:
+                metadata_to_update["intrinsic"] = intrinsic_metadata
+            
+            if metadata_to_update:
+                repo.update_after_ingestion(object_key, metadata_to_update)
+            else:
+                # Just mark as completed
+                repo.update_ingestion_status(object_key, IngestionStatus.COMPLETED.value)
+
             logger.info(
-                f"Successfully processed and committed {domain_record.object_key}"
+                f"Successfully processed {object_key}"
                 + (" with" if intrinsic_metadata else " without")
                 + " intrinsic metadata."
             )
@@ -200,44 +210,20 @@ async def ingest(stored_media_object: StoredMediaObject) -> bool:
 
         except Exception as e:
             logger.exception(
-                f"Error during intrinsic metadata extraction for {domain_record.object_key}: {e}"
+                f"Error during processing for {object_key}: {e}"
             )
-            # Continue without intrinsic metadata
-            pass
-
-        # 3. Use repository to commit/update the database object (fallback path)
-        # Placeholder: Merge intrinsic metadata into the main metadata dictionary.
-        # A dedicated DB field (e.g., JSONB) is the proper long-term solution.
-        if domain_record.metadata is None:
-            domain_record.metadata = {}
-
-        # Only add intrinsic key if metadata was extracted
-        if intrinsic_metadata:
-            domain_record.metadata["intrinsic"] = intrinsic_metadata
-        # Else: Commit the object with potentially only the original metadata
-
-        # Commit the object (create or update)
-        # Assuming repo.create handles potential updates or has get_or_create logic
-        db_obj = repo.create(domain_record)
-
-        if not db_obj:
-            logger.error(
-                f"Failed to commit MediaObject via repository for key: {domain_record.object_key}"
-            )
-            return False  # Indicate failure
-
-        logger.info(
-            f"Successfully processed and committed {domain_record.object_key}"
-            + (" with" if intrinsic_metadata else " without")
-            + " intrinsic metadata."
-        )
-        return True  # Indicate success
+            repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
+            return False
 
     except Exception as e:
         logger.exception(
-            f"Error committing media object {domain_record.object_key} to DB: {e}"
+            f"Error processing media object {object_key}: {e}"
         )
-        return False  # Indicate failure
+        try:
+            repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
+        except:
+            pass
+        return False
     finally:
         # Ensure proper cleanup of database session
         try:

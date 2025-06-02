@@ -78,7 +78,8 @@ class DropboxStorageProvider(StorageProviderBase):
                 elif isinstance(entry, FileMetadata):
                     # This is a file
                     rel_path = os.path.relpath(entry.path_display, self.root_path)
-                    rel_path = "/" + rel_path.lstrip("/")
+                    # Remove any leading slash - object keys should not start with /
+                    rel_path = rel_path.lstrip("/")
                     
                     mime_type, _ = mimetypes.guess_type(rel_path)
                     last_modified = (
@@ -152,7 +153,8 @@ class DropboxStorageProvider(StorageProviderBase):
                 for entry in res.entries:
                     if isinstance(entry, FileMetadata):
                         rel_path = os.path.relpath(entry.path_display, self.root_path)
-                        rel_path = "/" + rel_path.lstrip("/")
+                        # Remove any leading slash - object keys should not start with /
+                        rel_path = rel_path.lstrip("/")
 
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):
@@ -244,7 +246,8 @@ class DropboxStorageProvider(StorageProviderBase):
                 for entry in res.entries:
                     if isinstance(entry, FileMetadata):
                         rel_path = os.path.relpath(entry.path_display, self.root_path)
-                        rel_path = "/" + rel_path.lstrip("/")
+                        # Remove any leading slash - object keys should not start with /
+                        rel_path = rel_path.lstrip("/")
 
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):

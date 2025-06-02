@@ -1,6 +1,6 @@
 import logging
 from typing import List, cast
-from uuid import UUID
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -35,8 +35,8 @@ def search_media(
     """
     media_records, total_count = repo.search(query=q, limit=limit, offset=offset)
 
-    # Convert to Pydantic models
-    media_objects = [record.to_pydantic() for record in media_records]
+    # Convert to Pydantic models (filter out any without object_key)
+    media_objects = [record.to_pydantic() for record in media_records if record.object_key is not None]
 
     # Calculate total pages
     pages = (total_count + limit - 1) // limit if limit > 0 else 0
@@ -50,19 +50,22 @@ def search_media(
     )
 
 
-@router.get("/media/{id}/data", response_class=StreamingResponse, tags=["media"])
+@router.get("/media/{object_key:path}/data", response_class=StreamingResponse, tags=["media"])
 async def get_media_data(
-    id: UUID,
+    object_key: str,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
     provider=Depends(get_storage_provider),
 ) -> StreamingResponse:
-    """Returns the raw bytes of a media object by UUID as a streamable response.
+    """Returns the raw bytes of a media object by object_key as a streamable response.
 
     Returns 404 if not found.
     """
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
     # Get the media object record
-    record = repo.get_by_id(id)
-    if not record or record.id is None or not record.object_key:
+    record = repo.get_by_object_key(object_key)
+    if not record or not record.object_key:
         raise HTTPException(status_code=404, detail="Media object not found")
 
     # provider is now injected by FastAPI
@@ -134,20 +137,8 @@ def list_media_objects(
     total_count = repo.count(prefix=prefix)
     media_records = repo.get_all(limit=limit, offset=offset, prefix=prefix)
 
-    # Filter records missing essential fields and convert to API schema
-    media_objects = []
-    for record in media_records:
-        if record.id is not None and record.object_key is not None:
-            media_objects.append(
-                MediaObject(
-                    id=record.id,
-                    object_key=record.object_key,
-                    last_modified=record.last_modified,
-                    metadata=record.metadata,
-                )
-            )
-        else:
-            logger.warning(f"Skipping record due to missing id or object_key: {record}")
+    # Convert to API schema
+    media_objects = [record.to_pydantic() for record in media_records]
 
     # Note: The total_count might slightly differ from len(media_objects) if filtering occurred.
     # This is generally acceptable for pagination display but could be refined if needed.
@@ -159,32 +150,38 @@ def list_media_objects(
     )
 
 
-@router.get("/media/{id}", response_model=MediaObject, tags=["media"])
+@router.get("/media/{object_key:path}", response_model=MediaObject, tags=["media"])
 def get_media_object(
-    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
+    object_key: str, repo: MediaObjectRepository = Depends(get_media_object_repository)
 ) -> MediaObject:
     """
-    Retrieve a single media object by its UUID.
+    Retrieve a single media object by its object_key.
     Returns 404 if not found.
     """
-    record = repo.get_by_id(id)
-    if not record or record.id is None or record.object_key is None:
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
+    record = repo.get_by_object_key(object_key)
+    if not record or not record.object_key:
         raise HTTPException(status_code=404, detail="Media object not found")
     return record.to_pydantic()
 
 
-@router.patch("/media/{id}", response_model=MediaObject, tags=["media"])
+@router.patch("/media/{object_key:path}", response_model=MediaObject, tags=["media"])
 def patch_media_object(
-    id: UUID,
+    object_key: str,
     patch_request: MediaObjectPatch,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
 ) -> MediaObject:
     """
-    Partially update metadata for a media object by its UUID.
+    Partially update metadata for a media object by its object_key.
     Merges new fields into the existing metadata dict. Returns the updated object.
     """
-    record = repo.get_by_id(id)
-    if not record or record.id is None or record.object_key is None:
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
+    record = repo.get_by_object_key(object_key)
+    if not record or not record.object_key:
         raise HTTPException(status_code=404, detail="Media object not found")
 
     # Extract metadata from the patch request
@@ -201,16 +198,20 @@ def patch_media_object(
     merged_metadata = {**existing_metadata, **new_metadata}
     record.metadata = merged_metadata
 
-    # Update last_modified timestamp
+    # Update metadata
     from datetime import datetime
 
-    record.last_modified = datetime.utcnow().isoformat()
-
-    # Save using explicit save method
+    # Save using update_after_ingestion method
     try:
-        updated = repo.save(record)
-    except MediaObjectNotFound:
-        raise HTTPException(status_code=404, detail="Media object not found")
+        success = repo.update_after_ingestion(object_key, new_metadata)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update media object")
+            
+        # Retrieve updated record
+        updated = repo.get_by_object_key(object_key)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Media object not found after update")
+            
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to update media object: {e}"
@@ -218,28 +219,31 @@ def patch_media_object(
     return updated.to_pydantic()
 
 
-@router.get("/media/{id}/thumbnail", response_class=StreamingResponse, tags=["media"])
+@router.get("/media/{object_key:path}/thumbnail", response_class=StreamingResponse, tags=["media"])
 def get_media_thumbnail(
-    id: UUID,
+    object_key: str,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
     s3_storage=Depends(get_s3_binary_storage),
 ):
     """
-    Returns the thumbnail bytes for a media object by UUID, or 404 if not found or no thumbnail exists.
-    Streams from S3 if available, falls back to database.
+    Returns the thumbnail bytes for a media object by object_key, or 404 if not found or no thumbnail exists.
+    Streams from S3 if available.
     """
-    media_object = repo.get_by_id(id)
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
+    media_object = repo.get_by_object_key(object_key)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
 
     # Get metadata to determine content type
     try:
-        metadata = s3_storage.get_thumbnail_metadata(str(id))
+        metadata = s3_storage.get_thumbnail_metadata(object_key)
         if not metadata:
             raise HTTPException(status_code=404, detail="Thumbnail not found")
 
         # Stream from S3
-        stream = s3_storage.stream_thumbnail(str(id))
+        stream = s3_storage.stream_thumbnail(object_key)
         return StreamingResponse(
             content=stream,
             media_type=metadata.get("content_type", "image/jpeg"),
@@ -255,28 +259,31 @@ def get_media_thumbnail(
         raise HTTPException(status_code=500, detail="Error retrieving thumbnail")
 
 
-@router.get("/media/{id}/proxy", response_class=StreamingResponse, tags=["media"])
+@router.get("/media/{object_key:path}/proxy", response_class=StreamingResponse, tags=["media"])
 def get_media_proxy(
-    id: UUID,
+    object_key: str,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
     s3_storage=Depends(get_s3_binary_storage),
 ):
     """
-    Returns the proxy bytes for a media object by UUID, or 404 if not found or no proxy exists.
-    Streams from S3 if available, falls back to database.
+    Returns the proxy bytes for a media object by object_key, or 404 if not found or no proxy exists.
+    Streams from S3 if available.
     """
-    media_object = repo.get_by_id(id)
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
+    media_object = repo.get_by_object_key(object_key)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
 
     # Get metadata to determine content type
     try:
-        metadata = s3_storage.get_proxy_metadata(str(id))
+        metadata = s3_storage.get_proxy_metadata(object_key)
         if not metadata:
             raise HTTPException(status_code=404, detail="Proxy not found")
 
         # Stream from S3
-        stream = s3_storage.stream_proxy(str(id))
+        stream = s3_storage.stream_proxy(object_key)
         return StreamingResponse(
             content=stream,
             media_type=metadata.get("content_type", "image/jpeg"),
@@ -300,22 +307,25 @@ class AdjacentMediaResponse(BaseModel):
 
 
 @router.get(
-    "/media/{id}/adjacent", response_model=AdjacentMediaResponse, tags=["media"]
+    "/media/{object_key:path}/adjacent", response_model=AdjacentMediaResponse, tags=["media"]
 )
 def get_adjacent_media(
-    id: UUID, repo: MediaObjectRepository = Depends(get_media_object_repository)
+    object_key: str, repo: MediaObjectRepository = Depends(get_media_object_repository)
 ) -> AdjacentMediaResponse:
     """
     Get the previous and next media objects relative to the given media object.
     Used for implementing photo navigation without returning to the gallery.
     """
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
     # First, verify the current media object exists
-    current = repo.get_by_id(id)
-    if not current or current.id is None or current.object_key is None:
+    current = repo.get_by_object_key(object_key)
+    if not current or not current.object_key:
         raise HTTPException(status_code=404, detail="Media object not found")
 
     # Get adjacent media objects
-    previous_obj, next_obj = repo.get_adjacent(id)
+    previous_obj, next_obj = repo.get_adjacent(object_key)
 
     # Convert to pydantic models if they exist
     previous = previous_obj.to_pydantic() if previous_obj else None
