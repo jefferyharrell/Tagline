@@ -320,6 +320,33 @@ Authentication Flow:
    - sign in as `test@example.com`
    - press the purple `Developer Login` button at the bottom of the sign in page
 
+### API Testing and Authentication Bypass
+
+For testing backend APIs directly without going through the frontend authentication flow:
+
+1. **Get authentication bypass token**:
+```bash
+TOKEN=$(curl -s -X POST "http://localhost:8000/v1/auth/bypass" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: dev-api-key-12345" \
+  -d '{"email": "test@example.com"}' | jq -r '.access_token')
+```
+
+2. **Use token in API calls**:
+```bash
+# Test media objects
+curl -H "Authorization: Bearer $TOKEN" \
+     -H "X-API-Key: dev-api-key-12345" \
+     "http://localhost:8000/v1/media?limit=5"
+
+# Test storage browse
+curl -H "Authorization: Bearer $TOKEN" \
+     -H "X-API-Key: dev-api-key-12345" \
+     "http://localhost:8000/v1/storage/browse"
+```
+
+**Note**: Auth bypass only works when `AUTH_BYPASS_ENABLED=true` and the email is in `AUTH_BYPASS_EMAILS` environment variables.
+
 ## Docker Compose Setup
 
 The application runs in Docker containers orchestrated with Docker Compose.
