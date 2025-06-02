@@ -28,8 +28,8 @@ export default function MediaThumbnail({ media, onClick }: MediaThumbnailProps) 
       onClick={handleClick}
       target="_self"
     >
-      <div className="bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
-        <div className="relative aspect-square bg-gray-100 flex items-center justify-center">
+      <div className="bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1 rounded-lg">
+        <div className="relative aspect-square bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/api/library/${media.id}/thumbnail`}

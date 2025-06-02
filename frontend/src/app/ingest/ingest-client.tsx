@@ -245,7 +245,7 @@ const IngestClient = () => {
                   >
                     <button onClick={navigateToRoot}>
                       <Home className="w-4 h-4 mr-1" />
-                      Root
+                      Home
                     </button>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
@@ -276,30 +276,23 @@ const IngestClient = () => {
           </div>
 
           {/* Folder Table */}
-          <div>
-            <div className="border-b border-gray-200">
-              <div className="bg-gray-50 px-6 py-3">
-                <h3 className="text-sm font-medium text-gray-700">Folders</h3>
+          <div className="divide-y divide-gray-200 border-t border-gray-200">
+            {subfolders.length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-500">
+                No subfolders in this directory
               </div>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {subfolders.length === 0 ? (
-                <div className="px-6 py-8 text-center text-gray-500">
-                  No subfolders in this directory
-                </div>
-              ) : (
-                subfolders.slice(0, 8).map((folder) => (
-                  <button
-                    key={folder}
-                    onClick={() => navigateToFolder(folder)}
-                    className="w-full flex items-center px-6 py-3 hover:bg-gray-50 transition-colors text-left"
-                  >
-                    <Folder className="w-5 h-5 text-jl-red mr-3" />
-                    <span className="text-sm">{folder}</span>
-                  </button>
-                ))
-              )}
-            </div>
+            ) : (
+              subfolders.slice(0, 8).map((folder) => (
+                <button
+                  key={folder}
+                  onClick={() => navigateToFolder(folder)}
+                  className="w-full flex items-center px-6 py-3 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <Folder className="w-5 h-5 text-jl-red mr-3" />
+                  <span className="text-sm">{folder}</span>
+                </button>
+              ))
+            )}
           </div>
 
           {/* Action Buttons and Object Prefix */}

@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import LibrarySidebar from "@/components/LibrarySidebar";
-import GalleryClient from "./gallery-client";
+// import GalleryClient from "./gallery-client";
+import LibraryPrototypeClient from "./library-prototype-client";
 
 export default async function Gallery() {
   // Check if the user is authenticated
@@ -18,7 +19,7 @@ export default async function Gallery() {
     <SidebarProvider>
       <LibrarySidebar />
       <SidebarInset className="min-h-screen bg-gray-50">
-        <GalleryClient />
+        <LibraryPrototypeClient />
       </SidebarInset>
     </SidebarProvider>
   );
