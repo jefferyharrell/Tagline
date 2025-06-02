@@ -150,11 +150,12 @@ class S3BinaryStorage:
                 logger.error(f"Failed to get metadata for {key}: {e}")
                 raise
 
-    def delete_binaries(self, media_id: str) -> None:
+    def delete_binaries(self, object_key: str) -> None:
         """Delete all binaries for a media object."""
+        safe_key = object_key.replace('/', '_')
         keys_to_delete = [
-            f"thumbnails/{media_id}",
-            f"proxies/{media_id}",
+            f"thumbnails/{safe_key}",
+            f"proxies/{safe_key}",
         ]
 
         # S3 delete_objects is more efficient for multiple deletes
