@@ -261,6 +261,9 @@ Authentication Flow:
 - `POST /v1/ingest`: Scan storage for new media files
 - `GET /v1/tasks`: List background tasks
 - `GET /v1/tasks/{id}`: Get task status
+- `GET /v1/storage/browse`: Browse folders and files with auto-discovery
+- `GET /v1/folders/{path}`: Get folder structure at path (folders only)
+- `GET /v1/media/by-folder/{path}`: Get media objects in specific folder (non-recursive)
 
 ### Frontend
 
