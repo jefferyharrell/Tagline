@@ -21,7 +21,14 @@ from app import auth_schemas as schemas
 from app.auth_utils import get_current_user
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
+from app.media_processing.factory import is_extension_supported
 from app.storage_provider import get_storage_provider
+
+# Import processor modules to trigger registration via decorators
+# The noqa comment prevents linters from flagging unused import, which is needed here.
+from app.media_processing import heicprocessor  # noqa: F401
+from app.media_processing import jpegprocessor  # noqa: F401
+from app.media_processing import pngprocessor   # noqa: F401
 from app.storage_providers.base import StorageProviderBase
 from app.schemas import MediaObject
 from app.tasks.ingest import ingest
@@ -91,18 +98,15 @@ async def browse_storage(
         folders = [item for item in items if item.is_folder]
         files = [item for item in items if not item.is_folder]
         
-        # Supported media file extensions
-        SUPPORTED_MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.heic', '.mp4', '.mov', '.avi'}
-        
         # Process discovered files: create MediaObjects and queue ingest tasks
         newly_queued = 0
         for file_item in files:
             if not file_item.object_key:
                 continue
                 
-            # Check if it's a supported media file
-            filename, ext = os.path.splitext(file_item.object_key.lower())
-            if ext not in SUPPORTED_MEDIA_EXTENSIONS:
+            # Check if it's a supported media file using dynamic processor registry
+            _, ext = os.path.splitext(file_item.object_key.lower())
+            if not is_extension_supported(ext):
                 continue
                 
             # Parse file metadata

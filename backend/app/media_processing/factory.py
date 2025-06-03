@@ -1,5 +1,6 @@
 import logging
-from typing import Type
+import mimetypes
+from typing import Type, Set
 
 from app.media_processing.base import MediaProcessor
 from app.schemas import StoredMediaObject
@@ -28,6 +29,74 @@ def is_mimetype_supported(mimetype: str) -> bool:
     )
     logger.debug(f"Mimetype '{mimetype}' supported: {supported}")
     return supported
+
+
+def get_supported_extensions() -> Set[str]:
+    """Get all file extensions supported by registered processors.
+    
+    Returns:
+        Set of lowercase file extensions (e.g., {'.jpg', '.png', '.heic'})
+    """
+    supported_extensions = set()
+    
+    # Common extension to MIME type mappings for media files
+    # This covers the most common cases and can be extended as needed
+    extension_to_mimetype = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.heic': 'image/heic',
+        '.heif': 'image/heif',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+        '.tiff': 'image/tiff',
+        '.tif': 'image/tiff',
+        '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+        '.webm': 'video/webm',
+        '.m4v': 'video/x-m4v',
+        '.3gp': 'video/3gpp',
+        '.wmv': 'video/x-ms-wmv',
+    }
+    
+    # Check each known extension against registered processors
+    for ext, mimetype in extension_to_mimetype.items():
+        if is_mimetype_supported(mimetype):
+            supported_extensions.add(ext)
+    
+    # Also use Python's mimetypes module for additional extensions
+    # This helps catch any extensions we might have missed
+    for processor_cls in _PROCESSOR_REGISTRY:
+        if hasattr(processor_cls, 'SUPPORTED_MIMETYPES'):
+            supported_mimetypes = getattr(processor_cls, 'SUPPORTED_MIMETYPES', set())
+            for mimetype in supported_mimetypes:
+                # Use mimetypes.guess_all_extensions to find extensions for this MIME type
+                extensions = mimetypes.guess_all_extensions(mimetype)
+                if extensions:
+                    supported_extensions.update(ext.lower() for ext in extensions)
+    
+    logger.debug(f"Dynamically determined supported extensions: {sorted(supported_extensions)}")
+    return supported_extensions
+
+
+def is_extension_supported(file_extension: str) -> bool:
+    """Check if a file extension is supported by any registered processor.
+    
+    Args:
+        file_extension: File extension (with or without leading dot, case insensitive)
+        
+    Returns:
+        True if the extension is supported, False otherwise
+    """
+    # Normalize the extension
+    if not file_extension.startswith('.'):
+        file_extension = '.' + file_extension
+    file_extension = file_extension.lower()
+    
+    return file_extension in get_supported_extensions()
 
 
 def get_processor(stored_media_object: StoredMediaObject) -> MediaProcessor:
