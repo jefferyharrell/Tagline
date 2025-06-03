@@ -17,12 +17,15 @@ export async function GET(
   const backendApiKey = process.env.BACKEND_API_KEY;
 
   try {
-    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}/adjacent`, {
-      headers: {
-        Authorization: `Bearer ${authToken.value}`,
-        "X-API-Key": backendApiKey || "",
+    const response = await fetch(
+      `${backendUrl}/v1/media/${encodeURIComponent(object_key)}/adjacent`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`,
+          "X-API-Key": backendApiKey || "",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();

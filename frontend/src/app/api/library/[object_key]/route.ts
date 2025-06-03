@@ -18,12 +18,15 @@ export async function GET(
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}`, {
-      headers: {
-        Authorization: `Bearer ${authToken.value}`,
-        "X-API-Key": backendApiKey || "",
+    const response = await fetch(
+      `${backendUrl}/v1/media/${encodeURIComponent(object_key)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`,
+          "X-API-Key": backendApiKey || "",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -63,15 +66,18 @@ export async function PATCH(
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${authToken.value}`,
-        "X-API-Key": backendApiKey || "",
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${backendUrl}/v1/media/${encodeURIComponent(object_key)}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${authToken.value}`,
+          "X-API-Key": backendApiKey || "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
 
     if (!response.ok) {
       const error = await response.json();

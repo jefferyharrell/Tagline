@@ -80,7 +80,9 @@ export default function MediaDetailClient({
     }
 
     try {
-      const response = await fetch(`/api/library/${encodeURIComponent(objectKey)}`);
+      const response = await fetch(
+        `/api/library/${encodeURIComponent(objectKey)}`,
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch media");
       }
@@ -127,7 +129,9 @@ export default function MediaDetailClient({
   useEffect(() => {
     const fetchAdjacentMedia = async () => {
       try {
-        const response = await fetch(`/api/library/${encodeURIComponent(mediaObject.object_key)}/adjacent`);
+        const response = await fetch(
+          `/api/library/${encodeURIComponent(mediaObject.object_key)}/adjacent`,
+        );
         if (response.ok) {
           const data = await response.json();
           setAdjacentMedia(data);
@@ -139,7 +143,9 @@ export default function MediaDetailClient({
             prevImg.src = `/api/library/${encodeURIComponent(data.previous.object_key)}/proxy`;
 
             // Prefetch and cache the media data too
-            fetch(`/api/library/${encodeURIComponent(data.previous.object_key)}`)
+            fetch(
+              `/api/library/${encodeURIComponent(data.previous.object_key)}`,
+            )
               .then((res) => res.json())
               .then((mediaData) => {
                 mediaCache.current.set(data.previous.object_key, mediaData);
@@ -190,7 +196,11 @@ export default function MediaDetailClient({
       if (newMediaData) {
         // Update the URL without full page reload (only in modal mode)
         if (isModal) {
-          window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
+          window.history.pushState(
+            {},
+            "",
+            `/library/${encodeURIComponent(media.object_key)}`,
+          );
         }
 
         // Update the media object state
@@ -251,13 +261,16 @@ export default function MediaDetailClient({
     };
 
     try {
-      const response = await fetch(`/api/library/${encodeURIComponent(mediaObject.object_key)}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/library/${encodeURIComponent(mediaObject.object_key)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
         },
-        body: JSON.stringify(requestBody),
-      });
+      );
 
       if (!response.ok) {
         const errorData = await response.json();

@@ -48,7 +48,9 @@ export default function MediaThumbnail({
               {/* Processing indicator */}
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
                 <div className="text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
-                  {media.ingestion_status === 'processing' ? 'Processing...' : 'Pending...'}
+                  {media.ingestion_status === "processing"
+                    ? "Processing..."
+                    : "Pending..."}
                 </div>
               </div>
             </>

@@ -158,18 +158,28 @@ export default function LibraryPrototypeClient() {
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
     try {
-      const response = await fetch(`/api/library/${encodeURIComponent(media.object_key)}`);
+      const response = await fetch(
+        `/api/library/${encodeURIComponent(media.object_key)}`,
+      );
       if (response.ok) {
         const fullMedia = await response.json();
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
-        window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
+        window.history.pushState(
+          {},
+          "",
+          `/library/${encodeURIComponent(media.object_key)}`,
+        );
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
+      window.history.pushState(
+        {},
+        "",
+        `/library/${encodeURIComponent(media.object_key)}`,
+      );
     }
   }, []);
 

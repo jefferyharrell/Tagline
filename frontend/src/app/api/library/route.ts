@@ -29,14 +29,12 @@ export async function GET(request: NextRequest) {
       url.searchParams.set("prefix", prefix);
     }
 
-    const response = await fetch(url.toString(),
-      {
-        headers: {
-          Authorization: `Bearer ${authToken.value}`,
-          "X-API-Key": backendApiKey || "",
-        },
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        "X-API-Key": backendApiKey || "",
       },
-    );
+    });
 
     if (!response.ok) {
       const error = await response.json();

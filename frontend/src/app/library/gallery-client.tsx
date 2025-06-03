@@ -39,20 +39,30 @@ export default function GalleryClient() {
   const handleMediaClick = useCallback(async (media: MediaObject) => {
     // Fetch full media details
     try {
-      const response = await fetch(`/api/library/${encodeURIComponent(media.object_key)}`);
+      const response = await fetch(
+        `/api/library/${encodeURIComponent(media.object_key)}`,
+      );
       if (response.ok) {
         const fullMedia = await response.json();
         setSelectedMedia(fullMedia);
         setIsModalOpen(true);
         // Update URL without navigation
-        window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
+        window.history.pushState(
+          {},
+          "",
+          `/library/${encodeURIComponent(media.object_key)}`,
+        );
       }
     } catch (error) {
       console.error("Error fetching media details:", error);
       // Fall back to using the basic media object
       setSelectedMedia(media);
       setIsModalOpen(true);
-      window.history.pushState({}, "", `/library/${encodeURIComponent(media.object_key)}`);
+      window.history.pushState(
+        {},
+        "",
+        `/library/${encodeURIComponent(media.object_key)}`,
+      );
     }
   }, []);
 
@@ -81,11 +91,15 @@ export default function GalleryClient() {
           return;
         }
 
-        const media = mediaObjects.find((m) => m.object_key === decodeURIComponent(mediaId));
+        const media = mediaObjects.find(
+          (m) => m.object_key === decodeURIComponent(mediaId),
+        );
         if (media) {
           // Fetch full media details
           try {
-            const response = await fetch(`/api/library/${encodeURIComponent(decodeURIComponent(mediaId))}`);
+            const response = await fetch(
+              `/api/library/${encodeURIComponent(decodeURIComponent(mediaId))}`,
+            );
             if (response.ok) {
               const fullMedia = await response.json();
               setSelectedMedia(fullMedia);

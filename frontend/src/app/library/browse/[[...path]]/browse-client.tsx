@@ -50,8 +50,9 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   const [mediaObjects, setMediaObjects] = useState<MediaObject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
   const [, ] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
+  const [, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,6 +115,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
 
   // Navigate to a folder
   const navigateToFolder = (folderName: string) => {
+    setIsDataReady(false);
     const newPath = [...currentPath, folderName];
     setCurrentPath(newPath);
     const newPathString = newPath.map(segment => encodeURIComponent(segment)).join('/');
@@ -125,6 +127,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
 
   // Navigate to a breadcrumb
   const navigateToBreadcrumb = (index: number) => {
+    setIsDataReady(false);
     const newPath = currentPath.slice(0, index + 1);
     setCurrentPath(newPath);
     const newPathString = newPath.map(segment => encodeURIComponent(segment)).join('/');
@@ -138,6 +141,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   const navigateToRoot = () => {
     // Only navigate if we're not already at root
     if (currentPath.length > 0) {
+      setIsDataReady(false);
       setCurrentPath([]);
       router.push('/library/browse');
       setOffset(0);
@@ -191,6 +195,11 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
+    // Reset data ready state when starting fresh load
+    if (reset) {
+      setIsDataReady(false);
+    }
+
     try {
       const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
       const currentOffset = reset ? 0 : offsetRef.current;
@@ -217,6 +226,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
             setMediaObjects(sanitizedItems);
             setOffset(data.items.length);
             offsetRef.current = data.items.length;
+            setIsDataReady(true);
           } else {
             setMediaObjects((prev) => {
               const existingIds = new Set(prev.map((item) => item.object_key));
@@ -243,10 +253,12 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
           }));
           
           if (reset) {
+            // Batch state updates to prevent intermediate renders
             setFolders(data.folders);
             setMediaObjects(sanitizedItems);
             setOffset(data.media_objects.length);
             offsetRef.current = data.media_objects.length;
+            setIsDataReady(true);
           } else {
             setMediaObjects((prev) => {
               const existingIds = new Set(prev.map((item) => item.object_key));
@@ -296,11 +308,12 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   }, [fetchBrowseData]);
 
   // Unified fetch function that gets both folders and media objects
+  const hasMediaObjects = mediaObjects.length > 0;
   const fetchData = useCallback(
     async (reset: boolean = false) => {
       if ((!hasMore && !reset) || isFetchingRef.current) return;
 
-      if (reset && mediaObjects.length > 0) {
+      if (reset && hasMediaObjects) {
         setIsTransitioning(true);
       } else {
         setIsLoading(true);
@@ -310,7 +323,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         await fetchBrowseDataRef.current(reset);
       }
     },
-    [mediaObjects.length > 0],
+    [hasMore, hasMediaObjects],
   );
 
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -323,19 +336,19 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     }
   }, [hasInitialized, fetchData]);
 
-  // Reload when path changes
+  // Reload when path changes (but not during initial load)
   useEffect(() => {
-    if (hasInitialized) {
+    if (hasInitialized && !initialLoad) {
       fetchData(true);
     }
-  }, [currentPath, hasInitialized, fetchData]);
+  }, [currentPath, hasInitialized, fetchData, initialLoad]);
 
-  // Reload when search query changes
+  // Reload when search query changes (but not during initial load)
   useEffect(() => {
-    if (hasInitialized) {
+    if (hasInitialized && !initialLoad) {
       fetchData(true);
     }
-  }, [searchQuery, hasInitialized, fetchData]);
+  }, [searchQuery, hasInitialized, fetchData, initialLoad]);
 
   // Handle refresh trigger from SSE events
   useEffect(() => {
@@ -359,7 +372,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
 
   // Setup intersection observer for infinite scroll
   useEffect(() => {
-    if (loadingRef.current && !initialLoad && mediaObjects.length > 0) {
+    if (loadingRef.current && !initialLoad && hasMediaObjects) {
       observerRef.current = new IntersectionObserver(
         (entries) => {
           const [entry] = entries;
@@ -378,7 +391,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         observerRef.current.disconnect();
       }
     };
-  }, [fetchData, hasMore, isLoading, initialLoad, mediaObjects.length > 0]);
+  }, [fetchData, hasMore, isLoading, initialLoad, hasMediaObjects]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -511,8 +524,21 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
             </Breadcrumb>
           </div>
 
-          {/* Folder List */}
-          {folders.length > 0 && (
+          {/* Show content only when data is ready */}
+          {!isDataReady ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="inline-flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-gray-600">Loading...</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Folder List */}
+              {folders.length > 0 && (
             <div className="divide-y divide-gray-200 border-t border-gray-200">
               {folders.map((folder) => (
                 <button
@@ -528,49 +554,41 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
           )}
 
           {/* No subfolders message */}
-          {folders.length === 0 && !isLoading && (
+          {folders.length === 0 && (
             <div className="px-6 py-4 text-center text-gray-500 text-sm">
               No subfolders in this directory
             </div>
           )}
+            </>
+          )}
         </div>
 
-        {/* Media Gallery */}
-        {mediaObjects.length === 0 && pendingMediaObjects.length === 0 && !isLoading && !isTransitioning ? (
-          <div className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No photos in this folder
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Navigate to a folder with photos or try searching
-            </p>
-          </div>
-        ) : isLoading && mediaObjects.length === 0 && pendingMediaObjects.length === 0 && folders.length === 0 ? (
-          // Show minimal loading state only on true initial load
-          <div className="flex items-center justify-center py-16">
-            <div className="inline-flex items-center">
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        {/* Media Gallery - only render when data is ready */}
+        {isDataReady ? (
+          mediaObjects.length === 0 && pendingMediaObjects.length === 0 ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
-              <span className="text-gray-600">Loading...</span>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No photos in this folder
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Navigate to a folder with photos or try searching
+              </p>
             </div>
-          </div>
-        ) : (
+          ) : (
           <>
             <div
               className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 ${isTransitioning ? "opacity-50" : ""} transition-opacity duration-200`}
@@ -640,7 +658,20 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
               )}
             </div>
           </>
+          )
+        ) : (
+          // Show loading state when data is not ready
+          <div className="flex items-center justify-center py-16">
+            <div className="inline-flex items-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-gray-600">Loading...</span>
+            </div>
+          </div>
         )}
+
       </div>
 
       {/* Modal for media detail */}

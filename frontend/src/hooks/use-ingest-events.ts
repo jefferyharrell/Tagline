@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface IngestEvent {
-  type: 'media_ingested' | 'heartbeat' | 'error';
+  type: "media_ingested" | "heartbeat" | "error";
   object_key?: string;
   job_id?: string;
   timestamp?: string;
@@ -28,12 +28,12 @@ export function useIngestEvents(options: UseIngestEventsOptions = {}) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-    
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     setIsConnected(false);
   }, []);
 
@@ -50,19 +50,19 @@ export function useIngestEvents(options: UseIngestEventsOptions = {}) {
           setTimeout(() => connect(), 0);
         }, delay);
       } else {
-        setError('Failed to maintain connection after multiple attempts');
+        setError("Failed to maintain connection after multiple attempts");
         if (onError) {
-          onError('Connection lost');
+          onError("Connection lost");
         }
       }
     };
 
     try {
-      const eventSource = new EventSource('/api/events/ingest');
+      const eventSource = new EventSource("/api/events/ingest");
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
-        console.log('SSE connection opened');
+        console.log("SSE connection opened");
         setIsConnected(true);
         setError(null);
         reconnectAttempts.current = 0;
@@ -71,38 +71,37 @@ export function useIngestEvents(options: UseIngestEventsOptions = {}) {
       eventSource.onmessage = (event) => {
         try {
           const data: IngestEvent = JSON.parse(event.data);
-          
+
           switch (data.type) {
-            case 'media_ingested':
+            case "media_ingested":
               if (data.object_key && onMediaIngested) {
                 onMediaIngested(data.object_key);
               }
               break;
-            case 'error':
+            case "error":
               if (data.message && onError) {
                 onError(data.message);
               }
               break;
-            case 'heartbeat':
+            case "heartbeat":
               // Just keep the connection alive, no action needed
               break;
           }
         } catch (err) {
-          console.error('Error parsing SSE event:', err);
+          console.error("Error parsing SSE event:", err);
         }
       };
 
       eventSource.onerror = () => {
-        console.error('SSE connection error');
+        console.error("SSE connection error");
         setIsConnected(false);
         handleReconnect();
       };
-
     } catch (err) {
-      console.error('Error creating SSE connection:', err);
-      setError('Failed to create connection');
+      console.error("Error creating SSE connection:", err);
+      setError("Failed to create connection");
       if (onError) {
-        onError('Failed to create connection');
+        onError("Failed to create connection");
       }
     }
   }, [enabled, onMediaIngested, onError, disconnect]);

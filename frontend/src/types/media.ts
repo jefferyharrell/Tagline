@@ -1,6 +1,6 @@
 export interface MediaObject {
-  object_key: string;  // Primary key
-  ingestion_status: 'pending' | 'processing' | 'completed' | 'failed';
+  object_key: string; // Primary key
+  ingestion_status: "pending" | "processing" | "completed" | "failed";
   file_size?: number;
   file_mimetype?: string;
   file_last_modified?: string;

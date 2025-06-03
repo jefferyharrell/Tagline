@@ -18,13 +18,16 @@ async function getMediaObject(objectKey: string) {
   const backendApiKey = process.env.BACKEND_API_KEY;
 
   try {
-    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(objectKey)}`, {
-      headers: {
-        Authorization: `Bearer ${authToken.value}`,
-        "X-API-Key": backendApiKey || "",
+    const response = await fetch(
+      `${backendUrl}/v1/media/${encodeURIComponent(objectKey)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`,
+          "X-API-Key": backendApiKey || "",
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
       return null;

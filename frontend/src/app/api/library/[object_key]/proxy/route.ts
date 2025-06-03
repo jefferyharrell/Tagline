@@ -18,12 +18,15 @@ export async function GET(
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    const response = await fetch(`${backendUrl}/v1/media/${encodeURIComponent(object_key)}/proxy`, {
-      headers: {
-        Authorization: `Bearer ${authToken.value}`,
-        "X-API-Key": backendApiKey || "",
+    const response = await fetch(
+      `${backendUrl}/v1/media/${encodeURIComponent(object_key)}/proxy`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`,
+          "X-API-Key": backendApiKey || "",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
