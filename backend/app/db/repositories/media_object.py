@@ -562,3 +562,107 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error searching media objects: {e}")
             return [], 0
+
+    def get_objects_with_prefix(self, prefix: str) -> List[MediaObjectRecord]:
+        """Get all media objects that are direct children of the given prefix.
+        
+        This returns only files directly in the folder, not in subfolders.
+        For example, prefix="folder/" returns ["folder/file1.jpg", "folder/file2.jpg"]
+        but NOT ["folder/subfolder/file3.jpg"].
+        
+        Args:
+            prefix: The folder prefix (should end with "/" for folders)
+            
+        Returns:
+            List of MediaObjectRecord objects directly under the prefix
+        """
+        try:
+            logger.debug(f"Getting objects with exact prefix: {prefix}")
+            
+            # Query for objects that start with prefix but don't have additional slashes
+            query = self.db.query(ORMMediaObject).filter(
+                ORMMediaObject.object_key.startswith(prefix)
+            )
+            
+            # Exclude items in subfolders by filtering out paths with additional slashes
+            if prefix:
+                # For a non-empty prefix, exclude paths that have slashes after the prefix
+                query = query.filter(
+                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                )
+            else:
+                # For root level (empty prefix), exclude any paths with slashes
+                query = query.filter(
+                    ~ORMMediaObject.object_key.contains("/")
+                )
+            
+            # Apply natural sort order
+            orm_objs = query.order_by(
+                func.regexp_replace(
+                    ORMMediaObject.object_key, 
+                    r'(\d+)', 
+                    r'000000000\1'
+                ).label('natural_sort')
+            ).all()
+            
+            records = [
+                MediaObjectRecord.from_orm(obj, load_binary_fields=True)
+                for obj in orm_objs
+            ]
+            
+            logger.debug(f"Found {len(records)} objects with prefix: {prefix}")
+            return records
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting objects with prefix {prefix}: {e}")
+            return []
+
+    def get_subfolders_with_prefix(self, prefix: str) -> List[str]:
+        """Get immediate subfolders under the given prefix.
+        
+        This returns only the immediate subfolder names, not the full paths.
+        For example, prefix="folder/" might return ["subfolder1", "subfolder2"].
+        
+        Args:
+            prefix: The folder prefix to search under (empty string for root)
+            
+        Returns:
+            List of immediate subfolder names (not full paths)
+        """
+        try:
+            logger.debug(f"Getting subfolders with prefix: {prefix}")
+            
+            # Build query to find all objects under the prefix
+            query = self.db.query(ORMMediaObject.object_key)
+            
+            if prefix:
+                # For non-root folders, find objects that start with the prefix
+                query = query.filter(ORMMediaObject.object_key.startswith(prefix))
+            
+            # Get all matching object keys
+            all_keys = [row[0] for row in query.all()]
+            
+            # Extract unique immediate subfolders
+            subfolders = set()
+            prefix_len = len(prefix)
+            
+            for key in all_keys:
+                # Get the part after the prefix
+                remainder = key[prefix_len:]
+                
+                # If there's a slash in the remainder, it's in a subfolder
+                if '/' in remainder:
+                    # Get the immediate subfolder name (everything before the first slash)
+                    subfolder = remainder.split('/', 1)[0]
+                    if subfolder:  # Avoid empty strings
+                        subfolders.add(subfolder)
+            
+            # Convert to sorted list
+            result = sorted(list(subfolders))
+            
+            logger.debug(f"Found {len(result)} subfolders under prefix: {prefix}")
+            return result
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting subfolders with prefix {prefix}: {e}")
+            return []

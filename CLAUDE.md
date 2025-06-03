@@ -18,6 +18,12 @@ Tagline is a web application for the Junior League of Los Angeles (JLLA) that or
 
 **Note that** right now backend is considered more developed than frontend. If backend does something one way and frontend does it differently, check with the human but lean toward making frontend conform to backend.
 
+## Application Vision
+
+- The purpose of the Tagline backend is to synthesize from the storage provider's object space, the Postgres database, and the S3-compatible internal object space for proxies and thumbnails a single unified _media space_ that represents media objects (backed by supported file types on the storage provider) and which can be browsed and searched using API calls. The structure of the media space exactly mirrors, and is dept in sync with, the file structure of the storage provider.
+
+- The purpose of the Tagline frontend is to provide a user-friendly interface for browsing, searching and annotating the metadata of media in the media space.
+
 ## Repository Structure
 
 The repository is organized into two main directories:
