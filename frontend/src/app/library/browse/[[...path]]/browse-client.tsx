@@ -132,10 +132,13 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
 
   // Navigate to root
   const navigateToRoot = () => {
-    setCurrentPath([]);
-    router.push('/library/browse');
-    setOffset(0);
-    setHasMore(true);
+    // Only navigate if we're not already at root
+    if (currentPath.length > 0) {
+      setCurrentPath([]);
+      router.push('/library/browse');
+      setOffset(0);
+      setHasMore(true);
+    }
   };
 
   // Get icon for file type (reserved for future use)
