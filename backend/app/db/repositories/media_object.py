@@ -259,13 +259,18 @@ class MediaObjectRepository:
             query = self.db.query(ORMMediaObject)
             
             # Apply prefix filter if provided
-            if prefix:
+            if prefix is not None:
                 # For exact folder matching, we need to filter by prefix but exclude subfolders
-                # E.g., prefix="/folder/" should match "/folder/file.jpg" but not "/folder/subfolder/file.jpg"
+                # E.g., prefix="folder/" should match "folder/file.jpg" but not "folder/subfolder/file.jpg"
                 query = query.filter(
                     ORMMediaObject.object_key.startswith(prefix)
                 ).filter(
                     ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                )
+            else:
+                # For root level (prefix is None), only return files without any "/" in the path
+                query = query.filter(
+                    ~ORMMediaObject.object_key.contains("/")
                 )
             
             # Natural sort by extracting numeric parts
@@ -362,8 +367,18 @@ class MediaObjectRepository:
             query = self.db.query(ORMMediaObject)
             
             # Apply prefix filter if provided
-            if prefix:
-                query = query.filter(ORMMediaObject.object_key.startswith(prefix))
+            if prefix is not None:
+                # For exact folder matching, count files with prefix but exclude subfolders
+                query = query.filter(
+                    ORMMediaObject.object_key.startswith(prefix)
+                ).filter(
+                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                )
+            else:
+                # For root level (prefix is None), only count files without any "/" in the path
+                query = query.filter(
+                    ~ORMMediaObject.object_key.contains("/")
+                )
             
             total = query.count()
             logger.debug(f"Total count: {total}")

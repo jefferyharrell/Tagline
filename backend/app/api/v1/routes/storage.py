@@ -135,7 +135,8 @@ async def browse_storage(
         
         # Now get all MediaObjects for this path with pagination
         # Build the prefix for exact folder matching
-        prefix_filter = f"{path}/" if path else ""
+        # For root level, we pass None to get a special handling in the repository
+        prefix_filter = f"{path}/" if path else None
         
         # Get paginated MediaObjects
         media_objects = media_repo.get_all(

@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const path = searchParams.get('path');
+    const limit = searchParams.get('limit');
+    const offset = searchParams.get('offset');
     
     // Build backend URL
     const backendUrl = process.env.BACKEND_URL || 'http://backend:8000';
@@ -20,6 +22,12 @@ export async function GET(request: NextRequest) {
     
     if (path) {
       url.searchParams.set('path', path);
+    }
+    if (limit) {
+      url.searchParams.set('limit', limit);
+    }
+    if (offset) {
+      url.searchParams.set('offset', offset);
     }
 
     // Forward the request to the backend
