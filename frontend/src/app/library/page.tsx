@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import LibraryClient from "./library-client";
 
 export default async function Library() {
   // Check if the user is authenticated
@@ -10,6 +11,6 @@ export default async function Library() {
     redirect("/");
   }
 
-  // Redirect to the browse route
-  redirect("/library/browse");
+  // Show the library browser directly at root
+  return <LibraryClient initialPath="" />;
 }

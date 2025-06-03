@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const url = new URL(`/v1/media/search`, BACKEND_URL);
+    const url = new URL(`/v1/search`, BACKEND_URL);
     url.searchParams.append("q", query);
     url.searchParams.append("limit", limit);
     url.searchParams.append("offset", offset);

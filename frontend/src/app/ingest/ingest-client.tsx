@@ -161,13 +161,13 @@ const mockFolderStructure = {
 };
 
 const IngestClient = () => {
-  const [currentPath, setCurrentPath] = useState([]);
+  const [currentPath, setCurrentPath] = useState<string[]>([]);
 
   // Navigate through the folder structure based on current path
   const getCurrentFolder = () => {
-    let current = mockFolderStructure;
+    let current: Record<string, unknown> = mockFolderStructure;
     for (const segment of currentPath) {
-      current = current[segment] || {};
+      current = (current[segment] as Record<string, unknown>) || {};
     }
     return current;
   };
@@ -176,17 +176,20 @@ const IngestClient = () => {
   const getSubfolders = () => {
     const current = getCurrentFolder();
     return Object.keys(current).filter(
-      (key) => typeof current[key] === "object" && current[key] !== null,
+      (key) => {
+        const value = (current as Record<string, unknown>)[key];
+        return typeof value === "object" && value !== null;
+      }
     );
   };
 
   // Handle clicking into a subfolder
-  const navigateToFolder = (folderName) => {
+  const navigateToFolder = (folderName: string) => {
     setCurrentPath([...currentPath, folderName]);
   };
 
   // Handle clicking on a breadcrumb to navigate back
-  const navigateToBreadcrumb = (index) => {
+  const navigateToBreadcrumb = (index: number) => {
     setCurrentPath(currentPath.slice(0, index + 1));
   };
 
@@ -203,7 +206,6 @@ const IngestClient = () => {
   // Handle selecting this path as the batch prefix
   const selectCurrentPath = () => {
     const prefix = generatePrefix();
-    setSelectedPrefix(prefix);
     // In real implementation, this would trigger the batch ingest workflow
     console.log("Selected prefix:", prefix);
   };

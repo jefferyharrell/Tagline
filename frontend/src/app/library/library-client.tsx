@@ -5,7 +5,7 @@ import { Folder, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
-import MediaDetailClient from "../../[object_key]/media-detail-client";
+import MediaDetailClient from "./[object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -37,11 +37,11 @@ interface BrowseResponse {
   has_more: boolean;
 }
 
-interface BrowseClientProps {
+interface LibraryClientProps {
   initialPath: string;
 }
 
-export default function BrowseClient({ initialPath }: BrowseClientProps) {
+export default function LibraryClient({ initialPath }: LibraryClientProps) {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState<string[]>(() => 
     initialPath ? initialPath.split('/').filter(Boolean).map(segment => decodeURIComponent(segment)) : []
@@ -119,7 +119,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     const newPath = [...currentPath, folderName];
     setCurrentPath(newPath);
     const newPathString = newPath.map(segment => encodeURIComponent(segment)).join('/');
-    router.push(`/library/browse/${newPathString}`);
+    router.push(`/library/${newPathString}`);
     setOffset(0);
     offsetRef.current = 0;
     setHasMore(true);
@@ -131,7 +131,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     const newPath = currentPath.slice(0, index + 1);
     setCurrentPath(newPath);
     const newPathString = newPath.map(segment => encodeURIComponent(segment)).join('/');
-    router.push(`/library/browse/${newPathString}`);
+    router.push(`/library/${newPathString}`);
     setOffset(0);
     offsetRef.current = 0;
     setHasMore(true);
@@ -143,25 +143,12 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     if (currentPath.length > 0) {
       setIsDataReady(false);
       setCurrentPath([]);
-      router.push('/library/browse');
+      router.push('/library');
       setOffset(0);
       offsetRef.current = 0;
       setHasMore(true);
     }
   };
-
-  // Get icon for file type (reserved for future use)
-  // const getFileIcon = (mimetype?: string) => {
-  //   if (!mimetype) return <File className="w-5 h-5 text-gray-400" alt="" />;
-  //   
-  //   if (mimetype.startsWith('image/')) {
-  //     return <Image className="w-5 h-5 text-blue-500" alt="" />;
-  //   }
-  //   if (mimetype.startsWith('video/')) {
-  //     return <Video className="w-5 h-5 text-purple-500" alt="" />;
-  //   }
-  //   return <FileText className="w-5 h-5 text-gray-400" alt="" />;
-  // };
 
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
@@ -186,7 +173,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     setIsModalOpen(false);
     setSelectedMedia(null);
     const encodedPath = currentPath.map(segment => encodeURIComponent(segment)).join('/');
-    const url = encodedPath ? `/library/browse/${encodedPath}` : '/library/browse';
+    const url = encodedPath ? `/library/${encodedPath}` : '/library';
     window.history.pushState({}, "", url);
   }, [currentPath]);
 
@@ -206,10 +193,8 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
       
       // Build URL with search or path-based filtering
       const url = searchQuery && searchQuery.trim() !== ""
-        ? `/api/library/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
-        : pathString 
-          ? `/api/storage/browse?path=${encodeURIComponent(pathString)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
-          : `/api/storage/browse?limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
+        ? `/api/search?q=${encodeURIComponent(searchQuery)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`
+        : `/api/library?path=${encodeURIComponent(pathString)}&limit=${ITEMS_PER_PAGE}&offset=${currentOffset}`;
 
       const response = await fetch(url);
       if (response.ok) {

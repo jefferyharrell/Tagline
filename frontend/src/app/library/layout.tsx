@@ -1,7 +1,7 @@
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import LibrarySidebar from "@/components/LibrarySidebar";
 
-export default function BrowseLayout({
+export default function LibraryLayout({
   children,
 }: {
   children: React.ReactNode;

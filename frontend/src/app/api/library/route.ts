@@ -11,23 +11,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract pagination parameters from URL
+    // Extract parameters from URL
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "24", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
-    const prefix = searchParams.get("prefix");
-
-    // Call the backend API to get media objects with pagination
+    const path = searchParams.get("path");
+    const limit = searchParams.get("limit") || "36";
+    const offset = searchParams.get("offset") || "0";
+    
+    // Call the backend API for library browsing
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendApiKey = process.env.BACKEND_API_KEY;
 
-    // Build URL with parameters
-    const url = new URL(`${backendUrl}/v1/media`);
-    url.searchParams.set("limit", limit.toString());
-    url.searchParams.set("offset", offset.toString());
-    if (prefix) {
-      url.searchParams.set("prefix", prefix);
-    }
+    // Build URL - use the new library endpoint
+    const url = new URL(`${backendUrl}/v1/library${path ? `/${path}` : ""}`);
+    url.searchParams.set("limit", limit);
+    url.searchParams.set("offset", offset);
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -37,9 +34,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       return NextResponse.json(
-        { error: error.detail || "Failed to fetch media objects" },
+        { error: error.detail || "Failed to fetch library data" },
         { status: response.status },
       );
     }
@@ -47,7 +44,7 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching media objects:", error);
+    console.error("Error fetching library data:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
