@@ -64,6 +64,8 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
   const loadingRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
+  const offsetRef = useRef(0);
+  const fetchBrowseDataRef = useRef<((reset?: boolean) => Promise<void>) | null>(null);
 
   // Modal state
   const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
@@ -117,6 +119,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     const newPathString = newPath.map(segment => encodeURIComponent(segment)).join('/');
     router.push(`/library/browse/${newPathString}`);
     setOffset(0);
+    offsetRef.current = 0;
     setHasMore(true);
   };
 
@@ -127,6 +130,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
     const newPathString = newPath.map(segment => encodeURIComponent(segment)).join('/');
     router.push(`/library/browse/${newPathString}`);
     setOffset(0);
+    offsetRef.current = 0;
     setHasMore(true);
   };
 
@@ -137,6 +141,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
       setCurrentPath([]);
       router.push('/library/browse');
       setOffset(0);
+      offsetRef.current = 0;
       setHasMore(true);
     }
   };
@@ -188,7 +193,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
 
     try {
       const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
-      const currentOffset = reset ? 0 : offset;
+      const currentOffset = reset ? 0 : offsetRef.current;
       
       // Build URL with search or path-based filtering
       const url = searchQuery && searchQuery.trim() !== ""
@@ -211,6 +216,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
             setFolders([]); // No folders in search results
             setMediaObjects(sanitizedItems);
             setOffset(data.items.length);
+            offsetRef.current = data.items.length;
           } else {
             setMediaObjects((prev) => {
               const existingIds = new Set(prev.map((item) => item.object_key));
@@ -219,10 +225,14 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
               );
               return [...prev, ...newItems];
             });
-            setOffset(currentOffset + data.items.length);
+            setOffset((prevOffset) => {
+              const newOffset = prevOffset + data.items.length;
+              offsetRef.current = newOffset;
+              return newOffset;
+            });
           }
           
-          setHasMore(currentOffset + data.items.length < data.total);
+          setHasMore((currentOffset + data.items.length) < data.total);
           setPendingMediaObjects([]);
         } else {
           // Handle browse response
@@ -236,6 +246,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
             setFolders(data.folders);
             setMediaObjects(sanitizedItems);
             setOffset(data.media_objects.length);
+            offsetRef.current = data.media_objects.length;
           } else {
             setMediaObjects((prev) => {
               const existingIds = new Set(prev.map((item) => item.object_key));
@@ -244,7 +255,11 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
               );
               return [...prev, ...newItems];
             });
-            setOffset(currentOffset + data.media_objects.length);
+            setOffset((prevOffset) => {
+              const newOffset = prevOffset + data.media_objects.length;
+              offsetRef.current = newOffset;
+              return newOffset;
+            });
           }
           
           setHasMore(data.has_more);
@@ -273,7 +288,12 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
       setIsLoading(false);
       setIsTransitioning(false);
     }
-  }, [currentPath, searchQuery, offset]);
+  }, [currentPath, searchQuery]);
+
+  // Store the latest fetchBrowseData in a ref
+  useEffect(() => {
+    fetchBrowseDataRef.current = fetchBrowseData;
+  }, [fetchBrowseData]);
 
   // Unified fetch function that gets both folders and media objects
   const fetchData = useCallback(
@@ -286,9 +306,11 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         setIsLoading(true);
       }
 
-      await fetchBrowseData(reset);
+      if (fetchBrowseDataRef.current) {
+        await fetchBrowseDataRef.current(reset);
+      }
     },
-    [fetchBrowseData, hasMore, mediaObjects.length],
+    [mediaObjects.length > 0],
   );
 
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -356,7 +378,7 @@ export default function BrowseClient({ initialPath }: BrowseClientProps) {
         observerRef.current.disconnect();
       }
     };
-  }, [fetchData, hasMore, isLoading, initialLoad, mediaObjects.length]);
+  }, [fetchData, hasMore, isLoading, initialLoad, mediaObjects.length > 0]);
 
   return (
     <div className="min-h-screen bg-gray-50">
