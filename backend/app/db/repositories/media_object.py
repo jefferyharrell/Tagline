@@ -4,6 +4,7 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
+from natsort import natsorted
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -657,8 +658,8 @@ class MediaObjectRepository:
                     if subfolder:  # Avoid empty strings
                         subfolders.add(subfolder)
             
-            # Convert to sorted list
-            result = sorted(list(subfolders))
+            # Convert to naturally sorted list
+            result = natsorted(list(subfolders))
             
             logger.debug(f"Found {len(result)} subfolders under prefix: {prefix}")
             return result
