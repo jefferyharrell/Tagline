@@ -150,21 +150,7 @@ def list_media_objects(
     )
 
 
-@router.get("/media/{object_key:path}", response_model=MediaObject, tags=["media"])
-def get_media_object(
-    object_key: str, repo: MediaObjectRepository = Depends(get_media_object_repository)
-) -> MediaObject:
-    """
-    Retrieve a single media object by its object_key.
-    Returns 404 if not found.
-    """
-    # URL decode the object_key
-    object_key = unquote(object_key)
-    
-    record = repo.get_by_object_key(object_key)
-    if not record or not record.object_key:
-        raise HTTPException(status_code=404, detail="Media object not found")
-    return record.to_pydantic()
+# Route moved to end of file to avoid path parameter conflicts
 
 
 @router.patch("/media/{object_key:path}", response_model=MediaObject, tags=["media"])
@@ -230,18 +216,29 @@ def get_media_thumbnail(
     Streams from S3 if available.
     """
     # URL decode the object_key
+    original_object_key = object_key
     object_key = unquote(object_key)
+    logger.info(f"Getting thumbnail for original='{original_object_key}' decoded='{object_key}'")
     
     media_object = repo.get_by_object_key(object_key)
     if not media_object:
-        raise HTTPException(status_code=404, detail="Media object not found")
+        # Debug: check what objects exist in the database
+        all_objects = repo.get_all(limit=10, offset=0)
+        object_keys = [obj.object_key for obj in all_objects if obj.object_key]
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Media object not found for key: '{object_key}'. Available keys: {object_keys}"
+        )
 
+    logger.info(f"Found media object, checking thumbnail metadata for: {object_key}")
     # Get metadata to determine content type
     try:
         metadata = s3_storage.get_thumbnail_metadata(object_key)
         if not metadata:
+            logger.warning(f"Thumbnail metadata not found for: {object_key}")
             raise HTTPException(status_code=404, detail="Thumbnail not found")
 
+        logger.info(f"Thumbnail metadata found, streaming for: {object_key}")
         # Stream from S3
         stream = s3_storage.stream_thumbnail(object_key)
         return StreamingResponse(
@@ -253,9 +250,10 @@ def get_media_thumbnail(
             },
         )
     except FileNotFoundError:
+        logger.warning(f"Thumbnail file not found in S3 for: {object_key}")
         raise HTTPException(status_code=404, detail="Thumbnail not found")
     except Exception as e:
-        logger.error(f"Error streaming thumbnail from S3 for {id}: {e}")
+        logger.error(f"Error streaming thumbnail from S3 for {object_key}: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving thumbnail")
 
 
@@ -295,7 +293,7 @@ def get_media_proxy(
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Proxy not found")
     except Exception as e:
-        logger.error(f"Error streaming proxy from S3 for {id}: {e}")
+        logger.error(f"Error streaming proxy from S3 for {object_key}: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving proxy")
 
 
@@ -305,6 +303,41 @@ class AdjacentMediaResponse(BaseModel):
     previous: MediaObject | None = None
     next: MediaObject | None = None
 
+
+@router.get("/media/debug-sparkle", tags=["media"])
+def debug_sparkle_specifically(
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+):
+    """Debug endpoint to check if _Sparkle.heic exists."""
+    all_objects = repo.get_all(limit=10, offset=0)
+    object_keys = [obj.object_key for obj in all_objects if obj.object_key]
+    sparkle_exists = repo.get_by_object_key("_Sparkle.heic")
+    
+    return {
+        "available_keys": object_keys,
+        "sparkle_exists": sparkle_exists is not None,
+        "sparkle_object": sparkle_exists.to_pydantic() if sparkle_exists else None
+    }
+
+@router.get("/media/{object_key:path}/debug", tags=["media"])
+def debug_media_object(
+    object_key: str,
+    repo: MediaObjectRepository = Depends(get_media_object_repository),
+):
+    """Debug endpoint to check object key processing."""
+    from urllib.parse import unquote
+    original_object_key = object_key
+    object_key = unquote(object_key)
+    
+    all_objects = repo.get_all(limit=10, offset=0)
+    object_keys = [obj.object_key for obj in all_objects if obj.object_key]
+    
+    return {
+        "original_object_key": original_object_key,
+        "decoded_object_key": object_key,
+        "available_keys": object_keys,
+        "key_exists": any(key == object_key for key in object_keys)
+    }
 
 @router.get(
     "/media/{object_key:path}/adjacent", response_model=AdjacentMediaResponse, tags=["media"]
@@ -332,3 +365,21 @@ def get_adjacent_media(
     next = next_obj.to_pydantic() if next_obj else None
 
     return AdjacentMediaResponse(previous=previous, next=next)
+
+
+# This route must be last to avoid conflicting with more specific routes above
+@router.get("/media/{object_key:path}", response_model=MediaObject, tags=["media"])
+def get_media_object(
+    object_key: str, repo: MediaObjectRepository = Depends(get_media_object_repository)
+) -> MediaObject:
+    """
+    Retrieve a single media object by its object_key.
+    Returns 404 if not found.
+    """
+    # URL decode the object_key
+    object_key = unquote(object_key)
+    
+    record = repo.get_by_object_key(object_key)
+    if not record or not record.object_key:
+        raise HTTPException(status_code=404, detail="Media object not found")
+    return record.to_pydantic()

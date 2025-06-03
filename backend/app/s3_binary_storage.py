@@ -71,13 +71,15 @@ class S3BinaryStorage:
                 logger.error(f"Error checking bucket: {e}")
                 raise
 
-    def put_thumbnail(self, media_id: str, data: bytes, content_type: str) -> str:
+    def put_thumbnail(self, object_key: str, data: bytes, content_type: str) -> str:
         """Store thumbnail in S3."""
-        return self._put_binary(f"thumbnails/{media_id}", data, content_type)
+        safe_key = object_key.replace('/', '_')
+        return self._put_binary(f"thumbnails/{safe_key}", data, content_type)
 
-    def put_proxy(self, media_id: str, data: bytes, content_type: str) -> str:
+    def put_proxy(self, object_key: str, data: bytes, content_type: str) -> str:
         """Store proxy in S3."""
-        return self._put_binary(f"proxies/{media_id}", data, content_type)
+        safe_key = object_key.replace('/', '_')
+        return self._put_binary(f"proxies/{safe_key}", data, content_type)
 
     def _put_binary(self, key: str, data: bytes, content_type: str) -> str:
         """Store binary data in S3."""
@@ -96,13 +98,15 @@ class S3BinaryStorage:
             logger.error(f"Failed to store {key}: {e}")
             raise
 
-    def stream_thumbnail(self, media_id: str) -> Generator[bytes, None, None]:
+    def stream_thumbnail(self, object_key: str) -> Generator[bytes, None, None]:
         """Stream thumbnail from S3."""
-        return self._stream_binary(f"thumbnails/{media_id}")
+        safe_key = object_key.replace('/', '_')
+        return self._stream_binary(f"thumbnails/{safe_key}")
 
-    def stream_proxy(self, media_id: str) -> Generator[bytes, None, None]:
+    def stream_proxy(self, object_key: str) -> Generator[bytes, None, None]:
         """Stream proxy from S3."""
-        return self._stream_binary(f"proxies/{media_id}")
+        safe_key = object_key.replace('/', '_')
+        return self._stream_binary(f"proxies/{safe_key}")
 
     def _stream_binary(self, key: str) -> Generator[bytes, None, None]:
         """Stream binary data from S3 in chunks."""
@@ -125,18 +129,24 @@ class S3BinaryStorage:
                 logger.error(f"Failed to stream {key}: {e}")
                 raise
 
-    def get_thumbnail_metadata(self, media_id: str) -> Optional[dict]:
+    def get_thumbnail_metadata(self, object_key: str) -> Optional[dict]:
         """Get thumbnail metadata from S3."""
-        return self._get_metadata(f"thumbnails/{media_id}")
+        safe_key = object_key.replace('/', '_')
+        s3_key = f"thumbnails/{safe_key}"
+        logger.info(f"Getting thumbnail metadata for object_key='{object_key}' -> s3_key='{s3_key}'")
+        return self._get_metadata(s3_key)
 
-    def get_proxy_metadata(self, media_id: str) -> Optional[dict]:
+    def get_proxy_metadata(self, object_key: str) -> Optional[dict]:
         """Get proxy metadata from S3."""
-        return self._get_metadata(f"proxies/{media_id}")
+        safe_key = object_key.replace('/', '_')
+        return self._get_metadata(f"proxies/{safe_key}")
 
     def _get_metadata(self, key: str) -> Optional[dict]:
         """Get object metadata from S3."""
         try:
+            logger.info(f"Attempting to get S3 metadata for key: '{key}' in bucket: '{self.config.bucket_name}'")
             response = self.client.head_object(Bucket=self.config.bucket_name, Key=key)
+            logger.info(f"Successfully got metadata for key: '{key}'")
             return {
                 "content_type": response.get("ContentType"),
                 "content_length": response.get("ContentLength"),
@@ -145,6 +155,7 @@ class S3BinaryStorage:
             }
         except ClientError as e:
             if e.response["Error"]["Code"] == "404":
+                logger.warning(f"S3 object not found: '{key}' in bucket: '{self.config.bucket_name}'")
                 return None
             else:
                 logger.error(f"Failed to get metadata for {key}: {e}")
@@ -173,7 +184,7 @@ class S3BinaryStorage:
                     logger.error(f"Failed to delete {error['Key']}: {error['Message']}")
 
         except ClientError as e:
-            logger.error(f"Failed to delete binaries for {media_id}: {e}")
+            logger.error(f"Failed to delete binaries for {object_key}: {e}")
             raise
 
     def exists(self, key: str) -> bool:
