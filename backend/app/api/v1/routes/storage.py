@@ -93,45 +93,9 @@ async def browse_storage(
         # Supported media file extensions
         SUPPORTED_MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.heic', '.mp4', '.mov', '.avi'}
         
-        # Process each file - create MediaObject if needed
-        for file_item in files:
-            if file_item.object_key:
-                # Check if it's a supported media file
-                file_ext = file_item.object_key.lower().split('.')[-1] if '.' in file_item.object_key else ''
-                if f'.{file_ext}' in SUPPORTED_MEDIA_EXTENSIONS:
-                    # Check if MediaObject already exists
-                    existing_media = media_repo.get_by_object_key(file_item.object_key)
-                    
-                    if not existing_media:
-                        # Create a sparse MediaObject record
-                        logger.info(f"Discovering new media file: {file_item.object_key}")
-                        
-                        # Parse last_modified if available
-                        file_last_modified = None
-                        if file_item.last_modified:
-                            try:
-                                file_last_modified = datetime.fromisoformat(file_item.last_modified.replace('Z', '+00:00'))
-                            except:
-                                pass
-                        
-                        # Create sparse MediaObject
-                        media_obj = media_repo.create_sparse(
-                            object_key=file_item.object_key,
-                            file_size=file_item.size,
-                            file_mimetype=file_item.mimetype,
-                            file_last_modified=file_last_modified
-                        )
-                        
-                        if media_obj:
-                            # Queue ingestion task
-                            try:
-                                ingest_queue.enqueue(
-                                    "app.tasks.ingest.ingest", 
-                                    object_key=file_item.object_key
-                                )
-                                logger.info(f"Queued ingestion for: {file_item.object_key}")
-                            except Exception as e:
-                                logger.error(f"Failed to queue ingestion for {file_item.object_key}: {e}")
+        # Skip auto-discovery of new files during browse to improve performance
+        # This should be done via the /ingest endpoint instead
+        # TODO: Consider moving this to a background task or separate endpoint
         
         # Now get all MediaObjects for this path with pagination
         # Build the prefix for exact folder matching
