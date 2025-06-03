@@ -4,7 +4,6 @@ import logging
 from app.config import get_settings
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
-from app.domain_media_object import MediaObjectRecord
 from app.models import IngestionStatus
 
 # Import processor modules to trigger registration via decorators
@@ -33,9 +32,9 @@ async def ingest(object_key: str) -> bool:
     # Create a database session for this task
     db_gen = get_db()
     db = next(db_gen)
+    repo = MediaObjectRepository(db)
 
     try:
-        repo = MediaObjectRepository(db)
         
         # Update status to processing
         if not repo.update_ingestion_status(object_key, IngestionStatus.PROCESSING.value):
@@ -221,7 +220,7 @@ async def ingest(object_key: str) -> bool:
         )
         try:
             repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
-        except:
+        except Exception:
             pass
         return False
     finally:

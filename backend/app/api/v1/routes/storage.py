@@ -23,7 +23,8 @@ from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
 from app.storage_provider import get_storage_provider
 from app.storage_providers.base import StorageProviderBase
-from app.schemas import MediaObject, PaginatedMediaResponse
+from app.schemas import MediaObject
+from app.tasks.ingest import ingest
 
 logger = logging.getLogger(__name__)
 
@@ -77,25 +78,64 @@ async def browse_storage(
     try:
         logger.info(f"Browsing storage path: {path}, limit={limit}, offset={offset}")
         
-        # Get directory listing from storage provider
-        items = storage_provider.list_directory(prefix=path)
-        
-        # Separate folders and files
-        folders = [item for item in items if item.is_folder]
-        files = [item for item in items if not item.is_folder]
-        
         # Initialize repository and Redis for queueing
         media_repo = MediaObjectRepository(db)
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         redis_conn = redis.from_url(redis_url)
         ingest_queue = Queue("ingest", connection=redis_conn)
         
+        # Get directory listing from storage provider (fastest, most efficient)
+        items = storage_provider.list_directory(prefix=path)
+        
+        # Separate folders and files
+        folders = [item for item in items if item.is_folder]
+        files = [item for item in items if not item.is_folder]
+        
         # Supported media file extensions
         SUPPORTED_MEDIA_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.heic', '.mp4', '.mov', '.avi'}
         
-        # Skip auto-discovery of new files during browse to improve performance
-        # This should be done via the /ingest endpoint instead
-        # TODO: Consider moving this to a background task or separate endpoint
+        # Process discovered files: create MediaObjects and queue ingest tasks
+        newly_queued = 0
+        for file_item in files:
+            if not file_item.object_key:
+                continue
+                
+            # Check if it's a supported media file
+            filename, ext = os.path.splitext(file_item.object_key.lower())
+            if ext not in SUPPORTED_MEDIA_EXTENSIONS:
+                continue
+                
+            # Parse file metadata
+            file_last_modified = None
+            if file_item.last_modified:
+                try:
+                    file_last_modified = datetime.fromisoformat(file_item.last_modified.replace('Z', '+00:00'))
+                except ValueError:
+                    logger.warning(f"Could not parse last_modified for {file_item.object_key}: {file_item.last_modified}")
+            
+            # Create sparse MediaObject record (with ON CONFLICT DO NOTHING behavior)
+            media_obj = media_repo.create_sparse(
+                object_key=file_item.object_key,
+                file_size=file_item.size,
+                file_mimetype=file_item.mimetype,
+                file_last_modified=file_last_modified
+            )
+            
+            # If this is a newly created MediaObject, queue it for ingestion
+            if media_obj and media_obj.ingestion_status == 'pending':
+                try:
+                    # Check if we just created this (created_at very recent)
+                    if media_obj.created_at:
+                        time_since_creation = datetime.utcnow() - media_obj.created_at
+                        if time_since_creation.total_seconds() < 5:  # Created within last 5 seconds
+                            job = ingest_queue.enqueue(ingest, media_obj.object_key)
+                            logger.info(f"Queued ingest job {job.id} for newly discovered file: {file_item.object_key}")
+                            newly_queued += 1
+                except Exception as e:
+                    logger.error(f"Failed to queue ingest job for {file_item.object_key}: {e}")
+        
+        if newly_queued > 0:
+            logger.info(f"Queued {newly_queued} new files for ingestion")
         
         # Now get all MediaObjects for this path with pagination
         # Build the prefix for exact folder matching

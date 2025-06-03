@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 # Import needed for get_media_thumbnail (placeholder logic)
-from app.db.repositories.media_object import MediaObjectNotFound, MediaObjectRepository
+from app.db.repositories.media_object import MediaObjectRepository
 from app.dependencies import get_media_object_repository, get_s3_binary_storage
 from app.schemas import MediaObject, MediaObjectPatch, PaginatedMediaResponse
 from app.storage_provider import get_storage_provider
@@ -185,7 +185,6 @@ def patch_media_object(
     record.metadata = merged_metadata
 
     # Update metadata
-    from datetime import datetime
 
     # Save using update_after_ingestion method
     try:
