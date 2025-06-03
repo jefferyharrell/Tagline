@@ -46,12 +46,12 @@ class Settings(BaseSettings):
     AUTH_BYPASS_ENABLED: str | None = None  # Set to 'true' to enable auth bypass
 
     THUMBNAIL_FORMAT: str = "jpeg"
-    THUMBNAIL_QUALITY: int = 85
-    THUMBNAIL_SIZE: tuple[int, int] = (512, 512)
+    THUMBNAIL_QUALITY: int = 50
+    THUMBNAIL_SIZE: tuple[int, int] = (256, 256)
 
     PROXY_FORMAT: str = "jpeg"
-    PROXY_QUALITY: int = 85
-    PROXY_SIZE: tuple[int, int] = (2048, 2048)
+    PROXY_QUALITY: int = 50
+    PROXY_SIZE: tuple[int, int] = (1024, 1024)
 
     @field_validator("THUMBNAIL_SIZE", mode="before")
     @classmethod

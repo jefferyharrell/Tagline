@@ -73,13 +73,11 @@ class S3BinaryStorage:
 
     def put_thumbnail(self, object_key: str, data: bytes, content_type: str) -> str:
         """Store thumbnail in S3."""
-        safe_key = object_key.replace('/', '_')
-        return self._put_binary(f"thumbnails/{safe_key}", data, content_type)
+        return self._put_binary(f"thumbnails/{object_key}.jpg", data, content_type)
 
     def put_proxy(self, object_key: str, data: bytes, content_type: str) -> str:
         """Store proxy in S3."""
-        safe_key = object_key.replace('/', '_')
-        return self._put_binary(f"proxies/{safe_key}", data, content_type)
+        return self._put_binary(f"proxies/{object_key}.jpg", data, content_type)
 
     def _put_binary(self, key: str, data: bytes, content_type: str) -> str:
         """Store binary data in S3."""
@@ -100,13 +98,11 @@ class S3BinaryStorage:
 
     def stream_thumbnail(self, object_key: str) -> Generator[bytes, None, None]:
         """Stream thumbnail from S3."""
-        safe_key = object_key.replace('/', '_')
-        return self._stream_binary(f"thumbnails/{safe_key}")
+        return self._stream_binary(f"thumbnails/{object_key}.jpg")
 
     def stream_proxy(self, object_key: str) -> Generator[bytes, None, None]:
         """Stream proxy from S3."""
-        safe_key = object_key.replace('/', '_')
-        return self._stream_binary(f"proxies/{safe_key}")
+        return self._stream_binary(f"proxies/{object_key}.jpg")
 
     def _stream_binary(self, key: str) -> Generator[bytes, None, None]:
         """Stream binary data from S3 in chunks."""
@@ -131,15 +127,13 @@ class S3BinaryStorage:
 
     def get_thumbnail_metadata(self, object_key: str) -> Optional[dict]:
         """Get thumbnail metadata from S3."""
-        safe_key = object_key.replace('/', '_')
-        s3_key = f"thumbnails/{safe_key}"
+        s3_key = f"thumbnails/{object_key}.jpg"
         logger.info(f"Getting thumbnail metadata for object_key='{object_key}' -> s3_key='{s3_key}'")
         return self._get_metadata(s3_key)
 
     def get_proxy_metadata(self, object_key: str) -> Optional[dict]:
         """Get proxy metadata from S3."""
-        safe_key = object_key.replace('/', '_')
-        return self._get_metadata(f"proxies/{safe_key}")
+        return self._get_metadata(f"proxies/{object_key}.jpg")
 
     def _get_metadata(self, key: str) -> Optional[dict]:
         """Get object metadata from S3."""
@@ -163,10 +157,9 @@ class S3BinaryStorage:
 
     def delete_binaries(self, object_key: str) -> None:
         """Delete all binaries for a media object."""
-        safe_key = object_key.replace('/', '_')
         keys_to_delete = [
-            f"thumbnails/{safe_key}",
-            f"proxies/{safe_key}",
+            f"thumbnails/{object_key}.jpg",
+            f"proxies/{object_key}.jpg",
         ]
 
         # S3 delete_objects is more efficient for multiple deletes
