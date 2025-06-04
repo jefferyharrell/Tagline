@@ -257,7 +257,11 @@ class MediaObjectRepository:
             logger.debug(
                 f"Querying for all MediaObjects with limit={limit}, offset={offset}, prefix={prefix}"
             )
-            query = self.db.query(ORMMediaObject)
+            from sqlalchemy.orm import joinedload
+            
+            query = self.db.query(ORMMediaObject).options(
+                joinedload(ORMMediaObject.binaries)  # Eager load binaries in one query
+            )
             
             # Apply prefix filter if provided
             if prefix is not None:
@@ -282,7 +286,8 @@ class MediaObjectRepository:
                     func.regexp_replace(
                         ORMMediaObject.object_key, 
                         r'(\d+)', 
-                        r'000000000\1'
+                        r'000000000\1', 
+                        'g'  # Add global flag for multiple replacements
                     ).label('natural_sort')
                 )
                 .offset(offset)
@@ -290,7 +295,7 @@ class MediaObjectRepository:
                 .all()
             )
             
-            # Eagerly load binaries for has_thumbnail/has_proxy
+            # Convert to domain objects - binaries are already loaded
             records = [
                 MediaObjectRecord.from_orm(obj, load_binary_fields=True)
                 for obj in orm_objs

@@ -177,6 +177,16 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
     window.history.pushState({}, "", url);
   }, [currentPath]);
 
+  // Prefetch thumbnails for better performance
+  const prefetchThumbnails = useCallback((objects: MediaObject[]) => {
+    objects.forEach((obj) => {
+      if (obj.has_thumbnail) {
+        const img = new Image();
+        img.src = `/api/library/${encodeURIComponent(obj.object_key)}/thumbnail`;
+      }
+    });
+  }, []);
+
   // Fetch browse data (folders and media objects) - unified API call
   const fetchBrowseData = useCallback(async (reset: boolean = false) => {
     if (isFetchingRef.current) return;
@@ -244,12 +254,16 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
             setOffset(data.media_objects.length);
             offsetRef.current = data.media_objects.length;
             setIsDataReady(true);
+            // Prefetch thumbnails for loaded items
+            prefetchThumbnails(sanitizedItems);
           } else {
             setMediaObjects((prev) => {
               const existingIds = new Set(prev.map((item) => item.object_key));
               const newItems = sanitizedItems.filter(
                 (item) => !existingIds.has(item.object_key),
               );
+              // Prefetch thumbnails for new items
+              prefetchThumbnails(newItems);
               return [...prev, ...newItems];
             });
             setOffset((prevOffset) => {
@@ -285,7 +299,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
       setIsLoading(false);
       setIsTransitioning(false);
     }
-  }, [currentPath, searchQuery]);
+  }, [currentPath, searchQuery, prefetchThumbnails]);
 
   // Store the latest fetchBrowseData in a ref
   useEffect(() => {

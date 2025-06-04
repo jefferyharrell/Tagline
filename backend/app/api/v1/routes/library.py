@@ -107,6 +107,9 @@ async def browse_library(
     Returns:
         BrowseResponse with folders and paginated MediaObjects
     """
+    import time
+    start_time = time.time()
+    
     try:
         logger.info(f"Browsing library path: {path}, limit={limit}, offset={offset}")
         
@@ -197,7 +200,8 @@ async def browse_library(
         # Convert MediaObjectRecords to Pydantic models
         media_object_responses = [obj.to_pydantic() for obj in media_objects]
         
-        logger.info(f"Browse complete: {len(folders)} folders, {len(media_object_responses)} media objects returned")
+        end_time = time.time()
+        logger.info(f"Browse complete: {len(folders)} folders, {len(media_object_responses)} media objects returned in {end_time - start_time:.2f}s")
         
         return BrowseResponse(
             folders=folder_responses,
