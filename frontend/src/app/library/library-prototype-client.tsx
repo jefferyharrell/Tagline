@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Folder, Home } from "lucide-react";
 import MediaThumbnail from "@/components/MediaThumbnail";
 import MediaModal from "@/components/MediaModal";
-import MediaDetailClient from "./[object_key]/media-detail-client";
+import MediaDetailClient from "../media/[...object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {

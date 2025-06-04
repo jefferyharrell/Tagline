@@ -123,7 +123,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <button onClick={() => handleBreadcrumbClick(index)}>
-                  {segment}
+                  {decodeURIComponent(segment)}
                 </button>
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -182,7 +182,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
               />
               {/* Invisible overlay link for cmd/ctrl clicks */}
               <a
-                href={`/library/${photo.object_key}`}
+                href={`/media/${photo.object_key}`}
                 className="absolute inset-0 z-10"
                 onClick={(e) => {
                   // Only allow cmd/ctrl/middle clicks through
@@ -274,11 +274,11 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
               {/* View Full Details Link */}
               <div className="pt-4 border-t">
                 <a
-                  href={`/library/${selectedPhoto.object_key}`}
+                  href={`/media/${selectedPhoto.object_key}`}
                   className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
                   onClick={(e) => {
                     e.preventDefault();
-                    router.push(`/library/${selectedPhoto.object_key}`);
+                    router.push(`/media/${selectedPhoto.object_key}`);
                     handleModalClose();
                   }}
                 >

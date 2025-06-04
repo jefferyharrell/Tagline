@@ -44,18 +44,20 @@ async function getMediaObject(objectKey: string) {
 export default async function MediaDetailPage({
   params,
 }: {
-  params: Promise<{ object_key: string }>;
+  params: Promise<{ object_key: string[] }>;
 }) {
   // Await both dynamic APIs
   const cookieStore = await cookies();
-  const { object_key } = await params;
+  const resolvedParams = await params;
   const authToken = cookieStore.get("auth_token");
 
   if (!authToken) {
     redirect("/");
   }
 
-  const mediaObject = await getMediaObject(object_key);
+  // Join the path segments to reconstruct the object key
+  const objectKey = resolvedParams.object_key.join("/");
+  const mediaObject = await getMediaObject(objectKey);
 
   if (!mediaObject) {
     redirect("/library");
