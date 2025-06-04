@@ -11,6 +11,7 @@ const publicPaths = [
   "/api/auth/check-email",
   "/debug-auth",
   "/api/auth/dev-login",
+  "/components",
 ];
 
 // Paths that are handled by API routes (they do their own auth)
