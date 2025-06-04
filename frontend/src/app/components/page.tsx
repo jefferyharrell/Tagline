@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import PhotoThumbnail from "@/components/PhotoThumbnail";
 import ThumbnailGrid from "@/components/ThumbnailGrid";
+import FolderList from "@/components/FolderList";
 import { MediaObject } from "@/types/media";
 import { Camera, Folder } from "lucide-react";
 
@@ -309,6 +310,130 @@ export default function ComponentsTestPage() {
               ))}
             </ThumbnailGrid>
           </div>
+        </div>
+
+        {/* FolderList Component Tests */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">FolderList Component</h2>
+          
+          {/* Mock folder data for testing */}
+          {(() => {
+            const mockFolders = [
+              { name: "2024-2025 League Year", is_folder: true },
+              { name: "test1", is_folder: true },
+              { name: "Member Photos", is_folder: true },
+              { name: "Events", is_folder: true },
+              { name: "folder10", is_folder: true },
+              { name: "folder2", is_folder: true },
+              { name: "Administrative Documents", is_folder: true },
+              { name: "Board Meeting Photos", is_folder: true },
+            ];
+
+            const handleFolderClick = (folderName: string) => {
+              alert(`Navigating to folder: ${folderName}`);
+            };
+
+            return (
+              <>
+                {/* Content State */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Content State (Natural Sorting)</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={mockFolders}
+                      onFolderClick={handleFolderClick}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">
+                    Notice the natural sorting: folder2 comes before folder10
+                  </div>
+                </div>
+
+                {/* Empty State - Default */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Empty State (Default)</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={[]}
+                      onFolderClick={handleFolderClick}
+                    />
+                  </div>
+                </div>
+
+                {/* Empty State - Custom Message */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Empty State (Custom Message)</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={[]}
+                      onFolderClick={handleFolderClick}
+                      emptyMessage="This directory contains no subfolders"
+                    />
+                  </div>
+                </div>
+
+                {/* Mixed Items (folders only) */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Mixed Items (Filters to Folders Only)</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={[
+                        { name: "Actual Folder", is_folder: true },
+                        { name: "some-file.jpg", is_folder: false },
+                        { name: "Another Folder", is_folder: true },
+                        { name: "document.pdf", is_folder: false },
+                      ]}
+                      onFolderClick={handleFolderClick}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">
+                    Only items with is_folder: true are displayed
+                  </div>
+                </div>
+
+                {/* Custom Styling */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Custom Styling</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={mockFolders.slice(0, 4)}
+                      onFolderClick={handleFolderClick}
+                      className="shadow-lg rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Single Folder */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Single Folder</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={[{ name: "Single Folder", is_folder: true }]}
+                      onFolderClick={handleFolderClick}
+                    />
+                  </div>
+                </div>
+
+                {/* Accessibility Demo */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Accessibility Features</h3>
+                  <div className="max-w-md">
+                    <FolderList 
+                      folders={[
+                        { name: "Navigate with Tab", is_folder: true },
+                        { name: "Activate with Enter/Space", is_folder: true },
+                        { name: "Screen reader friendly", is_folder: true },
+                      ]}
+                      onFolderClick={handleFolderClick}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">
+                    Try using Tab to navigate and Enter/Space to activate
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Future Components Section */}
