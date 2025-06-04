@@ -51,6 +51,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
+  const [expectedMediaCount, setExpectedMediaCount] = useState<number | null>(null);
   const [, ] = useState<string | null>(null);
   const [, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -195,11 +196,33 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
     // Reset data ready state when starting fresh load
     if (reset) {
       setIsDataReady(false);
+      // Don't reset expectedMediaCount here - let it persist until we get new data
     }
 
     try {
       const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
       const currentOffset = reset ? 0 : offsetRef.current;
+      
+      // If this is a fresh load, first get the count for skeleton sizing
+      if (reset) {
+        setExpectedMediaCount(null); // Reset count for new path/search
+        
+        // Then fetch new count
+        const countUrl = searchQuery && searchQuery.trim() !== ""
+          ? `/api/search?q=${encodeURIComponent(searchQuery)}&limit=0&offset=0`
+          : `/api/library?path=${encodeURIComponent(pathString)}&limit=0&offset=0`;
+        
+        try {
+          const countResponse = await fetch(countUrl);
+          if (countResponse.ok) {
+            const countData = await countResponse.json();
+            const totalCount = searchQuery && searchQuery.trim() !== "" ? countData.total : countData.total;
+            setExpectedMediaCount(totalCount);
+          }
+        } catch (error) {
+          console.log('Could not fetch count for skeleton loading:', error);
+        }
+      }
       
       // Build URL with search or path-based filtering
       const url = searchQuery && searchQuery.trim() !== ""
@@ -299,7 +322,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
       setIsLoading(false);
       setIsTransitioning(false);
     }
-  }, [currentPath, searchQuery, prefetchThumbnails]);
+  }, [currentPath, searchQuery, prefetchThumbnails, expectedMediaCount]);
 
   // Store the latest fetchBrowseData in a ref
   useEffect(() => {
@@ -566,19 +589,32 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
 
         {/* Media Gallery */}
         {!isDataReady ? (
-          // Skeleton loading for thumbnails
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {Array.from({ length: 12 }).map((_, index) => (
-              <div
-                key={`skeleton-${index}`}
-                className="bg-white overflow-hidden shadow-sm rounded-lg"
-              >
-                <div className="relative aspect-square bg-gray-100 flex items-center justify-center rounded-lg">
-                  <Image className="w-8 h-8 text-gray-300" />
+          expectedMediaCount !== null ? (
+            // Show skeletons only when we know the correct count
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              {Array.from({ length: expectedMediaCount }).map((_, index) => (
+                <div
+                  key={`skeleton-${index}`}
+                  className="bg-white overflow-hidden shadow-sm rounded-lg"
+                >
+                  <div className="relative aspect-square bg-gray-100 flex items-center justify-center rounded-lg">
+                    <Image className="w-8 h-8 text-gray-300" />
+                  </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            // Show simple loading while fetching count
+            <div className="flex items-center justify-center py-16">
+              <div className="inline-flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-gray-600">Loading...</span>
               </div>
-            ))}
-          </div>
+            </div>
+          )
         ) : mediaObjects.length === 0 && pendingMediaObjects.length === 0 ? (
             <div className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center">
               <svg
