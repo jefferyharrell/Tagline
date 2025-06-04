@@ -52,6 +52,8 @@ class MediaObjectRepository:
                      file_last_modified: Optional[datetime] = None) -> Optional[MediaObjectRecord]:
         """Creates a sparse MediaObject record during discovery.
         
+        Uses INSERT ... ON CONFLICT DO NOTHING to avoid duplicate key errors in logs.
+        
         Args:
             object_key: The storage object key (without leading slash)
             file_size: File size in bytes
@@ -59,35 +61,50 @@ class MediaObjectRepository:
             file_last_modified: Last modified timestamp
             
         Returns:
-            The created MediaObjectRecord or None on error
+            The created MediaObjectRecord or existing one if already present
         """
         from app.models import IngestionStatus
         from datetime import datetime as dt
+        from sqlalchemy import text
         
         try:
             logger.debug(f"Creating sparse MediaObject for key: {object_key}")
             
-            orm_obj = ORMMediaObject(
-                object_key=object_key,
-                ingestion_status=IngestionStatus.PENDING.value,
-                file_size=file_size,
-                file_mimetype=file_mimetype,
-                file_last_modified=file_last_modified,
-                object_metadata={},
-                created_at=dt.utcnow(),
-                updated_at=dt.utcnow()
+            # Use raw SQL with ON CONFLICT DO NOTHING to avoid duplicate key errors
+            result = self.db.execute(
+                text("""
+                    INSERT INTO media_objects 
+                    (object_key, ingestion_status, object_metadata, file_size, 
+                     file_mimetype, file_last_modified, created_at, updated_at)
+                    VALUES 
+                    (:object_key, :ingestion_status, CAST(:metadata AS jsonb), :file_size,
+                     :file_mimetype, :file_last_modified, :created_at, :updated_at)
+                    ON CONFLICT (object_key) DO NOTHING
+                    RETURNING object_key
+                """),
+                {
+                    "object_key": object_key,
+                    "ingestion_status": IngestionStatus.PENDING.value,
+                    "metadata": "{}",
+                    "file_size": file_size,
+                    "file_mimetype": file_mimetype,
+                    "file_last_modified": file_last_modified,
+                    "created_at": dt.utcnow(),
+                    "updated_at": dt.utcnow()
+                }
             )
             
-            self.db.add(orm_obj)
             self.db.commit()
             
-            logger.info(f"Successfully created sparse MediaObject for key: {object_key}")
-            return MediaObjectRecord.from_orm(orm_obj)
+            # Check if we actually inserted a row
+            if result.rowcount > 0:
+                logger.info(f"Successfully created sparse MediaObject for key: {object_key}")
+            else:
+                logger.debug(f"MediaObject already exists for key: {object_key}")
             
-        except IntegrityError:
-            self.db.rollback()
-            logger.debug(f"MediaObject already exists for key: {object_key}")
+            # Return the object (either newly created or existing)
             return self.get_by_object_key(object_key)
+            
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"Database error creating sparse MediaObject: {e}")
