@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import LibraryClient from "./library-client";
+import LibraryView from "@/components/LibraryView";
 
 export default async function Library() {
   // Check if the user is authenticated
@@ -12,5 +12,5 @@ export default async function Library() {
   }
 
   // Show the library browser directly at root
-  return <LibraryClient initialPath="" />;
+  return <LibraryView initialPath="" />;
 }

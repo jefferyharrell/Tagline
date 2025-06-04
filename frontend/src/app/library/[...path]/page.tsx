@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import LibraryClient from "../library-client";
+import LibraryView from "@/components/LibraryView";
 
 interface LibraryFolderProps {
   params: Promise<{
@@ -20,8 +20,8 @@ export default async function LibraryFolder({ params }: LibraryFolderProps) {
   // Await params in Next.js 15
   const resolvedParams = await params;
 
-  // Convert path array to string for the library client
+  // Convert path array to string for the library view
   const pathString = resolvedParams.path.join("/");
 
-  return <LibraryClient initialPath={pathString} />;
+  return <LibraryView initialPath={pathString} />;
 }

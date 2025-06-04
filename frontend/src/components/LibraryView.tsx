@@ -70,15 +70,9 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   
   // Update URL when path changes
   useEffect(() => {
-    // Only update URL if we're actually on a library page
-    const isLibraryPage = window.location.pathname.startsWith('/library');
-    
-    if (isLibraryPage) {
-      const pathString = currentPath.join('/');
-      const url = pathString ? `/library/${pathString}` : '/library';
-      router.push(url, { scroll: false });
-    }
-    
+    const pathString = currentPath.join('/');
+    const url = pathString ? `/library/${pathString}` : '/library';
+    router.push(url, { scroll: false });
     fetchData(currentPath);
   }, [currentPath, router, fetchData]);
   
