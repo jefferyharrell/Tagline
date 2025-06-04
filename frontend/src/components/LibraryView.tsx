@@ -40,14 +40,12 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [currentPath, setCurrentPath] = useState<string[]>(parsedInitialPath);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [photos, setPhotos] = useState<MediaObject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Fetch data from API
   const fetchData = useCallback(async (path: string[]) => {
-    setIsLoading(true);
     setError(null);
     
     try {
@@ -64,8 +62,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred loading the library');
       console.error('Library fetch error:', err);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
   
@@ -160,41 +156,19 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       {renderBreadcrumbs()}
       
       {/* Folder List */}
-      {isLoading ? (
-        // Show folder skeleton while loading
-        <div className="mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={`folder-skeleton-${index}`} className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
-                  <div className="flex-1 h-4 bg-gray-200 rounded animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : folders.length > 0 ? (
+      {folders.length > 0 && (
         <div className="mb-6">
           <FolderList
             folders={folders}
             onFolderClick={handleFolderClick}
           />
         </div>
-      ) : null}
+      )}
       
       {/* Photo Grid */}
-      <ThumbnailGrid>
-        {isLoading ? (
-          // Show skeleton loading state
-          Array.from({ length: 12 }).map((_, index) => (
-            <div key={`skeleton-${index}`} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 animate-pulse" />
-            </div>
-          ))
-        ) : (
-          // Show actual photos
-          photos.map((photo) => (
+      {photos.length > 0 && (
+        <ThumbnailGrid>
+          {photos.map((photo) => (
             <div key={photo.object_key} className="relative aspect-square">
               <PhotoThumbnail
                 media={photo}
@@ -219,9 +193,9 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
                 tabIndex={-1}
               />
             </div>
-          ))
-        )}
-      </ThumbnailGrid>
+          ))}
+        </ThumbnailGrid>
+      )}
       
       {/* Media Modal */}
       {selectedPhoto && (
