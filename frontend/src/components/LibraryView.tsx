@@ -108,10 +108,11 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
           <BreadcrumbLink asChild>
             <button
               onClick={() => handleBreadcrumbClick(-1)}
-              className="flex items-center"
+              className="flex items-center gap-2"
               aria-label="Go to library home"
             >
               <Home className="w-4 h-4" />
+              <span>Home</span>
             </button>
           </BreadcrumbLink>
         </BreadcrumbItem>
