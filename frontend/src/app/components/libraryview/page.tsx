@@ -16,7 +16,7 @@ export default function LibraryViewTestPage() {
           {/* Root Library View */}
           <section className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Root Library View</h2>
-            <p className="text-sm text-gray-600 mb-4">Initial path: "" (empty string for root)</p>
+            <p className="text-sm text-gray-600 mb-4">Initial path: &quot;&quot; (empty string for root)</p>
             <LibraryView 
               initialPath="" 
               className="border-t pt-4"
@@ -26,7 +26,7 @@ export default function LibraryViewTestPage() {
           {/* Nested Path Example */}
           <section className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Nested Path Example</h2>
-            <p className="text-sm text-gray-600 mb-4">Initial path: "2024-2025 League Year"</p>
+            <p className="text-sm text-gray-600 mb-4">Initial path: &quot;2024-2025 League Year&quot;</p>
             <LibraryView 
               initialPath="2024-2025 League Year" 
               className="border-t pt-4"
