@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronRight, Home, AlertCircle, RefreshCw } from 'lucide-react';
@@ -44,24 +44,55 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [selectedPhoto, setSelectedPhoto] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // Infinite scrolling state
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
+  
   // Fetch data from API
-  const fetchData = useCallback(async (path: string[]) => {
-    setError(null);
+  const fetchData = useCallback(async (path: string[], isLoadMore = false) => {
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setError(null);
+      offsetRef.current = 0;
+    }
     
     try {
       const pathString = path.join('/');
-      const response = await fetch(`/api/library?path=${encodeURIComponent(pathString)}`);
+      const currentOffset = isLoadMore ? offsetRef.current : 0;
+      const url = `/api/library?path=${encodeURIComponent(pathString)}&offset=${currentOffset}&limit=36`;
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Failed to load library: ${response.statusText}`);
       }
       
       const data: BrowseResponse = await response.json();
-      setFolders(data.folders || []);
-      setPhotos(data.media_objects || []);
+      
+      if (isLoadMore) {
+        // Append new photos to existing ones, but deduplicate by object_key
+        setPhotos(prev => {
+          const existingKeys = new Set(prev.map(photo => photo.object_key));
+          const newPhotos = (data.media_objects || []).filter(photo => !existingKeys.has(photo.object_key));
+          return [...prev, ...newPhotos];
+        });
+        offsetRef.current += 36;
+      } else {
+        // Replace photos and folders (initial load or path change)
+        setFolders(data.folders || []);
+        setPhotos(data.media_objects || []);
+        offsetRef.current = 36;
+      }
+      
+      setHasMore(data.has_more || false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred loading the library');
       console.error('Library fetch error:', err);
+    } finally {
+      if (isLoadMore) {
+        setIsLoadingMore(false);
+      }
     }
   }, []);
   
@@ -94,6 +125,26 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     setIsModalOpen(false);
     setSelectedPhoto(null);
   }, []);
+  
+  // Load more photos when scrolling near bottom
+  const loadMorePhotos = useCallback(() => {
+    if (hasMore && !isLoadingMore) {
+      fetchData(currentPath, true);
+    }
+  }, [hasMore, isLoadingMore, currentPath, fetchData]);
+  
+  // Scroll detection for infinite scrolling
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + document.documentElement.scrollTop >= 
+          document.documentElement.offsetHeight - 1000) { // Load when 1000px from bottom
+        loadMorePhotos();
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadMorePhotos]);
   
   // Retry failed load
   const handleRetry = useCallback(() => {
@@ -196,6 +247,16 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
             </div>
           ))}
         </ThumbnailGrid>
+      )}
+      
+      {/* Loading more indicator */}
+      {isLoadingMore && (
+        <div className="flex justify-center py-8">
+          <div className="flex items-center gap-2 text-gray-600">
+            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+            <span>Loading more photos...</span>
+          </div>
+        </div>
       )}
       
       {/* Media Modal */}
