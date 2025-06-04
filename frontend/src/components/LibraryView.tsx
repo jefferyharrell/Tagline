@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronRight, Home, AlertCircle, RefreshCw } from 'lucide-react';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
@@ -105,27 +106,34 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   
   // Render breadcrumb navigation
   const renderBreadcrumbs = () => (
-    <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-      <button
-        onClick={() => handleBreadcrumbClick(-1)}
-        className="flex items-center hover:text-gray-900 transition-colors"
-        aria-label="Go to library home"
-      >
-        <Home className="w-4 h-4" />
-      </button>
-      
-      {currentPath.map((segment, index) => (
-        <React.Fragment key={index}>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-          <button
-            onClick={() => handleBreadcrumbClick(index)}
-            className="hover:text-gray-900 transition-colors"
-          >
-            {segment}
-          </button>
-        </React.Fragment>
-      ))}
-    </nav>
+    <Breadcrumb className="mb-6">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink asChild>
+            <button
+              onClick={() => handleBreadcrumbClick(-1)}
+              className="flex items-center"
+              aria-label="Go to library home"
+            >
+              <Home className="w-4 h-4" />
+            </button>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        
+        {currentPath.map((segment, index) => (
+          <React.Fragment key={index}>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <button onClick={() => handleBreadcrumbClick(index)}>
+                  {segment}
+                </button>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </React.Fragment>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
   
   // Render error state
@@ -147,7 +155,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   }
   
   return (
-    <div className={className}>
+    <div className={`p-6 ${className}`}>
       {/* Breadcrumb Navigation */}
       {renderBreadcrumbs()}
       
@@ -187,7 +195,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         ) : (
           // Show actual photos
           photos.map((photo) => (
-            <div key={photo.object_key} className="relative">
+            <div key={photo.object_key} className="relative aspect-square">
               <PhotoThumbnail
                 media={photo}
                 onClick={() => {
@@ -195,6 +203,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
                   setSelectedPhoto(photo);
                   setIsModalOpen(true);
                 }}
+                className="w-full h-full"
               />
               {/* Invisible overlay link for cmd/ctrl clicks */}
               <a
