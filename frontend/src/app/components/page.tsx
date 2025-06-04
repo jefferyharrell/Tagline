@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import PhotoThumbnail from "@/components/PhotoThumbnail";
+import ThumbnailGrid from "@/components/ThumbnailGrid";
 import { MediaObject } from "@/types/media";
+import { Camera, Folder } from "lucide-react";
 
 interface ComponentTestData {
   realMedia: MediaObject[];
@@ -221,16 +223,104 @@ export default function ComponentsTestPage() {
           </div>
         </div>
 
+        {/* ThumbnailGrid Component Tests */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">ThumbnailGrid Component</h2>
+          
+          {/* Content State */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Content State (with PhotoThumbnail children)</h3>
+            <ThumbnailGrid>
+              {data.realMedia.slice(0, 12).map((media) => (
+                <PhotoThumbnail
+                  key={media.object_key}
+                  media={media}
+                  onClick={handlePhotoClick}
+                />
+              ))}
+            </ThumbnailGrid>
+          </div>
+
+          {/* Empty State - Default */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Empty State (Default)</h3>
+            <ThumbnailGrid>
+              {/* No children = empty state */}
+            </ThumbnailGrid>
+          </div>
+
+          {/* Empty State - Custom Message */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Empty State (Custom Message)</h3>
+            <ThumbnailGrid 
+              emptyMessage="No photos in this folder"
+              emptyIcon={<Camera className="w-12 h-12 text-gray-400" />}
+            >
+              {/* No children = empty state */}
+            </ThumbnailGrid>
+          </div>
+
+          {/* Empty State - Different Icon */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Empty State (Folder Icon)</h3>
+            <ThumbnailGrid 
+              emptyMessage="This folder is empty"
+              emptyIcon={<Folder className="w-12 h-12 text-gray-400" />}
+            >
+              {/* No children = empty state */}
+            </ThumbnailGrid>
+          </div>
+
+          {/* Custom Styling */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Custom Styling</h3>
+            <ThumbnailGrid className="bg-gray-100 p-6 rounded-lg border-2 border-dashed border-gray-300">
+              {data.realMedia.slice(0, 6).map((media) => (
+                <PhotoThumbnail
+                  key={`styled-${media.object_key}`}
+                  media={media}
+                  onClick={handlePhotoClick}
+                />
+              ))}
+            </ThumbnailGrid>
+          </div>
+
+          {/* Responsive Behavior Demonstration */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Responsive Behavior (resize window to see changes)</h3>
+            <div className="text-sm text-gray-600 mb-4">
+              <p>Grid adapts to screen size:</p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Mobile: 1 column</li>
+                <li>Small tablet: 2 columns</li>
+                <li>Medium tablet: 3 columns</li>
+                <li>Desktop: 4 columns</li>
+                <li>Large desktop: 5 columns</li>
+                <li>Extra large: 6 columns</li>
+              </ul>
+            </div>
+            <ThumbnailGrid>
+              {data.realMedia.slice(0, 24).map((media) => (
+                <PhotoThumbnail
+                  key={`responsive-${media.object_key}`}
+                  media={media}
+                  onClick={handlePhotoClick}
+                />
+              ))}
+            </ThumbnailGrid>
+          </div>
+        </div>
+
         {/* Future Components Section */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">Future Components</h2>
           <div className="text-gray-600">
             <p>This section will showcase additional custom components as they are developed:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>MediaGrid component</li>
               <li>SearchBar component</li>
               <li>MediaCard component</li>
               <li>LoadingStates component</li>
+              <li>VideoThumbnail component</li>
             </ul>
           </div>
         </div>
