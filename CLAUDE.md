@@ -12,9 +12,10 @@ Tagline is a web application for the Junior League of Los Angeles (JLLA) that or
 **Current Status**: Several solid days away from MVP. Backend was recently rewritten (completed ~May 4, 2025) and frontend updated to communicate with new architecture. Initial demo was presented to stakeholders on April 30, 2025.
 
 **Active Development Focus**:
-- Metadata detail view enhancements
-- Data entry interface improvements
-- Tagging and search functionality refinement
+- LibraryView component implementation and integration
+- Component-based UI architecture with shadcn/ui
+- Performance optimization of API response times
+- Media browsing and navigation user experience
 
 **Note that** right now backend is considered more developed than frontend. If backend does something one way and frontend does it differently, check with the human but lean toward making frontend conform to backend.
 
@@ -204,8 +205,9 @@ Key directories:
 
 - Next.js 15 with React 19 and TypeScript
 - Tailwind CSS v4 for styling
+- shadcn/ui component library for consistent UI
 - Authentication via Stytch magic links
-- Media gallery for browsing and organizing photos
+- LibraryView component for unified media browsing
 - Responsive design with server and client components
 
 Key patterns:
@@ -214,12 +216,22 @@ Key patterns:
 - Server Components for data loading
 - Route Handlers in app directory structure
 - Proxy API routes for backend communication
+- Component composition with reusable UI components
 
 Key directories:
 - `src/app/`: Next.js app router pages
 - `src/app/api/`: API route handlers
-- `src/components/`: Reusable UI components
+- `src/components/`: Reusable UI components (LibraryView, FolderList, ThumbnailGrid, PhotoThumbnail)
+- `src/components/ui/`: shadcn/ui base components
 - `src/lib/`: Utility functions and helpers
+- `src/types/`: TypeScript type definitions
+
+Key components:
+- `LibraryView`: Main component for browsing folders and media
+- `FolderList`: Displays folder navigation with natural sorting
+- `ThumbnailGrid`: Responsive grid layout for photo thumbnails
+- `PhotoThumbnail`: Individual photo display with status indicators
+- `MediaModal`: Modal for photo viewing and details
 
 ## Authentication System
 
@@ -404,6 +416,53 @@ The application runs in Docker containers orchestrated with Docker Compose.
 - This command runs: lint, type-check, and build to catch all issues
 - Never define the same interface in multiple files
 - Use strict TypeScript settings to catch errors early
+
+### Component Development Guidelines
+
+- Use shadcn/ui components for consistent styling (Breadcrumb, Button, etc.)
+- Implement proper loading states or avoid them if API responses are fast (<100ms)
+- Follow existing patterns: FolderList for folders, ThumbnailGrid for photo layouts
+- Support both regular clicks (modals) and cmd/ctrl+clicks (navigation) for photos
+- Use natural sorting for folder names (alphanumeric with proper numeric ordering)
+- Implement proper error handling with retry mechanisms
+- Create component specifications in `docs/component_specs/` for complex components
+
+### Current Component Architecture
+
+The frontend uses a modular component approach centered around the LibraryView component:
+
+**LibraryView** (`src/components/LibraryView.tsx`):
+- Main component integrating folder and photo browsing
+- Handles URL synchronization and navigation state
+- Manages photo modal display
+- Uses shadcn/ui Breadcrumb components for navigation
+- No loading states (700ms API response considered fast enough)
+
+**FolderList** (`src/components/FolderList.tsx`):
+- Displays folders in a responsive grid
+- Implements natural sorting for folder names
+- Shows empty state when no folders present
+
+**ThumbnailGrid** (`src/components/ThumbnailGrid.tsx`):
+- Container component for photo thumbnail layout
+- Responsive grid (1-6 columns based on screen size)
+- Accepts children components for flexible content
+
+**PhotoThumbnail** (`src/components/PhotoThumbnail.tsx`):
+- Individual photo display with loading states
+- Shows status-specific icons (pending, processing, completed, failed)
+- Handles image loading and error states
+- Uses Skeleton component during loading
+
+**MediaModal** (`src/components/MediaModal.tsx`):
+- Reusable modal for photo viewing
+- Supports ESC key, backdrop click, and button close
+- Generic container accepting any content as children
+
+**Integration Points**:
+- Library pages (`/library`, `/library/[...path]`) use LibraryView directly
+- Component test pages available at `/components/*` for development
+- All components follow TypeScript strict mode with proper interfaces
 
 ## Stakeholder Context
 
