@@ -231,16 +231,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   }
   
   return (
-    <div className={`p-6 ${className}`}>
-      {/* Unified Content Container */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        {/* Breadcrumb Navigation */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          {renderBreadcrumbs()}
-        </div>
-        
-        {/* Content Area */}
-        <div className="p-6">
+    <div className={`${className}`}>
+      {/* Breadcrumb Navigation */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-white">
+        {renderBreadcrumbs()}
+      </div>
+      
+      {/* Content Area */}
+      <div className="p-6 bg-white">
           {/* Folder List */}
           {folders.length > 0 && (
             <>
@@ -306,7 +304,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         </div>
       )}
         </div>
-      </div>
       
       {/* Media Modal */}
       <MediaModal 

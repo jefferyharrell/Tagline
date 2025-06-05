@@ -81,7 +81,7 @@ export default function LibrarySidebar() {
   ];
 
   return (
-    <Sidebar collapsible="offcanvas">
+    <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
         <Link href="/library">
           <Image

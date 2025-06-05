@@ -9,7 +9,7 @@ export default function LibraryLayout({
   return (
     <SidebarProvider>
       <LibrarySidebar />
-      <SidebarInset className="min-h-screen bg-gray-50">
+      <SidebarInset className="bg-gray-50">
         {children}
       </SidebarInset>
     </SidebarProvider>
