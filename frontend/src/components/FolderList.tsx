@@ -35,7 +35,7 @@ export default function FolderList({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center p-16 border border-gray-300 bg-white",
+          "flex flex-col items-center justify-center py-16",
           className
         )}
         role="status"
@@ -61,7 +61,7 @@ export default function FolderList({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center p-16 border border-gray-300 bg-white",
+          "flex flex-col items-center justify-center py-16",
           className
         )}
         role="status"
@@ -93,7 +93,7 @@ export default function FolderList({
   return (
     <div
       className={cn(
-        "bg-white border border-gray-300 overflow-hidden",
+        "-mx-6 overflow-hidden",
         className
       )}
       role="list"
@@ -114,7 +114,7 @@ export default function FolderList({
             </span>
           </button>
           {index < sortedFolders.length - 1 && (
-            <div className="border-b border-gray-200" />
+            <div className="mx-6 border-b border-gray-200" />
           )}
         </React.Fragment>
       ))}

@@ -164,7 +164,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   
   // Render breadcrumb navigation
   const renderBreadcrumbs = () => (
-    <Breadcrumb className="mb-6">
+    <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
           {currentPath.length === 0 ? (
@@ -232,22 +232,31 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   
   return (
     <div className={`p-6 ${className}`}>
-      {/* Breadcrumb Navigation */}
-      {renderBreadcrumbs()}
-      
-      {/* Folder List */}
-      {folders.length > 0 && (
-        <div className="mb-6">
-          <FolderList
-            folders={folders}
-            onFolderClick={handleFolderClick}
-          />
+      {/* Unified Content Container */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        {/* Breadcrumb Navigation */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          {renderBreadcrumbs()}
         </div>
-      )}
-      
-      {/* Photo Grid */}
-      {photos.length > 0 && (
-        <ThumbnailGrid>
+        
+        {/* Content Area */}
+        <div className="p-6">
+          {/* Folder List */}
+          {folders.length > 0 && (
+            <>
+              <FolderList
+                folders={folders}
+                onFolderClick={handleFolderClick}
+              />
+              {photos.length > 0 && (
+                <div className="my-6 border-t border-gray-200"></div>
+              )}
+            </>
+          )}
+          
+          {/* Photo Grid */}
+          {photos.length > 0 && (
+            <ThumbnailGrid>
           {photos.map((photo) => (
             <div key={photo.object_key} className="relative aspect-square overflow-visible">
               <PhotoThumbnail
@@ -296,6 +305,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
           </div>
         </div>
       )}
+        </div>
+      </div>
       
       {/* Media Modal */}
       <MediaModal 
