@@ -50,11 +50,17 @@ class DropboxStorageProvider(StorageProviderBase):
         """
         try:
             # Compose the path to list
-            list_path = self.root_path
             if prefix:
-                # Remove leading slash to avoid double-slash in Dropbox path
+                # Remove leading slash from prefix to avoid double-slash
                 prefix_path = prefix.lstrip("/")
                 list_path = os.path.join(self.root_path, prefix_path)
+            else:
+                # No prefix, use root path
+                list_path = self.root_path
+            
+            # Special case: Dropbox root directory must be empty string
+            if list_path == "/":
+                list_path = ""
 
             items: List[DirectoryItem] = []
             
@@ -76,10 +82,14 @@ class DropboxStorageProvider(StorageProviderBase):
                         mimetype=None,
                     ))
                 elif isinstance(entry, FileMetadata):
-                    # This is a file
-                    rel_path = os.path.relpath(entry.path_display, self.root_path)
-                    # Remove any leading slash - object keys should not start with /
-                    rel_path = rel_path.lstrip("/")
+                    # This is a file - calculate object key as relative path from root
+                    if self.root_path == "/":
+                        # Root is Dropbox root, use full path without leading slash
+                        rel_path = entry.path_display.lstrip("/")
+                    else:
+                        # Root is subfolder, calculate relative path
+                        rel_path = os.path.relpath(entry.path_display, self.root_path)
+                        rel_path = rel_path.lstrip("/")
                     
                     mime_type, _ = mimetypes.guess_type(rel_path)
                     last_modified = (
@@ -152,9 +162,14 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 for entry in res.entries:
                     if isinstance(entry, FileMetadata):
-                        rel_path = os.path.relpath(entry.path_display, self.root_path)
-                        # Remove any leading slash - object keys should not start with /
-                        rel_path = rel_path.lstrip("/")
+                        # Calculate object key as relative path from root
+                        if self.root_path == "/":
+                            # Root is Dropbox root, use full path without leading slash
+                            rel_path = entry.path_display.lstrip("/")
+                        else:
+                            # Root is subfolder, calculate relative path
+                            rel_path = os.path.relpath(entry.path_display, self.root_path)
+                            rel_path = rel_path.lstrip("/")
 
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):
@@ -219,11 +234,16 @@ class DropboxStorageProvider(StorageProviderBase):
         """
         try:
             # Compose the path to list
-            list_path = self.root_path
             if prefix:
-                # Remove leading slash to avoid double-slash in Dropbox path
+                # Remove leading slash from prefix to avoid double-slash
                 prefix_path = prefix.lstrip("/")
                 list_path = os.path.join(self.root_path, prefix_path)
+            else:
+                list_path = self.root_path
+            
+            # Special case: Dropbox root directory must be empty string
+            if list_path == "/":
+                list_path = ""
 
             # Compile regex pattern if provided
             regex_pattern = re.compile(regex) if regex else None
@@ -245,9 +265,14 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 for entry in res.entries:
                     if isinstance(entry, FileMetadata):
-                        rel_path = os.path.relpath(entry.path_display, self.root_path)
-                        # Remove any leading slash - object keys should not start with /
-                        rel_path = rel_path.lstrip("/")
+                        # Calculate object key as relative path from root
+                        if self.root_path == "/":
+                            # Root is Dropbox root, use full path without leading slash
+                            rel_path = entry.path_display.lstrip("/")
+                        else:
+                            # Root is subfolder, calculate relative path
+                            rel_path = os.path.relpath(entry.path_display, self.root_path)
+                            rel_path = rel_path.lstrip("/")
 
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):
@@ -299,9 +324,13 @@ class DropboxStorageProvider(StorageProviderBase):
         Retrieve the raw bytes of a file given its object key (relative path from root).
         """
         try:
-            # Remove leading slash and join with root for Dropbox path
+            # Remove leading slash from object key and join with root
             rel_path = object_key.lstrip("/")
             dropbox_path = os.path.join(self.root_path, rel_path)
+            
+            # Special case: if we're at Dropbox root, don't use empty string for file paths
+            if self.root_path == "/" and rel_path:
+                dropbox_path = "/" + rel_path
             from typing import Any, Tuple
 
             md_response = cast(
@@ -334,8 +363,13 @@ class DropboxStorageProvider(StorageProviderBase):
             StorageProviderException: For other errors
         """
         try:
+            # Remove leading slash from object key and join with root
             rel_path = object_key.lstrip("/")
             dropbox_path = os.path.join(self.root_path, rel_path)
+            
+            # Special case: if we're at Dropbox root, don't use empty string for file paths
+            if self.root_path == "/" and rel_path:
+                dropbox_path = "/" + rel_path
             from typing import Any, Tuple
 
             md_response = cast(
@@ -373,18 +407,16 @@ class DropboxStorageProvider(StorageProviderBase):
         """
         try:
             # Compose the path to list
-            list_path = self.root_path
             if prefix:
-                # Ensure prefix starts with / and root_path doesn't end with /
-                # Dropbox paths should not have double slashes
-                norm_prefix = prefix.lstrip("/")
-                norm_root = self.root_path.rstrip("/")
-                list_path = (
-                    f"{norm_root}/{norm_prefix}" if norm_root else f"/{norm_prefix}"
-                )
-                # If root_path is empty or '/', adjust list_path
-                if not self.root_path or self.root_path == "/":
-                    list_path = f"/{norm_prefix}"
+                # Remove leading slash from prefix to avoid double-slash
+                prefix_path = prefix.lstrip("/")
+                list_path = os.path.join(self.root_path, prefix_path)
+            else:
+                list_path = self.root_path
+            
+            # Special case: Dropbox root directory must be empty string
+            if list_path == "/":
+                list_path = ""
 
             # Compile regex pattern if provided
             regex_pattern = re.compile(regex) if regex else None
@@ -409,22 +441,23 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 for entry in res.entries:
                     if isinstance(entry, FileMetadata):
-                        # Normalize path_display for consistent comparison
-                        entry_path = entry.path_display
-                        if not entry_path.startswith("/"):
-                            entry_path = "/" + entry_path
-
-                        # Calculate relative path based on the original root_path
-                        # Use os.path.relpath carefully with Dropbox paths
-                        try:
-                            rel_path = "/" + os.path.relpath(entry_path, self.root_path)
-                        except (
-                            ValueError
-                        ):  # Handle cases where entry_path is not under root_path
-                            continue
+                        # Calculate object key as relative path from root
+                        if self.root_path == "/":
+                            # Root is Dropbox root, use full path without leading slash
+                            rel_path = entry.path_display.lstrip("/")
+                        else:
+                            # Root is subfolder, calculate relative path
+                            try:
+                                rel_path = os.path.relpath(entry.path_display, self.root_path)
+                                rel_path = rel_path.lstrip("/")
+                            except ValueError:
+                                # Handle cases where entry is not under root_path
+                                continue
 
                         # Apply prefix filter strictly (covers cases where list_path was broad)
-                        if prefix is not None and not rel_path.startswith(prefix):
+                        # Convert to object key format with leading slash for comparison
+                        obj_key = "/" + rel_path if rel_path else "/"
+                        if prefix is not None and not obj_key.startswith(prefix):
                             continue
 
                         # Apply regex filter if provided

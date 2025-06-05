@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     DROPBOX_APP_KEY: str | None = None
     DROPBOX_APP_SECRET: str | None = None
     DROPBOX_REFRESH_TOKEN: str | None = None
-    DROPBOX_ROOT_PATH: str = ""
+    DROPBOX_ROOT_PATH: str = "/"
 
     # S3 Binary Storage Configuration (for thumbnails/proxies)
     S3_ENDPOINT_URL: str | None = None
