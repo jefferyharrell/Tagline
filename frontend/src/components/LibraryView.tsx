@@ -124,6 +124,18 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     setIsModalOpen(false);
     setSelectedPhoto(null);
   }, []);
+
+  // Handle media update from modal
+  const handleMediaUpdate = useCallback((updatedMedia: MediaObject) => {
+    // Update the photos array with the updated media object
+    setPhotos(prev => 
+      prev.map(photo => 
+        photo.object_key === updatedMedia.object_key ? updatedMedia : photo
+      )
+    );
+    // Also update the selected photo if it matches
+    setSelectedPhoto(updatedMedia);
+  }, []);
   
   // Load more photos when scrolling near bottom
   const loadMorePhotos = useCallback(() => {
@@ -290,6 +302,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         isOpen={isModalOpen} 
         onClose={handleModalClose}
         media={selectedPhoto || undefined}
+        onMediaUpdate={handleMediaUpdate}
       />
     </div>
   );
