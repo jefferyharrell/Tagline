@@ -25,9 +25,6 @@ def get_storage_provider(
         return FilesystemStorageProvider(root_path=settings.FILESYSTEM_ROOT_PATH)
     elif provider_type == StorageProviderType.DROPBOX:
         assert (
-            settings.DROPBOX_ROOT_PATH
-        ), "DROPBOX_ROOT_PATH must be set for dropbox provider"
-        assert (
             settings.DROPBOX_APP_KEY
         ), "DROPBOX_APP_KEY must be set for dropbox provider"
         assert (

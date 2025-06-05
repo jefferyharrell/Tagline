@@ -19,7 +19,6 @@ PROVIDER_REQUIRED_VARS = {
         "DROPBOX_APP_KEY",
         "DROPBOX_APP_SECRET",
         "DROPBOX_REFRESH_TOKEN",
-        "DROPBOX_ROOT_PATH",
     ],
     # Add other providers here
 }
