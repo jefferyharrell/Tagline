@@ -93,27 +93,50 @@ def get_cached_directory_listing(redis_conn: redis.Redis, path: Optional[str]):
 
 async def prefetch_subfolders_async(storage_provider, redis_conn: redis.Redis, folders: List, ttl: int = 300):
     """Asynchronously prefetch and cache first-level subfolders."""
-    async def prefetch_folder(folder):
-        try:
-            if folder.object_key:
-                # Check if already cached
-                if not get_cached_directory_listing(redis_conn, folder.object_key):
-                    # Fetch and cache this subfolder
-                    subfolder_items = storage_provider.list_directory(prefix=folder.object_key)
-                    cache_directory_listing(redis_conn, folder.object_key, subfolder_items, ttl)
-                    logger.info(f"Prefetched and cached subfolder: {folder.object_key} ({len(subfolder_items)} items)")
-        except Exception as e:
-            logger.warning(f"Failed to prefetch subfolder {folder.object_key}: {e}")
+    import concurrent.futures
     
-    # Create tasks for all subfolders but don't wait for them
-    # This runs in background after the main response is sent
-    tasks = [prefetch_folder(folder) for folder in folders[:5]]  # Limit to first 5 folders
-    if tasks:
-        logger.info(f"Starting background prefetch for {len(tasks)} subfolders")
+    def prefetch_folder_sync(folder_object_key: str) -> bool:
+        """Synchronous function to prefetch a single folder."""
         try:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            # Check if already cached
+            if not get_cached_directory_listing(redis_conn, folder_object_key):
+                # Fetch and cache this subfolder
+                subfolder_items = storage_provider.list_directory(prefix=folder_object_key)
+                cache_directory_listing(redis_conn, folder_object_key, subfolder_items, ttl)
+                logger.info(f"Prefetched and cached subfolder: {folder_object_key} ({len(subfolder_items)} items)")
+                return True
+            else:
+                logger.debug(f"Subfolder already cached: {folder_object_key}")
+                return False
         except Exception as e:
-            logger.warning(f"Error in background prefetch: {e}")
+            logger.warning(f"Failed to prefetch subfolder {folder_object_key}: {e}")
+            return False
+    
+    # Use thread pool executor to run synchronous operations
+    loop = asyncio.get_event_loop()
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        # Create tasks for all subfolders (limit to first 5)
+        folder_keys = [folder.object_key for folder in folders[:5] if folder.object_key]
+        
+        if folder_keys:
+            logger.info(f"Starting background prefetch for {len(folder_keys)} subfolders")
+            try:
+                # Run sync operations in thread pool
+                tasks = [
+                    loop.run_in_executor(executor, prefetch_folder_sync, folder_key)
+                    for folder_key in folder_keys
+                ]
+                
+                # Wait for all tasks to complete
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Count successful prefetches
+                successful = sum(1 for result in results if result is True)
+                logger.info(f"Background prefetch completed: {successful}/{len(folder_keys)} subfolders cached")
+                
+            except Exception as e:
+                logger.warning(f"Error in background prefetch: {e}")
 
 
 class DirectoryItem:
