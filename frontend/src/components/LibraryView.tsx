@@ -221,7 +221,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       {photos.length > 0 && (
         <ThumbnailGrid>
           {photos.map((photo) => (
-            <div key={photo.object_key} className="relative aspect-square">
+            <div key={photo.object_key} className="relative aspect-square overflow-visible">
               <PhotoThumbnail
                 media={photo}
                 onClick={() => {
@@ -234,12 +234,22 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
               {/* Invisible overlay link for cmd/ctrl clicks */}
               <a
                 href={`/media/${photo.object_key}`}
-                className="absolute inset-0 z-10"
+                className="absolute inset-0 z-10 pointer-events-none"
                 onClick={(e) => {
                   // Only allow cmd/ctrl/middle clicks through
                   if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
                     e.preventDefault();
                   }
+                }}
+                onMouseDown={(e) => {
+                  // Re-enable pointer events for cmd/ctrl/middle clicks
+                  if (e.metaKey || e.ctrlKey || e.button === 1) {
+                    e.currentTarget.style.pointerEvents = 'auto';
+                  }
+                }}
+                onMouseUp={(e) => {
+                  // Disable pointer events again
+                  e.currentTarget.style.pointerEvents = 'none';
                 }}
                 aria-hidden="true"
                 tabIndex={-1}
