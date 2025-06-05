@@ -150,13 +150,10 @@ def patch_media_object(
 
     # Merge new metadata into existing metadata
     merged_metadata = {**existing_metadata, **new_metadata}
-    record.metadata = merged_metadata
 
-    # Update metadata
-
-    # Save using update_after_ingestion method
+    # Save using update_metadata method
     try:
-        success = repo.update_after_ingestion(object_key, new_metadata)
+        success = repo.update_metadata(object_key, merged_metadata)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update media object")
             

@@ -28,10 +28,10 @@ export default function MediaModal({
   
   // Description editing state
   const [currentMedia, setCurrentMedia] = useState<MediaObject | null>(media || null);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(media?.metadata?.description || "");
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastSavedDescription, setLastSavedDescription] = useState("");
+  const [lastSavedDescription, setLastSavedDescription] = useState(media?.metadata?.description || "");
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
@@ -55,22 +55,23 @@ export default function MediaModal({
     };
   }, [isOpen, onClose]);
 
-  // Reset image loaded state when media changes
+  // Reset image loaded state when media object key changes
   useEffect(() => {
-    if (media) {
+    if (media && (!currentMedia || media.object_key !== currentMedia.object_key)) {
       setImageLoaded(false);
     }
-  }, [media]);
+  }, [media, currentMedia]);
 
   // Sync media and description state when media prop changes
   useEffect(() => {
-    if (media) {
+    if (media && (!currentMedia || media.object_key !== currentMedia?.object_key)) {
+      // Only update if it's a different media object
       setCurrentMedia(media);
       setDescription(media.metadata?.description || "");
       setLastSavedDescription(media.metadata?.description || "");
       setIsDescriptionLocked(true);
     }
-  }, [media]);
+  }, [media, currentMedia]);
 
   // Description editing functions - define handleCancel first
   const handleCancel = useCallback(() => {

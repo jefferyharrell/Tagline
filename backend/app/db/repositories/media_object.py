@@ -350,6 +350,42 @@ class MediaObjectRepository:
             logger.error(f"Database error updating ingestion status: {e}")
             return False
             
+    def update_metadata(self, object_key: str, metadata: dict) -> bool:
+        """Updates metadata for a MediaObject without changing ingestion status.
+        
+        Args:
+            object_key: The object key of the MediaObject
+            metadata: The metadata to set (replaces existing metadata entirely)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            if orm_obj is None:
+                logger.error(f"MediaObject with key {object_key} not found for metadata update")
+                return False
+                
+            logger.info(f"Before update - object_key: {object_key}")
+            logger.info(f"Before update - existing metadata: {orm_obj.object_metadata}")
+            logger.info(f"Before update - new metadata to set: {metadata}")
+                
+            # Set the metadata directly (not merge, since PATCH endpoint already merged)
+            orm_obj.object_metadata = metadata  # type: ignore[assignment]
+            orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
+            
+            # Flush to see the changes before commit
+            self.db.flush()
+            logger.info(f"After update - metadata in ORM: {orm_obj.object_metadata}")
+            
+            self.db.commit()
+            logger.info(f"Successfully updated metadata for MediaObject {object_key}")
+            return True
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"Database error updating metadata: {e}")
+            return False
+
     def update_after_ingestion(self, object_key: str, metadata: dict) -> bool:
         """Updates a MediaObject after successful ingestion.
         
