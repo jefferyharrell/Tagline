@@ -9,6 +9,8 @@ This module provides API endpoints for:
 
 import logging
 import os
+import json
+import asyncio
 from typing import List, Optional
 from datetime import datetime
 
@@ -37,6 +39,94 @@ from app.tasks.ingest import ingest
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def get_cache_key(path: Optional[str]) -> str:
+    """Generate Redis cache key for directory listing."""
+    return f"dropbox_list:{path or 'root'}"
+
+
+def cache_directory_listing(redis_conn: redis.Redis, path: Optional[str], items: List, ttl: int = 300):
+    """Cache directory listing in Redis."""
+    cache_key = get_cache_key(path)
+    # Convert items to dict format for JSON serialization
+    items_data = [
+        {
+            'name': item.name,
+            'is_folder': item.is_folder,
+            'object_key': item.object_key,
+            'size': item.size,
+            'last_modified': item.last_modified,
+            'mimetype': item.mimetype
+        }
+        for item in items
+    ]
+    redis_conn.setex(cache_key, ttl, json.dumps(items_data))
+    logger.debug(f"Cached directory listing for path: {path} ({len(items)} items)")
+
+
+def get_cached_directory_listing(redis_conn: redis.Redis, path: Optional[str]):
+    """Get cached directory listing from Redis."""
+    cache_key = get_cache_key(path)
+    cached_data = redis_conn.get(cache_key)
+    if cached_data:
+        try:
+            items_data = json.loads(cached_data)
+            logger.debug(f"Using cached directory listing for path: {path} ({len(items_data)} items)")
+            # Convert back to DirectoryItem objects
+            return [
+                DirectoryItem(
+                    name=item['name'],
+                    is_folder=item['is_folder'],
+                    object_key=item['object_key'],
+                    size=item['size'],
+                    last_modified=item['last_modified'],
+                    mimetype=item['mimetype']
+                )
+                for item in items_data
+            ]
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to decode cached data for path: {path}")
+            redis_conn.delete(cache_key)
+    return None
+
+
+async def prefetch_subfolders_async(storage_provider, redis_conn: redis.Redis, folders: List, ttl: int = 300):
+    """Asynchronously prefetch and cache first-level subfolders."""
+    async def prefetch_folder(folder):
+        try:
+            if folder.object_key:
+                # Check if already cached
+                if not get_cached_directory_listing(redis_conn, folder.object_key):
+                    # Fetch and cache this subfolder
+                    subfolder_items = storage_provider.list_directory(prefix=folder.object_key)
+                    cache_directory_listing(redis_conn, folder.object_key, subfolder_items, ttl)
+                    logger.info(f"Prefetched and cached subfolder: {folder.object_key} ({len(subfolder_items)} items)")
+        except Exception as e:
+            logger.warning(f"Failed to prefetch subfolder {folder.object_key}: {e}")
+    
+    # Create tasks for all subfolders but don't wait for them
+    # This runs in background after the main response is sent
+    tasks = [prefetch_folder(folder) for folder in folders[:5]]  # Limit to first 5 folders
+    if tasks:
+        logger.info(f"Starting background prefetch for {len(tasks)} subfolders")
+        try:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as e:
+            logger.warning(f"Error in background prefetch: {e}")
+
+
+class DirectoryItem:
+    """Simple directory item class for caching."""
+    def __init__(self, name: str, is_folder: bool, object_key: Optional[str] = None, 
+                 size: Optional[int] = None, last_modified: Optional[str] = None, 
+                 mimetype: Optional[str] = None):
+        self.name = name
+        self.is_folder = is_folder
+        self.object_key = object_key
+        self.size = size
+        self.last_modified = last_modified
+        self.mimetype = mimetype
 
 
 class DirectoryItemResponse(BaseModel):
@@ -119,8 +209,17 @@ async def browse_library(
         redis_conn = redis.from_url(redis_url)
         ingest_queue = Queue("ingest", connection=redis_conn)
         
-        # Get directory listing from storage provider (fastest, most efficient)
-        items = storage_provider.list_directory(prefix=path)
+        # Try to get directory listing from cache first
+        cached_items = get_cached_directory_listing(redis_conn, path)
+        
+        if cached_items:
+            items = cached_items
+            logger.info(f"Using cached directory listing for path: {path} ({len(items)} items)")
+        else:
+            # Get directory listing from storage provider and cache it
+            items = storage_provider.list_directory(prefix=path)
+            cache_directory_listing(redis_conn, path, items, ttl=300)  # Cache for 5 minutes
+            logger.info(f"Fetched and cached directory listing for path: {path} ({len(items)} items)")
         
         # Separate folders and files
         folders = [item for item in items if item.is_folder]
@@ -202,6 +301,12 @@ async def browse_library(
         
         end_time = time.time()
         logger.info(f"Browse complete: {len(folders)} folders, {len(media_object_responses)} media objects returned in {end_time - start_time:.2f}s")
+        
+        # Presumptive caching: If at root level (no path), prefetch first-level subfolders
+        if not path and folders:
+            logger.info(f"At root level, starting presumptive prefetch for {len(folders)} subfolders")
+            # Start background task to prefetch subfolders (don't await)
+            asyncio.create_task(prefetch_subfolders_async(storage_provider, redis_conn, folders))
         
         return BrowseResponse(
             folders=folder_responses,
