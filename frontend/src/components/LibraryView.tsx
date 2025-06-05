@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { ChevronRight, Home, AlertCircle, RefreshCw } from 'lucide-react';
+import { Home, AlertCircle, RefreshCw } from 'lucide-react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
@@ -287,97 +286,11 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       )}
       
       {/* Media Modal */}
-      {selectedPhoto && (
-        <MediaModal isOpen={isModalOpen} onClose={handleModalClose}>
-          <div className="max-w-4xl mx-auto p-6">
-            {/* Photo Display */}
-            <div className="mb-6 relative" style={{ minHeight: '400px' }}>
-              <Image
-                src={`/api/library/${selectedPhoto.object_key}/proxy`}
-                alt={selectedPhoto.metadata?.description || 'Photo'}
-                width={800}
-                height={600}
-                className="w-full h-auto rounded-lg shadow-lg"
-                style={{ objectFit: 'contain' }}
-                priority
-              />
-            </div>
-            
-            {/* Photo Details */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {selectedPhoto.object_key.split('/').pop()}
-              </h2>
-              
-              {selectedPhoto.metadata?.description && (
-                <p className="text-gray-700">{selectedPhoto.metadata.description}</p>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-semibold text-gray-600">Status:</span>{' '}
-                  <span className="capitalize">{selectedPhoto.ingestion_status}</span>
-                </div>
-                
-                {selectedPhoto.file_size && (
-                  <div>
-                    <span className="font-semibold text-gray-600">Size:</span>{' '}
-                    {(selectedPhoto.file_size / 1024 / 1024).toFixed(2)} MB
-                  </div>
-                )}
-                
-                {selectedPhoto.metadata?.intrinsic && (
-                  <>
-                    <div>
-                      <span className="font-semibold text-gray-600">Dimensions:</span>{' '}
-                      {selectedPhoto.metadata.intrinsic.width} x {selectedPhoto.metadata.intrinsic.height}
-                    </div>
-                    
-                    {selectedPhoto.metadata.intrinsic.format && (
-                      <div>
-                        <span className="font-semibold text-gray-600">Format:</span>{' '}
-                        {selectedPhoto.metadata.intrinsic.format}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-              
-              {selectedPhoto.metadata?.keywords && selectedPhoto.metadata.keywords.length > 0 && (
-                <div>
-                  <span className="font-semibold text-gray-600">Keywords:</span>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedPhoto.metadata.keywords.map((keyword, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* View Full Details Link */}
-              <div className="pt-4 border-t">
-                <a
-                  href={`/media/${selectedPhoto.object_key}`}
-                  className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push(`/media/${selectedPhoto.object_key}`);
-                    handleModalClose();
-                  }}
-                >
-                  View Full Details
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </MediaModal>
-      )}
+      <MediaModal 
+        isOpen={isModalOpen} 
+        onClose={handleModalClose}
+        media={selectedPhoto || undefined}
+      />
     </div>
   );
 }
