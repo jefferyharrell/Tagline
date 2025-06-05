@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronRight, Home, AlertCircle, RefreshCw } from 'lucide-react';
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
@@ -156,27 +156,44 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     <Breadcrumb className="mb-6">
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <button
-              onClick={() => handleBreadcrumbClick(-1)}
-              className="flex items-center gap-2"
-              aria-label="Go to library home"
-            >
+          {currentPath.length === 0 ? (
+            // Current page is Home - show as non-clickable
+            <BreadcrumbPage className="flex items-center gap-2">
               <Home className="w-4 h-4" />
               <span>Home</span>
-            </button>
-          </BreadcrumbLink>
+            </BreadcrumbPage>
+          ) : (
+            // Not on Home - show as clickable
+            <BreadcrumbLink asChild>
+              <button
+                onClick={() => handleBreadcrumbClick(-1)}
+                className="flex items-center gap-2"
+                aria-label="Go to library home"
+              >
+                <Home className="w-4 h-4" />
+                <span>Home</span>
+              </button>
+            </BreadcrumbLink>
+          )}
         </BreadcrumbItem>
         
         {currentPath.map((segment, index) => (
           <React.Fragment key={index}>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <button onClick={() => handleBreadcrumbClick(index)}>
+              {index === currentPath.length - 1 ? (
+                // Current page - show as non-clickable
+                <BreadcrumbPage>
                   {decodeURIComponent(segment)}
-                </button>
-              </BreadcrumbLink>
+                </BreadcrumbPage>
+              ) : (
+                // Not current page - show as clickable
+                <BreadcrumbLink asChild>
+                  <button onClick={() => handleBreadcrumbClick(index)}>
+                    {decodeURIComponent(segment)}
+                  </button>
+                </BreadcrumbLink>
+              )}
             </BreadcrumbItem>
           </React.Fragment>
         ))}
