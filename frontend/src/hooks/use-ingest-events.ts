@@ -1,13 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from 'react';
+import type { MediaObject } from '@/types/media';
 
 export interface IngestEvent {
+  // New structure with full MediaObject
+  event_type: 'queued' | 'started' | 'complete';
+  timestamp: string;
+  media_object: MediaObject;
+  error?: string;
+  
+  // Backward compatibility fields (will be populated from media_object)
   object_key: string;
   has_thumbnail: boolean;
   ingestion_status: 'pending' | 'processing' | 'completed' | 'failed';
-  event_type: 'media_ingested';
-  timestamp?: string;
+  type?: 'media_ingested';  // For backward compatibility
 }
 
 interface UseIngestEventsOptions {
@@ -29,6 +36,12 @@ export function useIngestEvents({
   const lastEventTimeRef = useRef<string | null>(null);
 
   const handleEvent = useCallback((event: IngestEvent) => {
+    // Filter out queued and started events for now - we only want complete events
+    if (event.event_type === 'queued' || event.event_type === 'started') {
+      console.log(`🚫 Filtering out ${event.event_type} event for ${event.object_key}`);
+      return;
+    }
+    
     // Filter events to only process those relevant to current path
     // Decode URL-encoded path components to match backend object_key format
     const decodedPath = currentPath.map(segment => decodeURIComponent(segment));
@@ -93,16 +106,41 @@ export function useIngestEvents({
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'media_ingested') {
-            // Convert backend format to frontend format
+          
+          // Handle different event types
+          if (data.type === 'media_ingested' || data.event_type) {
+            // New format with full MediaObject or backward compatible format
             const ingestEvent: IngestEvent = {
-              object_key: data.object_key,
-              has_thumbnail: data.has_thumbnail,
-              ingestion_status: data.ingestion_status,
-              event_type: 'media_ingested',
-              timestamp: data.timestamp
+              event_type: data.event_type || 'complete', // Default to complete for backward compatibility
+              timestamp: data.timestamp || new Date().toISOString(),
+              media_object: data.media_object || {
+                // Fallback to backward compatible fields if media_object not present
+                object_key: data.object_key,
+                has_thumbnail: data.has_thumbnail,
+                ingestion_status: data.ingestion_status,
+                // Add other required MediaObject fields with defaults
+                file_size: null,
+                file_mimetype: null,
+                file_last_modified: null,
+                created_at: null,
+                updated_at: null,
+                metadata: {}
+              },
+              error: data.error,
+              
+              // Backward compatibility fields
+              object_key: data.object_key || data.media_object?.object_key || '',
+              has_thumbnail: data.has_thumbnail ?? data.media_object?.has_thumbnail ?? false,
+              ingestion_status: data.ingestion_status || data.media_object?.ingestion_status || 'pending',
+              type: data.type
             };
+            
             handleEvent(ingestEvent);
+          } else if (data.type === 'heartbeat' || data.type === 'connected') {
+            // Handle connection status events
+            console.log('SSE status:', data.type);
+          } else if (data.type === 'error') {
+            console.error('SSE error:', data.message);
           }
         } catch (error) {
           console.error('Failed to parse SSE event:', error);

@@ -2,8 +2,8 @@
 Server-Sent Events routes for real-time updates.
 
 This module provides SSE endpoints for:
-- Real-time ingest progress updates
-- Media object completion notifications
+- Real-time ingest progress updates via Redis pub/sub
+- Media object status notifications (queued, started, complete)
 """
 
 import asyncio
@@ -15,11 +15,10 @@ from typing import AsyncGenerator, Optional
 import redis
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from rq import Queue
-from rq.job import Job
 
 from app import auth_schemas as schemas
 from app.auth_utils import get_current_user
+from app.redis_events import INGEST_EVENTS_CHANNEL
 
 logger = logging.getLogger(__name__)
 
@@ -28,113 +27,138 @@ router = APIRouter()
 
 async def get_ingest_events(since_timestamp: Optional[str] = None) -> AsyncGenerator[str, None]:
     """
-    Generate Server-Sent Events for ingest progress updates.
+    Generate Server-Sent Events for ingest progress updates using Redis pub/sub.
     
-    This monitors the Redis queue for completed ingest jobs and streams
-    updates when media objects are successfully processed.
+    This subscribes to the Redis pub/sub channel for real-time ingest events
+    and streams them to the client without polling.
     
     Args:
-        since_timestamp: ISO timestamp string - only send events for jobs completed after this time
+        since_timestamp: ISO timestamp string - only send events after this time (for reconnection)
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
     
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    redis_conn = None
+    pubsub = None
     
     try:
+        # Connect to Redis
         redis_conn = redis.from_url(redis_url)
-        ingest_queue = Queue("ingest", connection=redis_conn)
+        pubsub = redis_conn.pubsub()
         
-        # Keep track of processed jobs to avoid duplicates
-        processed_jobs = set()
+        # Subscribe to the ingest events channel
+        await asyncio.get_event_loop().run_in_executor(
+            None, pubsub.subscribe, INGEST_EVENTS_CHANNEL
+        )
         
-        # For this simpler approach, we'll only send heartbeats and wait for truly new job completions
-        # We'll monitor the queue for jobs that transition to finished state while we're watching
-        connection_start_time = datetime.now(timezone.utc)
-        logger.info(f"SSE connection started at {connection_start_time}, monitoring for newly completed jobs")
+        logger.info(f"SSE client subscribed to {INGEST_EVENTS_CHANNEL}")
         
-        # Get current finished job IDs to establish baseline
-        baseline_finished_jobs = set(ingest_queue.finished_job_registry.get_job_ids())
-        logger.info(f"Baseline: {len(baseline_finished_jobs)} jobs already finished, will ignore these")
+        # Send initial connection confirmation
+        yield f"data: {json.dumps({'type': 'connected', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
         
+        # Parse since_timestamp if provided for filtering
+        since_dt = None
+        if since_timestamp:
+            try:
+                since_dt = datetime.fromisoformat(since_timestamp.replace('Z', '+00:00'))
+                logger.info(f"SSE client resuming from {since_dt}")
+            except ValueError:
+                logger.warning(f"Invalid since_timestamp format: {since_timestamp}")
+        
+        # Main event loop
         while True:
             try:
-                # Get current finished jobs
-                current_finished_jobs = set(ingest_queue.finished_job_registry.get_job_ids())
+                # Get message from Redis pub/sub (with timeout)
+                message = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: pubsub.get_message(timeout=30.0)
+                )
                 
-                # Find newly finished jobs (jobs that weren't in baseline)
-                newly_finished = current_finished_jobs - baseline_finished_jobs - processed_jobs
+                if message is None:
+                    # Timeout reached, send heartbeat
+                    yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+                    continue
                 
-                for job_id in newly_finished:
-                    try:
-                        job = Job.fetch(job_id, connection=redis_conn)
-                        
-                        # Check if job completed successfully
-                        if job.is_finished and not job.is_failed:
-                            # Extract object_key from job args
-                            object_key = None
-                            
-                            # The ingest function takes object_key as first positional argument
-                            if hasattr(job, 'args') and job.args:
-                                object_key = job.args[0]
-                            
-                            if object_key:
-                                # Query database to get current status of the media object
-                                from app.db.database import get_db
-                                from app.db.repositories.media_object import MediaObjectRepository
-                                
-                                db_gen = get_db()
-                                db = next(db_gen)
-                                try:
-                                    repo = MediaObjectRepository(db)
-                                    media_obj = repo.get_by_object_key(object_key)
-                                    
-                                    if media_obj:
-                                        # Create event data with proper fields
-                                        event_data = {
-                                            "type": "media_ingested",
-                                            "object_key": object_key,
-                                            "has_thumbnail": media_obj.has_thumbnail,
-                                            "ingestion_status": media_obj.ingestion_status or "completed",
-                                            "job_id": job_id,
-                                            "timestamp": job.ended_at.isoformat() if job.ended_at else None
-                                        }
-                                        
-                                        logger.info(f"Sending SSE event for newly completed job {object_key}: {event_data}")
-                                        
-                                        # Send SSE event
-                                        yield f"data: {json.dumps(event_data)}\n\n"
-                                finally:
-                                    # Ensure proper cleanup of database session
-                                    try:
-                                        next(db_gen)
-                                    except StopIteration:
-                                        pass
-                            
-                            # Always mark job as processed, regardless of success/failure
-                            processed_jobs.add(job_id)
-                                
-                    except Exception as e:
-                        logger.error(f"Error processing job {job_id}: {e}")
-                        continue
+                # Skip subscription confirmation messages
+                if message['type'] != 'message':
+                    continue
                 
-                # Also send periodic heartbeat to keep connection alive
-                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': asyncio.get_event_loop().time()})}\n\n"
-                
-                # Wait before checking again
-                await asyncio.sleep(2)
-                
+                try:
+                    # Parse the event data
+                    event_data = json.loads(message['data'])
+                    
+                    # Filter events based on since_timestamp if provided
+                    if since_dt:
+                        try:
+                            event_timestamp = datetime.fromisoformat(event_data['timestamp'].replace('Z', '+00:00'))
+                            if event_timestamp <= since_dt:
+                                continue  # Skip old events
+                        except (KeyError, ValueError):
+                            pass  # If timestamp parsing fails, send the event anyway
+                    
+                    # Convert our internal event format to the format expected by frontend
+                    sse_event = {
+                        "type": "media_ingested",  # Keep this for backward compatibility
+                        "event_type": event_data.get("event_type"),
+                        "timestamp": event_data.get("timestamp"),
+                        "media_object": event_data.get("media_object"),
+                        "error": event_data.get("error")
+                    }
+                    
+                    # For backward compatibility, also include top-level fields
+                    if event_data.get("media_object"):
+                        media_obj = event_data["media_object"]
+                        sse_event.update({
+                            "object_key": media_obj.get("object_key"),
+                            "has_thumbnail": media_obj.get("has_thumbnail"),
+                            "ingestion_status": media_obj.get("ingestion_status")
+                        })
+                    
+                    logger.debug(f"Forwarding SSE event: {event_data['event_type']} for {sse_event.get('object_key')}")
+                    
+                    # Send event to client
+                    yield f"data: {json.dumps(sse_event)}\n\n"
+                    
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse Redis event data: {e}")
+                    continue
+                except Exception as e:
+                    logger.error(f"Error processing Redis event: {e}")
+                    continue
+                    
             except redis.ConnectionError:
                 logger.error("Redis connection lost in SSE stream")
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Connection lost'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Redis connection lost'})}\n\n"
                 break
             except Exception as e:
                 logger.error(f"Error in ingest events stream: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                await asyncio.sleep(5)  # Wait longer on error
+                await asyncio.sleep(5)  # Wait before retrying
                 
     except Exception as e:
         logger.error(f"Failed to initialize ingest events stream: {e}")
         yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to initialize stream'})}\n\n"
+    finally:
+        # Clean up Redis connections
+        if pubsub:
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, pubsub.unsubscribe, INGEST_EVENTS_CHANNEL
+                )
+                await asyncio.get_event_loop().run_in_executor(
+                    None, pubsub.close
+                )
+            except Exception as e:
+                logger.warning(f"Error closing pub/sub connection: {e}")
+        
+        if redis_conn:
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, redis_conn.close
+                )
+            except Exception as e:
+                logger.warning(f"Error closing Redis connection: {e}")
+        
+        logger.info("SSE connection closed")
 
 
 @router.get("/ingest", response_class=StreamingResponse)
@@ -146,12 +170,16 @@ async def stream_ingest_events(
     Stream real-time ingest progress events via Server-Sent Events.
     
     This endpoint provides a persistent connection that streams updates
-    when media objects complete ingestion processing.
+    when media objects are queued, started, or complete ingestion processing.
     
     Events include:
-    - media_ingested: When a media object is successfully processed
+    - media_ingested: When a media object status changes (queued/started/complete)
+    - connected: Initial connection confirmation
     - heartbeat: Periodic keep-alive messages
     - error: When errors occur in the stream
+    
+    Args:
+        since: ISO timestamp - only send events after this time (for reconnection)
     """
     
     def generate_events():

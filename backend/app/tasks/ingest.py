@@ -13,6 +13,7 @@ from app.media_processing import jpegprocessor  # noqa: F401
 from app.media_processing.factory import get_processor
 from app.s3_binary_storage import S3BinaryStorage, S3Config
 from app.schemas import StoredMediaObject
+from app.redis_events import publish_started_event, publish_complete_event
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,14 @@ async def ingest(object_key: str) -> bool:
         if not media_obj:
             logger.error(f"Failed to retrieve MediaObject for key: {object_key}")
             return False
+
+        # Publish started event
+        try:
+            media_obj_pydantic = media_obj.to_pydantic()
+            publish_started_event(media_obj_pydantic)
+            logger.debug(f"Published started event for {object_key}")
+        except Exception as e:
+            logger.warning(f"Failed to publish started event for {object_key}: {e}")
 
         # Initialize S3 storage (required)
         settings = get_settings()
@@ -205,6 +214,18 @@ async def ingest(object_key: str) -> bool:
                 + (" with" if intrinsic_metadata else " without")
                 + " intrinsic metadata."
             )
+            
+            # Publish successful completion event
+            try:
+                # Get updated MediaObject to include latest data
+                updated_media_obj = repo.get_by_object_key(object_key)
+                if updated_media_obj:
+                    media_obj_pydantic = updated_media_obj.to_pydantic()
+                    publish_complete_event(media_obj_pydantic)
+                    logger.debug(f"Published complete event for {object_key}")
+            except Exception as e:
+                logger.warning(f"Failed to publish complete event for {object_key}: {e}")
+            
             return True  # Indicate success
 
         except Exception as e:
@@ -212,6 +233,17 @@ async def ingest(object_key: str) -> bool:
                 f"Error during processing for {object_key}: {e}"
             )
             repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
+            
+            # Publish failed completion event
+            try:
+                failed_media_obj = repo.get_by_object_key(object_key)
+                if failed_media_obj:
+                    media_obj_pydantic = failed_media_obj.to_pydantic()
+                    publish_complete_event(media_obj_pydantic, error=str(e))
+                    logger.debug(f"Published failed complete event for {object_key}")
+            except Exception as pub_error:
+                logger.warning(f"Failed to publish failed complete event for {object_key}: {pub_error}")
+            
             return False
 
     except Exception as e:
@@ -220,6 +252,17 @@ async def ingest(object_key: str) -> bool:
         )
         try:
             repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
+            
+            # Publish failed completion event
+            try:
+                failed_media_obj = repo.get_by_object_key(object_key)
+                if failed_media_obj:
+                    media_obj_pydantic = failed_media_obj.to_pydantic()
+                    publish_complete_event(media_obj_pydantic, error=str(e))
+                    logger.debug(f"Published failed complete event for {object_key}")
+            except Exception as pub_error:
+                logger.warning(f"Failed to publish failed complete event for {object_key}: {pub_error}")
+                
         except Exception:
             pass
         return False

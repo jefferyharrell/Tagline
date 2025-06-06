@@ -35,6 +35,7 @@ from app.media_processing import pngprocessor   # noqa: F401
 from app.storage_providers.base import StorageProviderBase
 from app.schemas import MediaObject
 from app.tasks.ingest import ingest
+from app.redis_events import publish_queued_event
 
 logger = logging.getLogger(__name__)
 
@@ -285,6 +286,12 @@ async def browse_library(
                             job = ingest_queue.enqueue(ingest, media_obj.object_key)
                             logger.info(f"Queued ingest job {job.id} for newly discovered file: {file_item.object_key}")
                             newly_queued += 1
+                            
+                            # Publish queued event with MediaObject data
+                            media_obj_pydantic = media_obj.to_pydantic()
+                            publish_queued_event(media_obj_pydantic)
+                            logger.debug(f"Published queued event for {media_obj.object_key}")
+                            
                 except Exception as e:
                     logger.error(f"Failed to queue ingest job for {file_item.object_key}: {e}")
         

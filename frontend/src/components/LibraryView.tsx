@@ -141,13 +141,10 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   // Handle ingest events for real-time thumbnail updates
   const handleMediaIngested = useCallback((event: IngestEvent) => {
     console.log('📡 Received ingest event:', event);
-    console.log('🔍 Current photos object_keys:', photos.map(p => p.object_key));
-    console.log('🎯 Looking for match with:', event.object_key);
     
     setPhotos(prev => {
       const updated = prev.map(photo => {
         if (photo.object_key === event.object_key) {
-          console.log('✅ Found matching photo, updating:', photo.object_key);
           return { 
             ...photo, 
             has_thumbnail: event.has_thumbnail,
@@ -158,7 +155,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       });
       
       const wasUpdated = updated.some((photo, index) => photo !== prev[index]);
-      console.log('🔄 Photos array updated:', wasUpdated);
       
       return updated;
     });
@@ -180,7 +176,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
                         event.object_key === decodedPath.join('/');
       
       if (isRelevant) {
-        console.log('📸 LibraryView: Received relevant SSE event:', event.object_key);
         handleMediaIngested(event);
       }
     });
