@@ -30,6 +30,10 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        // Backend says user is not authenticated, pass through the 401
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      }
       throw new Error("Failed to fetch user data");
     }
 
@@ -78,6 +82,10 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        // Backend says user is not authenticated, pass through the 401
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      }
       throw new Error("Failed to update user data");
     }
 
