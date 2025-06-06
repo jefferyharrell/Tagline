@@ -140,6 +140,24 @@ export default function PhotoThumbnail({
             </div>
           </div>
         )}
+
+        {/* Description overlay - only show if description exists and image is loaded */}
+        {media.metadata?.description && shouldShowImage && isImageLoaded && (
+          <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 p-1">
+              <div 
+                className="text-white text-xs leading-tight overflow-hidden break-words text-left"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical'
+                }}
+              >
+                {media.metadata.description}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </button>
   );
