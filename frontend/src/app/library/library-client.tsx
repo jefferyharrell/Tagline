@@ -17,7 +17,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { MediaObject } from "@/types/media";
-import { useIngestEvents } from "@/hooks/use-ingest-events";
+import { useIngestEvents, type IngestEvent } from "@/hooks/use-ingest-events";
 
 interface DirectoryItem {
   name: string;
@@ -77,40 +77,34 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
 
 
   // Handle real-time ingest updates
-  const handleMediaIngested = useCallback((objectKey: string) => {
-    console.log('Media ingested:', objectKey);
+  const handleMediaIngested = useCallback((event: IngestEvent) => {
+    console.log('Media ingested:', event.object_key);
     
     // Add to ingested objects set
-    setIngestedObjects(prev => new Set(prev).add(objectKey));
+    setIngestedObjects(prev => new Set(prev).add(event.object_key));
     
     
     // Remove from pending media objects if present
-    setPendingMediaObjects(prev => prev.filter(obj => obj.object_key !== objectKey));
+    setPendingMediaObjects(prev => prev.filter(obj => obj.object_key !== event.object_key));
     
     // Check if this object is in the current path context
     const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
     const expectedPrefix = pathString ? `/${pathString}/` : '/';
     
-    if (objectKey.startsWith(expectedPrefix)) {
+    if (event.object_key.startsWith(expectedPrefix)) {
       // This object belongs to the current folder, trigger a refresh
       setRefreshTrigger(prev => prev + 1);
       
       // Show success notification
-      setIngestStatus(`New photo processed: ${objectKey.split('/').pop()}`);
+      setIngestStatus(`New photo processed: ${event.object_key.split('/').pop()}`);
       setTimeout(() => setIngestStatus(""), 3000);
     }
   }, [currentPath]);
 
-  const handleSSEError = useCallback((error: string) => {
-    console.error('SSE Error:', error);
-    setIngestStatus(`Connection error: ${error}`);
-    setTimeout(() => setIngestStatus(""), 5000);
-  }, []);
-
   // Initialize SSE connection
   const { isConnected } = useIngestEvents({
     onMediaIngested: handleMediaIngested,
-    onError: handleSSEError,
+    currentPath: currentPath,
     enabled: true,
   });
 
