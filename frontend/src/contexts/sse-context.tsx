@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useRef, useCallback, ReactNode } from 'react';
+import { useUser } from './user-context';
 
 export interface IngestEvent {
   object_key: string;
@@ -18,6 +19,7 @@ interface SSEContextType {
 const SSEContext = createContext<SSEContextType | null>(null);
 
 export function SSEProvider({ children }: { children: ReactNode }) {
+  const { user, loading } = useUser();
   const eventSourceRef = useRef<EventSource | null>(null);
   const listenersRef = useRef<Set<(event: IngestEvent) => void>>(new Set());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -137,16 +139,29 @@ export function SSEProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Establish connection on mount
+  // Establish connection only when user is authenticated
   useEffect(() => {
-    console.log('🚀 SSE: Provider mounting, establishing connection');
-    connect();
+    console.log('🔍 SSE: Auth state check - loading:', loading, 'user:', !!user);
+    
+    // Wait for loading to complete
+    if (loading) {
+      console.log('🔄 SSE: Waiting for auth state to resolve...');
+      return;
+    }
+
+    if (user) {
+      console.log('🚀 SSE: User authenticated, establishing connection');
+      connect();
+    } else {
+      console.log('🔒 SSE: User not authenticated, skipping connection');
+      disconnect();
+    }
 
     return () => {
-      console.log('🛑 SSE: Provider unmounting, closing connection');
+      console.log('🛑 SSE: Provider effect cleanup, closing connection');
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [user, loading, connect, disconnect]);
 
   const value: SSEContextType = {
     subscribe,
