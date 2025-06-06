@@ -276,11 +276,7 @@ class MediaObjectRepository:
             logger.debug(
                 f"Querying for all MediaObjects with limit={limit}, offset={offset}, prefix={prefix}"
             )
-            from sqlalchemy.orm import joinedload
-            
-            query = self.db.query(ORMMediaObject).options(
-                joinedload(ORMMediaObject.binaries)  # Eager load binaries in one query
-            )
+            query = self.db.query(ORMMediaObject)
             
             # Apply prefix filter if provided
             if prefix is not None:
@@ -297,8 +293,7 @@ class MediaObjectRepository:
                     ~ORMMediaObject.object_key.contains("/")
                 )
             
-            # Natural sort by extracting numeric parts
-            # This SQL will sort "IMG_2.jpg" before "IMG_10.jpg"
+            # Natural sort using the indexed expression - should be fast now
             orm_objs = (
                 query
                 .order_by(
@@ -306,17 +301,17 @@ class MediaObjectRepository:
                         ORMMediaObject.object_key, 
                         r'(\d+)', 
                         r'000000000\1', 
-                        'g'  # Add global flag for multiple replacements
-                    ).label('natural_sort')
+                        'g'
+                    )
                 )
                 .offset(offset)
                 .limit(limit)
                 .all()
             )
             
-            # Convert to domain objects - binaries are already loaded
+            # Convert to domain objects - skip binary loading for better performance
             records = [
-                MediaObjectRecord.from_orm(obj, load_binary_fields=True)
+                MediaObjectRecord.from_orm(obj, load_binary_fields=False)
                 for obj in orm_objs
             ]
             logger.debug(f"Found {len(records)} MediaObjects.")
@@ -425,23 +420,23 @@ class MediaObjectRepository:
         """Returns the total count of MediaObjectRecords in the database."""
         try:
             logger.debug(f"Querying for total count of MediaObjects with prefix={prefix}")
-            query = self.db.query(ORMMediaObject)
+            from sqlalchemy import func
             
-            # Apply prefix filter if provided
             if prefix is not None:
                 # For exact folder matching, count files with prefix but exclude subfolders
-                query = query.filter(
-                    ORMMediaObject.object_key.startswith(prefix)
+                # Use simple and fast operations
+                query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
+                    ORMMediaObject.object_key.like(f"{prefix}%")
                 ).filter(
                     ~ORMMediaObject.object_key.like(f"{prefix}%/%")
                 )
             else:
                 # For root level (prefix is None), only count files without any "/" in the path
-                query = query.filter(
+                query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
                     ~ORMMediaObject.object_key.contains("/")
                 )
             
-            total = query.count()
+            total = query.scalar() or 0
             logger.debug(f"Total count: {total}")
             return total
         except SQLAlchemyError as e:
