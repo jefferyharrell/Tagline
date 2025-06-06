@@ -143,7 +143,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     console.log('📡 Received ingest event:', event);
     
     setPhotos(prev => {
-      const updated = prev.map(photo => {
+      return prev.map(photo => {
         if (photo.object_key === event.object_key) {
           return { 
             ...photo, 
@@ -153,12 +153,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         }
         return photo;
       });
-      
-      const wasUpdated = updated.some((photo, index) => photo !== prev[index]);
-      
-      return updated;
     });
-  }, [photos]);
+  }, []);
 
   // Subscribe to SSE events
   const { subscribe } = useSSE();
