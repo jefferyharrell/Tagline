@@ -269,29 +269,25 @@ async def browse_library(
                     logger.warning(f"Could not parse last_modified for {file_item.object_key}: {file_item.last_modified}")
             
             # Create sparse MediaObject record (with ON CONFLICT DO NOTHING behavior)
-            media_obj = media_repo.create_sparse(
+            media_obj, was_created = media_repo.create_sparse(
                 object_key=file_item.object_key,
                 file_size=file_item.size,
                 file_mimetype=file_item.mimetype,
                 file_last_modified=file_last_modified
             )
             
-            # If this is a newly created MediaObject, queue it for ingestion
-            if media_obj and media_obj.ingestion_status == 'pending':
+            # Only queue for ingestion if we actually created the object
+            if media_obj and was_created:
                 try:
-                    # Check if we just created this (created_at very recent)
-                    if media_obj.created_at:
-                        time_since_creation = datetime.utcnow() - media_obj.created_at
-                        if time_since_creation.total_seconds() < 5:  # Created within last 5 seconds
-                            job = ingest_queue.enqueue(ingest, media_obj.object_key)
-                            logger.info(f"Queued ingest job {job.id} for newly discovered file: {file_item.object_key}")
-                            newly_queued += 1
-                            
-                            # Publish queued event with MediaObject data
-                            media_obj_pydantic = media_obj.to_pydantic()
-                            publish_queued_event(media_obj_pydantic)
-                            logger.debug(f"Published queued event for {media_obj.object_key}")
-                            
+                    job = ingest_queue.enqueue(ingest, media_obj.object_key)
+                    logger.info(f"Queued ingest job {job.id} for newly discovered file: {file_item.object_key}")
+                    newly_queued += 1
+                    
+                    # Publish queued event with MediaObject data
+                    media_obj_pydantic = media_obj.to_pydantic()
+                    publish_queued_event(media_obj_pydantic)
+                    logger.debug(f"Published queued event for {media_obj.object_key}")
+                    
                 except Exception as e:
                     logger.error(f"Failed to queue ingest job for {file_item.object_key}: {e}")
         

@@ -17,7 +17,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { MediaObject } from "@/types/media";
-import { useIngestEvents, type IngestEvent } from "@/hooks/use-ingest-events";
 
 interface DirectoryItem {
   name: string;
@@ -59,8 +58,6 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [ingestStatus, setIngestStatus] = useState<string>("");
-  const [, setIngestedObjects] = useState<Set<string>>(new Set());
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingMediaObjects, setPendingMediaObjects] = useState<MediaObject[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
@@ -76,37 +73,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
   const ITEMS_PER_PAGE = 36;
 
 
-  // Handle real-time ingest updates
-  const handleMediaIngested = useCallback((event: IngestEvent) => {
-    console.log('Media ingested:', event.object_key);
-    
-    // Add to ingested objects set
-    setIngestedObjects(prev => new Set(prev).add(event.object_key));
-    
-    
-    // Remove from pending media objects if present
-    setPendingMediaObjects(prev => prev.filter(obj => obj.object_key !== event.object_key));
-    
-    // Check if this object is in the current path context
-    const pathString = currentPath.length > 0 ? currentPath.join('/') : '';
-    const expectedPrefix = pathString ? `/${pathString}/` : '/';
-    
-    if (event.object_key.startsWith(expectedPrefix)) {
-      // This object belongs to the current folder, trigger a refresh
-      setRefreshTrigger(prev => prev + 1);
-      
-      // Show success notification
-      setIngestStatus(`New photo processed: ${event.object_key.split('/').pop()}`);
-      setTimeout(() => setIngestStatus(""), 3000);
-    }
-  }, [currentPath]);
 
-  // Initialize SSE connection
-  const { isConnected } = useIngestEvents({
-    onMediaIngested: handleMediaIngested,
-    currentPath: currentPath,
-    enabled: true,
-  });
 
   // Navigate to a folder
   const navigateToFolder = (folderName: string) => {
@@ -366,12 +333,6 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
     }
   }, [searchQuery, hasInitialized, fetchData, initialLoad]);
 
-  // Handle refresh trigger from SSE events
-  useEffect(() => {
-    if (hasInitialized && refreshTrigger > 0) {
-      fetchData(true);
-    }
-  }, [refreshTrigger, hasInitialized, fetchData]);
 
   // Handle search input with debounce
   const handleSearchInput = (value: string) => {
@@ -484,15 +445,6 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
             </div>
           )}
           
-          {/* SSE Connection Status */}
-          <div className="flex items-center text-xs text-gray-500">
-            <div 
-              className={`w-2 h-2 rounded-full mr-1 ${
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`}
-            />
-            {isConnected ? 'Live updates active' : 'Live updates disconnected'}
-          </div>
         </div>
       </div>
 

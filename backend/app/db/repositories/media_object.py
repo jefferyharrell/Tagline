@@ -49,7 +49,7 @@ class MediaObjectRepository:
 
     def create_sparse(self, object_key: str, file_size: Optional[int] = None,
                      file_mimetype: Optional[str] = None, 
-                     file_last_modified: Optional[datetime] = None) -> Optional[MediaObjectRecord]:
+                     file_last_modified: Optional[datetime] = None) -> tuple[Optional[MediaObjectRecord], bool]:
         """Creates a sparse MediaObject record during discovery.
         
         Uses INSERT ... ON CONFLICT DO NOTHING to avoid duplicate key errors in logs.
@@ -61,7 +61,7 @@ class MediaObjectRepository:
             file_last_modified: Last modified timestamp
             
         Returns:
-            The created MediaObjectRecord or existing one if already present
+            Tuple of (MediaObjectRecord, was_created) where was_created is True if the object was newly created.
         """
         from app.models import IngestionStatus
         from datetime import datetime as dt
@@ -97,18 +97,20 @@ class MediaObjectRepository:
             self.db.commit()
             
             # Check if we actually inserted a row
-            if result.rowcount > 0:
+            was_created = result.rowcount > 0
+            if was_created:
                 logger.info(f"Successfully created sparse MediaObject for key: {object_key}")
             else:
                 logger.debug(f"MediaObject already exists for key: {object_key}")
             
-            # Return the object (either newly created or existing)
-            return self.get_by_object_key(object_key)
+            # Return the object (either newly created or existing) and creation status
+            media_obj = self.get_by_object_key(object_key)
+            return media_obj, was_created
             
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"Database error creating sparse MediaObject: {e}")
-            return None
+            return None, False
 
     def create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
         """Creates a new MediaObjectRecord in the database or retrieves existing."""

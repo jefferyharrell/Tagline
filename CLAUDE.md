@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Philosophy
+- Be lazy: check if it exists before building it
+- Prefer: npm install > custom implementation  
+- When missing dependencies: suggest installation, don't rebuild
+- Exception: when requirements are so specific that existing solutions don't fit
+
 ## Project Overview
 
 Tagline is a web application for the Junior League of Los Angeles (JLLA) that organizes and manages their vast photo collection stored on Dropbox. The application uses a two-silo architecture inspired by StudioCentral:
@@ -289,6 +295,51 @@ Authentication Flow:
 - `/api/library/{id}/proxy`: Proxy for proxy image
 - `/api/library/{id}/adjacent`: Proxy for adjacent media
 - `/api/ingest`: Proxy for ingest endpoint
+- `/api/logs`: Centralized logging endpoint (proxies to backend)
+
+## Frontend Logging System
+
+Tagline includes a centralized logging system that sends frontend logs to the backend for debugging:
+
+### Logger Usage
+
+```typescript
+import logger from '@/lib/logger';
+
+// Debug logs (development only)
+logger.debug('User navigated to gallery', 'LibraryView', { path: '/photos' });
+
+// Info logs
+logger.info('Image processed successfully', 'IngestHandler', { objectKey: 'photo.jpg' });
+
+// Warning logs
+logger.warn('API response slow', 'APIClient', { responseTime: 2500 });
+
+// Error logs (sent immediately, no batching)
+logger.error('Failed to load images', 'LibraryView', { error: err.message });
+```
+
+### Key Features
+
+- **Smart Batching**: Groups up to 10 logs every 2 seconds for efficiency
+- **Immediate Errors**: Error logs bypass batching and send immediately
+- **Structured Metadata**: Includes component, URL, timestamp, session ID, extra context
+- **Graceful Fallback**: Falls back to console.log if backend unavailable
+- **Authentication**: Properly handles cookie-based auth via frontend API proxy
+- **Configuration**: Enabled in development, can be enabled in production via localStorage
+
+### Backend Output Format
+
+Logs appear in backend stdout as:
+```
+[FRONTEND-ERROR] 2024-01-01T12:00:00Z LibraryView [/library/photos]: Failed to load images | error=Network timeout
+```
+
+### Configuration
+
+- **Development**: Enabled by default
+- **Production**: Enable via `localStorage.setItem('enableFrontendLogging', 'true')`
+- **Manual Control**: `logger.setEnabled(true/false)` or `logger.isEnabled()`
 
 ## Environment Configuration
 
