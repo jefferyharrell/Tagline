@@ -10,6 +10,7 @@ import PhotoThumbnail from './PhotoThumbnail';
 import MediaModal from './MediaModal';
 import { useSSE, type IngestEvent } from '@/contexts/sse-context';
 import type { MediaObject } from '@/types/media';
+import logger from '@/lib/logger';
 
 interface LibraryViewProps {
   initialPath: string;
@@ -87,8 +88,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       
       setHasMore(data.has_more || false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred loading the library');
-      console.error('Library fetch error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred loading the library';
+      setError(errorMessage);
+      
+      logger.error(`Failed to fetch library data: ${errorMessage}`, 'LibraryView', {
+        path: path.join('/'),
+        isLoadMore,
+        error: err
+      });
     } finally {
       if (isLoadMore) {
         setIsLoadingMore(false);
@@ -100,6 +107,12 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   useEffect(() => {
     const pathString = currentPath.join('/');
     const url = pathString ? `/library/${pathString}` : '/library';
+    
+    logger.debug(`Navigating to library path: ${pathString}`, 'LibraryView', { 
+      pathArray: currentPath, 
+      url 
+    });
+    
     router.push(url, { scroll: false });
     fetchData(currentPath);
   }, [currentPath, router, fetchData]);
@@ -140,7 +153,11 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
 
   // Handle ingest events for real-time thumbnail updates
   const handleMediaIngested = useCallback((event: IngestEvent) => {
-    console.log('📡 Received ingest event:', event);
+    logger.info(`Received ingest event for ${event.object_key}`, 'LibraryView', {
+      eventType: event.event_type,
+      status: event.ingestion_status,
+      hasThumbnail: event.has_thumbnail
+    });
     
     setPhotos(prev => {
       return prev.map(photo => {
