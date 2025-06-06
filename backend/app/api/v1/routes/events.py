@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import redis
 from fastapi import APIRouter, Depends
@@ -26,13 +26,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def get_ingest_events() -> AsyncGenerator[str, None]:
+async def get_ingest_events(since_timestamp: Optional[str] = None) -> AsyncGenerator[str, None]:
     """
     Generate Server-Sent Events for ingest progress updates.
     
     This monitors the Redis queue for completed ingest jobs and streams
     updates when media objects are successfully processed.
+    
+    Args:
+        since_timestamp: ISO timestamp string - only send events for jobs completed after this time
     """
+    from datetime import datetime, timezone, timedelta
+    
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     
     try:
@@ -42,45 +47,75 @@ async def get_ingest_events() -> AsyncGenerator[str, None]:
         # Keep track of processed jobs to avoid duplicates
         processed_jobs = set()
         
+        # For this simpler approach, we'll only send heartbeats and wait for truly new job completions
+        # We'll monitor the queue for jobs that transition to finished state while we're watching
+        connection_start_time = datetime.now(timezone.utc)
+        logger.info(f"SSE connection started at {connection_start_time}, monitoring for newly completed jobs")
+        
+        # Get current finished job IDs to establish baseline
+        baseline_finished_jobs = set(ingest_queue.finished_job_registry.get_job_ids())
+        logger.info(f"Baseline: {len(baseline_finished_jobs)} jobs already finished, will ignore these")
+        
         while True:
             try:
-                # Get completed jobs from the queue
-                finished_jobs = ingest_queue.finished_job_registry
+                # Get current finished jobs
+                current_finished_jobs = set(ingest_queue.finished_job_registry.get_job_ids())
                 
-                for job_id in finished_jobs.get_job_ids():
-                    if job_id not in processed_jobs:
-                        try:
-                            job = Job.fetch(job_id, connection=redis_conn)
+                # Find newly finished jobs (jobs that weren't in baseline)
+                newly_finished = current_finished_jobs - baseline_finished_jobs - processed_jobs
+                
+                for job_id in newly_finished:
+                    try:
+                        job = Job.fetch(job_id, connection=redis_conn)
+                        
+                        # Check if job completed successfully
+                        if job.is_finished and not job.is_failed:
+                            # Extract object_key from job args
+                            object_key = None
                             
-                            # Check if job completed successfully
-                            if job.is_finished and not job.is_failed:
-                                # Extract media object info from job args or kwargs
-                                stored_media_object = None
+                            # The ingest function takes object_key as first positional argument
+                            if hasattr(job, 'args') and job.args:
+                                object_key = job.args[0]
+                            
+                            if object_key:
+                                # Query database to get current status of the media object
+                                from app.db.database import get_db
+                                from app.db.repositories.media_object import MediaObjectRepository
                                 
-                                # Try to get from positional args first
-                                if hasattr(job, 'args') and job.args:
-                                    stored_media_object = job.args[0]
-                                # If not in args, try kwargs
-                                elif hasattr(job, 'kwargs') and job.kwargs and 'stored_media_object' in job.kwargs:
-                                    stored_media_object = job.kwargs['stored_media_object']
-                                
-                                if stored_media_object:
-                                    # Create event data
-                                    event_data = {
-                                        "type": "media_ingested",
-                                        "object_key": getattr(stored_media_object, 'object_key', None),
-                                        "job_id": job_id,
-                                        "timestamp": job.ended_at.isoformat() if job.ended_at else None
-                                    }
+                                db_gen = get_db()
+                                db = next(db_gen)
+                                try:
+                                    repo = MediaObjectRepository(db)
+                                    media_obj = repo.get_by_object_key(object_key)
                                     
-                                    # Send SSE event
-                                    yield f"data: {json.dumps(event_data)}\n\n"
-                                    
-                                processed_jobs.add(job_id)
+                                    if media_obj:
+                                        # Create event data with proper fields
+                                        event_data = {
+                                            "type": "media_ingested",
+                                            "object_key": object_key,
+                                            "has_thumbnail": media_obj.has_thumbnail,
+                                            "ingestion_status": media_obj.ingestion_status or "completed",
+                                            "job_id": job_id,
+                                            "timestamp": job.ended_at.isoformat() if job.ended_at else None
+                                        }
+                                        
+                                        logger.info(f"Sending SSE event for newly completed job {object_key}: {event_data}")
+                                        
+                                        # Send SSE event
+                                        yield f"data: {json.dumps(event_data)}\n\n"
+                                finally:
+                                    # Ensure proper cleanup of database session
+                                    try:
+                                        next(db_gen)
+                                    except StopIteration:
+                                        pass
+                            
+                            # Always mark job as processed, regardless of success/failure
+                            processed_jobs.add(job_id)
                                 
-                        except Exception as e:
-                            logger.error(f"Error processing job {job_id}: {e}")
-                            continue
+                    except Exception as e:
+                        logger.error(f"Error processing job {job_id}: {e}")
+                        continue
                 
                 # Also send periodic heartbeat to keep connection alive
                 yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': asyncio.get_event_loop().time()})}\n\n"
@@ -104,6 +139,7 @@ async def get_ingest_events() -> AsyncGenerator[str, None]:
 
 @router.get("/ingest", response_class=StreamingResponse)
 async def stream_ingest_events(
+    since: Optional[str] = None,
     _: schemas.User = Depends(get_current_user),
 ):
     """
@@ -123,7 +159,7 @@ async def stream_ingest_events(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            async_gen = get_ingest_events()
+            async_gen = get_ingest_events(since_timestamp=since)
             while True:
                 try:
                     yield loop.run_until_complete(async_gen.__anext__())

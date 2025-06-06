@@ -116,7 +116,7 @@ async def ingest_orchestrator(
                 orchestrator_job.meta["current_stage"] = "enqueueing_items"
                 orchestrator_job.save_meta()
                 ingest_job = ingest_queue.enqueue(
-                    "app.tasks.ingest.ingest", stored_media_object=obj
+                    "app.tasks.ingest.ingest", obj.object_key
                 )
                 logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
                 job_ids.append(ingest_job.id)

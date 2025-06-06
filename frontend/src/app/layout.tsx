@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { StytchProvider } from "./providers";
+import { SSEProvider } from "@/contexts/sse-context";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -30,7 +31,11 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://use.typekit.net/vxg4wbp.css" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
-        <StytchProvider>{children}</StytchProvider>
+        <StytchProvider>
+          <SSEProvider>
+            {children}
+          </SSEProvider>
+        </StytchProvider>
         <Toaster position="top-right" />
       </body>
     </html>

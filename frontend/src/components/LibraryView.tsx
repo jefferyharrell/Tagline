@@ -8,6 +8,7 @@ import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
 import MediaModal from './MediaModal';
+import { useSSE, type IngestEvent } from '@/contexts/sse-context';
 import type { MediaObject } from '@/types/media';
 
 interface LibraryViewProps {
@@ -136,6 +137,56 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     // Also update the selected photo if it matches
     setSelectedPhoto(updatedMedia);
   }, []);
+
+  // Handle ingest events for real-time thumbnail updates
+  const handleMediaIngested = useCallback((event: IngestEvent) => {
+    console.log('📡 Received ingest event:', event);
+    console.log('🔍 Current photos object_keys:', photos.map(p => p.object_key));
+    console.log('🎯 Looking for match with:', event.object_key);
+    
+    setPhotos(prev => {
+      const updated = prev.map(photo => {
+        if (photo.object_key === event.object_key) {
+          console.log('✅ Found matching photo, updating:', photo.object_key);
+          return { 
+            ...photo, 
+            has_thumbnail: event.has_thumbnail,
+            ingestion_status: event.ingestion_status 
+          };
+        }
+        return photo;
+      });
+      
+      const wasUpdated = updated.some((photo, index) => photo !== prev[index]);
+      console.log('🔄 Photos array updated:', wasUpdated);
+      
+      return updated;
+    });
+  }, [photos]);
+
+  // Subscribe to SSE events
+  const { subscribe } = useSSE();
+  
+  useEffect(() => {
+    // Subscribe to ingest events
+    const unsubscribe = subscribe((event: IngestEvent) => {
+      // Filter events to only process those relevant to current path
+      const decodedPath = currentPath.map(segment => decodeURIComponent(segment));
+      const pathPrefix = decodedPath.length > 0 ? decodedPath.join('/') + '/' : '';
+      
+      // Include event if it's relevant to the current path
+      const isRelevant = decodedPath.length === 0 || 
+                        event.object_key.startsWith(pathPrefix) ||
+                        event.object_key === decodedPath.join('/');
+      
+      if (isRelevant) {
+        console.log('📸 LibraryView: Received relevant SSE event:', event.object_key);
+        handleMediaIngested(event);
+      }
+    });
+    
+    return unsubscribe;
+  }, [subscribe, currentPath, handleMediaIngested]);
   
   // Load more photos when scrolling near bottom
   const loadMorePhotos = useCallback(() => {
