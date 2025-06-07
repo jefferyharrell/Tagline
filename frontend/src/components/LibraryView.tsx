@@ -154,7 +154,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     }
   }, [selectedPhotoIndex, photos]);
 
-  // Calculate navigation state for modal
+  // Calculate navigation state for modal (used in legacy mode)
   const navigationState = {
     hasPrev: selectedPhotoIndex > 0,
     hasNext: selectedPhotoIndex < photos.length - 1
@@ -391,8 +391,15 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       <MediaModal 
         isOpen={isModalOpen} 
         onClose={handleModalClose}
-        media={selectedPhoto || undefined}
+        photos={photos}
+        currentIndex={selectedPhotoIndex}
+        onIndexChange={(newIndex) => {
+          setSelectedPhotoIndex(newIndex);
+          setSelectedPhoto(photos[newIndex]);
+        }}
         onMediaUpdate={handleMediaUpdate}
+        // Legacy props for backward compatibility
+        media={selectedPhoto || undefined}
         onNavigate={handleModalNavigate}
         navigationState={navigationState}
       />

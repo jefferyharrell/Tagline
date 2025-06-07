@@ -5,57 +5,107 @@ import { X, ChevronRight, Lock, Unlock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { toast } from "sonner";
-import MediaImageViewer from "./MediaImageViewer";
 import type { MediaObject } from "@/types/media";
-
-interface NavigationState {
-  hasPrev: boolean;
-  hasNext: boolean;
-}
 
 interface MediaModalProps {
   isOpen: boolean;
   onClose: () => void;
   children?: React.ReactNode;
+  // New carousel-based props
+  photos?: MediaObject[];
+  currentIndex?: number;
+  onIndexChange?: (newIndex: number) => void;
+  // Legacy props for backward compatibility
   media?: MediaObject;
   onMediaUpdate?: (updatedMedia: MediaObject) => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
-  navigationState?: NavigationState;
+  navigationState?: { hasPrev: boolean; hasNext: boolean };
 }
 
 export default function MediaModal({
   isOpen,
   onClose,
   children,
+  // New carousel props
+  photos,
+  currentIndex,
+  onIndexChange,
+  // Legacy props
   media,
   onMediaUpdate,
   onNavigate,
-  navigationState,
+  navigationState, // eslint-disable-line @typescript-eslint/no-unused-vars
 }: MediaModalProps) {
   const router = useRouter();
   
+  // Carousel API state
+  const [api, setApi] = useState<CarouselApi>();
+  
+  // Determine current media - use carousel mode if photos provided, otherwise legacy mode
+  const isCarouselMode = photos && photos.length > 0 && currentIndex !== undefined;
+  const currentMedia = isCarouselMode ? photos[currentIndex] : media;
+  
   // Description editing state
-  const [currentMedia, setCurrentMedia] = useState<MediaObject | null>(media || null);
-  const [description, setDescription] = useState(media?.metadata?.description || "");
+  const [description, setDescription] = useState(currentMedia?.metadata?.description || "");
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastSavedDescription, setLastSavedDescription] = useState(media?.metadata?.description || "");
+  const [lastSavedDescription, setLastSavedDescription] = useState(currentMedia?.metadata?.description || "");
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
+
+  // Handle carousel API events
+  useEffect(() => {
+    if (!api || !isCarouselMode) return;
+
+    // Sync carousel selection with our index state
+    if (currentIndex !== undefined && api.selectedScrollSnap() !== currentIndex) {
+      api.scrollTo(currentIndex);
+    }
+
+    const handleSelect = () => {
+      const newIndex = api.selectedScrollSnap();
+      if (onIndexChange && newIndex !== currentIndex) {
+        onIndexChange(newIndex);
+      }
+    };
+
+    api.on("select", handleSelect);
+    return () => {
+      api.off("select", handleSelect);
+    };
+  }, [api, currentIndex, onIndexChange, isCarouselMode]);
 
   // Handle ESC key to close modal and arrow keys for navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
         onClose();
-      } else if (event.key === "ArrowLeft" && isOpen && isDescriptionLocked && onNavigate && navigationState?.hasPrev) {
-        // Only navigate if not editing description
-        onNavigate('prev');
-      } else if (event.key === "ArrowRight" && isOpen && isDescriptionLocked && onNavigate && navigationState?.hasNext) {
-        // Only navigate if not editing description
-        onNavigate('next');
+      } else if (isOpen && isDescriptionLocked) {
+        if (isCarouselMode && api) {
+          // Let carousel handle arrow keys when not editing description
+          if (event.key === "ArrowLeft") {
+            api.scrollPrev();
+          } else if (event.key === "ArrowRight") {
+            api.scrollNext();
+          }
+        } else if (onNavigate) {
+          // Fallback to legacy navigation
+          if (event.key === "ArrowLeft") {
+            onNavigate('prev');
+          } else if (event.key === "ArrowRight") {
+            onNavigate('next');
+          }
+        }
       }
     };
 
@@ -69,19 +119,17 @@ export default function MediaModal({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose, onNavigate, navigationState, isDescriptionLocked]);
+  }, [isOpen, onClose, api, isDescriptionLocked, onNavigate, isCarouselMode]);
 
 
-  // Sync media and description state when media prop changes
+  // Sync description state when currentMedia changes
   useEffect(() => {
-    if (media && (!currentMedia || media.object_key !== currentMedia?.object_key)) {
-      // Only update if it's a different media object
-      setCurrentMedia(media);
-      setDescription(media.metadata?.description || "");
-      setLastSavedDescription(media.metadata?.description || "");
+    if (currentMedia) {
+      setDescription(currentMedia.metadata?.description || "");
+      setLastSavedDescription(currentMedia.metadata?.description || "");
       setIsDescriptionLocked(true);
     }
-  }, [media, currentMedia]);
+  }, [currentMedia]);
 
   // Description editing functions - define handleCancel first
   const handleCancel = useCallback(() => {
@@ -125,7 +173,11 @@ export default function MediaModal({
         description: optimisticDescription,
       },
     };
-    setCurrentMedia(updatedMedia);
+    // In carousel mode, we'll rely on the parent to update the photos array
+    // In legacy mode, notify parent of the update
+    if (onMediaUpdate) {
+      onMediaUpdate(updatedMedia);
+    }
 
     // Lock the field immediately
     setIsDescriptionLocked(true);
@@ -156,8 +208,7 @@ export default function MediaModal({
 
       const serverUpdatedMedia = await response.json();
 
-      // Server confirmed - update with server response
-      setCurrentMedia(serverUpdatedMedia);
+      // Server confirmed - update description state and notify parent
       setDescription(serverUpdatedMedia.metadata?.description || "");
       setLastSavedDescription(serverUpdatedMedia.metadata?.description || "");
 
@@ -172,7 +223,6 @@ export default function MediaModal({
       console.error("PATCH - Error updating media object:", err);
 
       // Revert on error
-      setCurrentMedia(currentMedia);
       setDescription(currentMedia.metadata?.description || "");
       setLastSavedDescription(currentMedia.metadata?.description || "");
 
@@ -264,13 +314,48 @@ export default function MediaModal({
         <div className="h-full overflow-auto">
           {/* Photo and Content Container */}
           <div className="p-4 min-h-full flex flex-col items-center">
-            {/* Media Image Viewer with Navigation */}
+            {/* Media Display with Navigation */}
             <div className="relative">
-              <MediaImageViewer
-                media={currentMedia}
-                onNavigate={onNavigate}
-                navigationState={navigationState}
-              />
+              {isCarouselMode && photos ? (
+                // Carousel mode for multiple photos
+                <Carousel 
+                  className="w-full max-w-5xl relative"
+                  setApi={setApi}
+                  opts={{
+                    align: "center",
+                    loop: false,
+                  }}
+                >
+                  <CarouselContent>
+                    {photos.map((photo) => (
+                      <CarouselItem key={photo.object_key}>
+                        <div className="flex justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
+                            alt={photo.metadata?.description || "Photo"}
+                            className="max-w-full w-auto h-auto"
+                            style={{ maxHeight: "calc(100vh - 8rem)" }}
+                          />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
+                  <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+                </Carousel>
+              ) : (
+                // Legacy mode for single photo
+                <div className="flex justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/library/${encodeURIComponent(currentMedia.object_key)}/proxy`}
+                    alt={currentMedia.metadata?.description || "Photo"}
+                    className="max-w-full w-auto h-auto"
+                    style={{ maxHeight: "calc(100vh - 8rem)" }}
+                  />
+                </div>
+              )}
 
               {/* Description Section - Positioned at Bottom of Photo */}
               <div className="absolute bottom-0 left-0 right-0 p-4">
