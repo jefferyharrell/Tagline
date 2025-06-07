@@ -8,12 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import type { MediaObject } from "@/types/media";
 
+interface NavigationState {
+  hasPrev: boolean;
+  hasNext: boolean;
+}
+
 interface MediaModalProps {
   isOpen: boolean;
   onClose: () => void;
   children?: React.ReactNode;
   media?: MediaObject;
   onMediaUpdate?: (updatedMedia: MediaObject) => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
+  navigationState?: NavigationState;
 }
 
 export default function MediaModal({
@@ -22,6 +29,8 @@ export default function MediaModal({
   children,
   media,
   onMediaUpdate,
+  onNavigate,
+  navigationState,
 }: MediaModalProps) {
   const router = useRouter();
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -35,11 +44,68 @@ export default function MediaModal({
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
-  // Handle ESC key to close modal
+  // Touch gesture state
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+
+  // Navigation handlers
+  const handleLeftClick = useCallback(() => {
+    if (navigationState?.hasPrev && onNavigate) {
+      onNavigate('prev');
+    }
+  }, [navigationState, onNavigate]);
+
+  const handleRightClick = useCallback(() => {
+    if (navigationState?.hasNext && onNavigate) {
+      onNavigate('next');
+    }
+  }, [navigationState, onNavigate]);
+
+  // Touch handlers for swipe navigation
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.targetTouches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setTouchEnd(null);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.targetTouches[0];
+    setTouchEnd({ x: touch.clientX, y: touch.clientY });
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStart || !touchEnd) return;
+    
+    const deltaX = touchEnd.x - touchStart.x;
+    const deltaY = touchEnd.y - touchStart.y;
+    const minSwipeDistance = 50;
+    
+    // Only consider horizontal swipes (ignore mostly vertical swipes)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+      if (deltaX > 0) {
+        // Swipe right - go to previous
+        handleLeftClick();
+      } else {
+        // Swipe left - go to next
+        handleRightClick();
+      }
+    }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+  }, [touchStart, touchEnd, handleLeftClick, handleRightClick]);
+
+  // Handle ESC key to close modal and arrow keys for navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
         onClose();
+      } else if (event.key === "ArrowLeft" && isOpen && isDescriptionLocked) {
+        // Only navigate if not editing description
+        handleLeftClick();
+      } else if (event.key === "ArrowRight" && isOpen && isDescriptionLocked) {
+        // Only navigate if not editing description
+        handleRightClick();
       }
     };
 
@@ -53,7 +119,7 @@ export default function MediaModal({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, handleLeftClick, handleRightClick, isDescriptionLocked]);
 
   // Reset image loaded state when media object key changes
   useEffect(() => {
@@ -255,7 +321,12 @@ export default function MediaModal({
           {/* Photo and Content Container */}
           <div className="p-4 min-h-full flex flex-col items-center">
             {/* Photo with Description Overlay */}
-            <div className="relative inline-block">
+            <div 
+              className="relative inline-block"
+              onTouchStart={onNavigate ? handleTouchStart : undefined}
+              onTouchMove={onNavigate ? handleTouchMove : undefined}
+              onTouchEnd={onNavigate ? handleTouchEnd : undefined}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/api/library/${encodeURIComponent(currentMedia.object_key)}/proxy`}
@@ -270,6 +341,49 @@ export default function MediaModal({
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 min-h-[400px] min-w-[400px]">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
                 </div>
+              )}
+
+              {/* Navigation zones - only show when navigation is available */}
+              {onNavigate && navigationState && (
+                <>
+                  {/* Left navigation zone */}
+                  <div 
+                    className={`absolute left-0 top-0 bottom-0 w-1/5 cursor-pointer group ${
+                      navigationState.hasPrev ? 'hover:bg-black/10' : 'cursor-not-allowed opacity-50'
+                    }`}
+                    onClick={navigationState.hasPrev ? handleLeftClick : undefined}
+                  >
+                    {/* Left arrow indicator - shows on hover */}
+                    {navigationState.hasPrev && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <div className="bg-black/70 text-white rounded-full p-2">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right navigation zone */}
+                  <div 
+                    className={`absolute right-0 top-0 bottom-0 w-1/5 cursor-pointer group ${
+                      navigationState.hasNext ? 'hover:bg-black/10' : 'cursor-not-allowed opacity-50'
+                    }`}
+                    onClick={navigationState.hasNext ? handleRightClick : undefined}
+                  >
+                    {/* Right arrow indicator - shows on hover */}
+                    {navigationState.hasNext && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <div className="bg-black/70 text-white rounded-full p-2">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
 
               {/* Description Section - Positioned at Bottom of Photo */}

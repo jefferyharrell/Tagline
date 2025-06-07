@@ -43,6 +43,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [photos, setPhotos] = useState<MediaObject[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<MediaObject | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(-1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Infinite scrolling state
@@ -137,7 +138,27 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const handleModalClose = useCallback(() => {
     setIsModalOpen(false);
     setSelectedPhoto(null);
+    setSelectedPhotoIndex(-1);
   }, []);
+
+  // Handle modal navigation
+  const handleModalNavigate = useCallback((direction: 'prev' | 'next') => {
+    const newIndex = direction === 'next' 
+      ? selectedPhotoIndex + 1 
+      : selectedPhotoIndex - 1;
+      
+    // Bounds checking
+    if (newIndex >= 0 && newIndex < photos.length) {
+      setSelectedPhotoIndex(newIndex);
+      setSelectedPhoto(photos[newIndex]);
+    }
+  }, [selectedPhotoIndex, photos]);
+
+  // Calculate navigation state for modal
+  const navigationState = {
+    hasPrev: selectedPhotoIndex > 0,
+    hasNext: selectedPhotoIndex < photos.length - 1
+  };
 
   // Handle media update from modal
   const handleMediaUpdate = useCallback((updatedMedia: MediaObject) => {
@@ -320,6 +341,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
                 media={photo}
                 onClick={() => {
                   // Open modal for regular clicks
+                  const photoIndex = photos.findIndex(p => p.object_key === photo.object_key);
+                  setSelectedPhotoIndex(photoIndex);
                   setSelectedPhoto(photo);
                   setIsModalOpen(true);
                 }}
@@ -370,6 +393,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         onClose={handleModalClose}
         media={selectedPhoto || undefined}
         onMediaUpdate={handleMediaUpdate}
+        onNavigate={handleModalNavigate}
+        navigationState={navigationState}
       />
     </div>
   );
