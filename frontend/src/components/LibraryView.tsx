@@ -42,7 +42,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [photos, setPhotos] = useState<MediaObject[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<MediaObject | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(-1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -137,28 +136,9 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   // Handle modal close
   const handleModalClose = useCallback(() => {
     setIsModalOpen(false);
-    setSelectedPhoto(null);
     setSelectedPhotoIndex(-1);
   }, []);
 
-  // Handle modal navigation
-  const handleModalNavigate = useCallback((direction: 'prev' | 'next') => {
-    const newIndex = direction === 'next' 
-      ? selectedPhotoIndex + 1 
-      : selectedPhotoIndex - 1;
-      
-    // Bounds checking
-    if (newIndex >= 0 && newIndex < photos.length) {
-      setSelectedPhotoIndex(newIndex);
-      setSelectedPhoto(photos[newIndex]);
-    }
-  }, [selectedPhotoIndex, photos]);
-
-  // Calculate navigation state for modal (used in legacy mode)
-  const navigationState = {
-    hasPrev: selectedPhotoIndex > 0,
-    hasNext: selectedPhotoIndex < photos.length - 1
-  };
 
   // Handle media update from modal
   const handleMediaUpdate = useCallback((updatedMedia: MediaObject) => {
@@ -168,8 +148,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         photo.object_key === updatedMedia.object_key ? updatedMedia : photo
       )
     );
-    // Also update the selected photo if it matches
-    setSelectedPhoto(updatedMedia);
   }, []);
 
   // Handle ingest events for real-time thumbnail updates
@@ -343,7 +321,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
                   // Open modal for regular clicks
                   const photoIndex = photos.findIndex(p => p.object_key === photo.object_key);
                   setSelectedPhotoIndex(photoIndex);
-                  setSelectedPhoto(photo);
                   setIsModalOpen(true);
                 }}
                 className="w-full h-full"
@@ -395,13 +372,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         currentIndex={selectedPhotoIndex}
         onIndexChange={(newIndex) => {
           setSelectedPhotoIndex(newIndex);
-          setSelectedPhoto(photos[newIndex]);
         }}
         onMediaUpdate={handleMediaUpdate}
-        // Legacy props for backward compatibility
-        media={selectedPhoto || undefined}
-        onNavigate={handleModalNavigate}
-        navigationState={navigationState}
       />
     </div>
   );

@@ -19,40 +19,27 @@ import type { MediaObject } from "@/types/media";
 interface MediaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  children?: React.ReactNode;
-  // New carousel-based props
-  photos?: MediaObject[];
-  currentIndex?: number;
-  onIndexChange?: (newIndex: number) => void;
-  // Legacy props for backward compatibility
-  media?: MediaObject;
+  photos: MediaObject[];
+  currentIndex: number;
+  onIndexChange: (newIndex: number) => void;
   onMediaUpdate?: (updatedMedia: MediaObject) => void;
-  onNavigate?: (direction: 'prev' | 'next') => void;
-  navigationState?: { hasPrev: boolean; hasNext: boolean };
 }
 
 export default function MediaModal({
   isOpen,
   onClose,
-  children,
-  // New carousel props
   photos,
   currentIndex,
   onIndexChange,
-  // Legacy props
-  media,
   onMediaUpdate,
-  onNavigate,
-  navigationState, // eslint-disable-line @typescript-eslint/no-unused-vars
 }: MediaModalProps) {
   const router = useRouter();
   
   // Carousel API state
   const [api, setApi] = useState<CarouselApi>();
   
-  // Determine current media - use carousel mode if photos provided, otherwise legacy mode
-  const isCarouselMode = photos && photos.length > 0 && currentIndex !== undefined;
-  const currentMedia = isCarouselMode ? photos[currentIndex] : media;
+  // Get current media from photos array
+  const currentMedia = photos[currentIndex];
   
   // Description editing state
   const [description, setDescription] = useState(currentMedia?.metadata?.description || "");
@@ -65,16 +52,16 @@ export default function MediaModal({
 
   // Handle carousel API events
   useEffect(() => {
-    if (!api || !isCarouselMode) return;
+    if (!api) return;
 
     // Sync carousel selection with our index state
-    if (currentIndex !== undefined && api.selectedScrollSnap() !== currentIndex) {
+    if (api.selectedScrollSnap() !== currentIndex) {
       api.scrollTo(currentIndex);
     }
 
     const handleSelect = () => {
       const newIndex = api.selectedScrollSnap();
-      if (onIndexChange && newIndex !== currentIndex) {
+      if (newIndex !== currentIndex) {
         onIndexChange(newIndex);
       }
     };
@@ -83,28 +70,19 @@ export default function MediaModal({
     return () => {
       api.off("select", handleSelect);
     };
-  }, [api, currentIndex, onIndexChange, isCarouselMode]);
+  }, [api, currentIndex, onIndexChange]);
 
   // Handle ESC key to close modal and arrow keys for navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
         onClose();
-      } else if (isOpen && isDescriptionLocked) {
-        if (isCarouselMode && api) {
-          // Let carousel handle arrow keys when not editing description
-          if (event.key === "ArrowLeft") {
-            api.scrollPrev();
-          } else if (event.key === "ArrowRight") {
-            api.scrollNext();
-          }
-        } else if (onNavigate) {
-          // Fallback to legacy navigation
-          if (event.key === "ArrowLeft") {
-            onNavigate('prev');
-          } else if (event.key === "ArrowRight") {
-            onNavigate('next');
-          }
+      } else if (isOpen && isDescriptionLocked && api) {
+        // Let carousel handle arrow keys when not editing description
+        if (event.key === "ArrowLeft") {
+          api.scrollPrev();
+        } else if (event.key === "ArrowRight") {
+          api.scrollNext();
         }
       }
     };
@@ -119,7 +97,7 @@ export default function MediaModal({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose, api, isDescriptionLocked, onNavigate, isCarouselMode]);
+  }, [isOpen, onClose, api, isDescriptionLocked]);
 
 
   // Sync description state when currentMedia changes
@@ -173,8 +151,7 @@ export default function MediaModal({
         description: optimisticDescription,
       },
     };
-    // In carousel mode, we'll rely on the parent to update the photos array
-    // In legacy mode, notify parent of the update
+    // Notify parent of the update
     if (onMediaUpdate) {
       onMediaUpdate(updatedMedia);
     }
@@ -266,34 +243,7 @@ export default function MediaModal({
     [onClose],
   );
 
-  if (!isOpen) return null;
-
-  // If children are provided, use the legacy mode
-  if (children) {
-    return (
-      <div
-        className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm"
-        onClick={handleBackdropClick}
-      >
-        <div className="fixed inset-2 sm:inset-3 md:inset-4 lg:inset-6 xl:inset-8 bg-white rounded-lg shadow-2xl overflow-hidden">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 hover:scale-110"
-            aria-label="Close modal"
-          >
-            <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-700" />
-          </button>
-
-          {/* Modal content */}
-          <div className="h-full overflow-auto">{children}</div>
-        </div>
-      </div>
-    );
-  }
-
-  // New media-focused mode
-  if (!currentMedia) return null;
+  if (!isOpen || !currentMedia) return null;
 
   return (
     <div
@@ -316,46 +266,33 @@ export default function MediaModal({
           <div className="p-4 min-h-full flex flex-col items-center">
             {/* Media Display with Navigation */}
             <div className="relative">
-              {isCarouselMode && photos ? (
-                // Carousel mode for multiple photos
-                <Carousel 
-                  className="w-full max-w-5xl relative"
-                  setApi={setApi}
-                  opts={{
-                    align: "center",
-                    loop: false,
-                  }}
-                >
-                  <CarouselContent>
-                    {photos.map((photo) => (
-                      <CarouselItem key={photo.object_key}>
-                        <div className="flex justify-center">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
-                            alt={photo.metadata?.description || "Photo"}
-                            className="max-w-full w-auto h-auto"
-                            style={{ maxHeight: "calc(100vh - 8rem)" }}
-                          />
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
-                  <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
-                </Carousel>
-              ) : (
-                // Legacy mode for single photo
-                <div className="flex justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/library/${encodeURIComponent(currentMedia.object_key)}/proxy`}
-                    alt={currentMedia.metadata?.description || "Photo"}
-                    className="max-w-full w-auto h-auto"
-                    style={{ maxHeight: "calc(100vh - 8rem)" }}
-                  />
-                </div>
-              )}
+              <Carousel 
+                className="w-full max-w-5xl relative"
+                setApi={setApi}
+                opts={{
+                  align: "center",
+                  loop: false,
+                  startIndex: currentIndex,
+                }}
+              >
+                <CarouselContent>
+                  {photos.map((photo) => (
+                    <CarouselItem key={photo.object_key}>
+                      <div className="flex justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
+                          alt={photo.metadata?.description || "Photo"}
+                          className="max-w-full w-auto h-auto"
+                          style={{ maxHeight: "calc(100vh - 8rem)" }}
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
+                <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+              </Carousel>
 
               {/* Description Section - Positioned at Bottom of Photo */}
               <div className="absolute bottom-0 left-0 right-0 p-4">
