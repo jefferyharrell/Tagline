@@ -42,7 +42,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [photos, setPhotos] = useState<MediaObject[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<MediaObject | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(-1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Infinite scrolling state
@@ -136,8 +136,9 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   // Handle modal close
   const handleModalClose = useCallback(() => {
     setIsModalOpen(false);
-    setSelectedPhoto(null);
+    setSelectedPhotoIndex(-1);
   }, []);
+
 
   // Handle media update from modal
   const handleMediaUpdate = useCallback((updatedMedia: MediaObject) => {
@@ -147,8 +148,6 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         photo.object_key === updatedMedia.object_key ? updatedMedia : photo
       )
     );
-    // Also update the selected photo if it matches
-    setSelectedPhoto(updatedMedia);
   }, []);
 
   // Handle ingest events for real-time thumbnail updates
@@ -320,7 +319,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
                 media={photo}
                 onClick={() => {
                   // Open modal for regular clicks
-                  setSelectedPhoto(photo);
+                  const photoIndex = photos.findIndex(p => p.object_key === photo.object_key);
+                  setSelectedPhotoIndex(photoIndex);
                   setIsModalOpen(true);
                 }}
                 className="w-full h-full"
@@ -368,7 +368,11 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       <MediaModal 
         isOpen={isModalOpen} 
         onClose={handleModalClose}
-        media={selectedPhoto || undefined}
+        photos={photos}
+        currentIndex={selectedPhotoIndex}
+        onIndexChange={(newIndex) => {
+          setSelectedPhotoIndex(newIndex);
+        }}
         onMediaUpdate={handleMediaUpdate}
       />
     </div>

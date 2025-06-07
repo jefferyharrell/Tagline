@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import MediaThumbnail from "@/components/MediaThumbnail";
-import MediaModal from "@/components/MediaModal";
+import MediaDetailModal from "@/components/MediaDetailModal";
 import MediaDetailClient from "../media/[...object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -466,7 +466,7 @@ export default function GalleryClient() {
       )}
 
       {/* Modal for media detail */}
-      <MediaModal isOpen={isModalOpen} onClose={handleCloseModal}>
+      <MediaDetailModal isOpen={isModalOpen} onClose={handleCloseModal}>
         {selectedMedia && (
           <MediaDetailClient
             initialMediaObject={selectedMedia}
@@ -474,7 +474,7 @@ export default function GalleryClient() {
             onClose={handleCloseModal}
           />
         )}
-      </MediaModal>
+      </MediaDetailModal>
     </div>
   );
 }

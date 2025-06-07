@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Folder, Home, Image } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MediaThumbnail from "@/components/MediaThumbnail";
-import MediaModal from "@/components/MediaModal";
+import MediaDetailModal from "@/components/MediaDetailModal";
 import MediaDetailClient from "../media/[...object_key]/media-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -660,7 +660,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
       </div>
 
       {/* Modal for media detail */}
-      <MediaModal isOpen={isModalOpen} onClose={handleCloseModal}>
+      <MediaDetailModal isOpen={isModalOpen} onClose={handleCloseModal}>
         {selectedMedia && (
           <MediaDetailClient
             initialMediaObject={selectedMedia}
@@ -668,7 +668,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
             onClose={handleCloseModal}
           />
         )}
-      </MediaModal>
+      </MediaDetailModal>
     </div>
   );
 }
