@@ -50,45 +50,10 @@ class ORMMediaObject(Base):
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-
-    # Relationship to binaries
-    binaries = relationship(
-        "ORMMediaBinary", back_populates="media_object", cascade="all, delete-orphan"
-    )
+    
+    # Direct object keys for thumbnails and proxies (replaces media_binaries relationship)
+    thumbnail_object_key = Column(String(255), nullable=True)
+    proxy_object_key = Column(String(255), nullable=True)
 
     def __repr__(self):
         return f"<OrmMediaObject(object_key={self.object_key}, status={self.ingestion_status})>"
-
-
-class ORMMediaBinary(Base):
-    __tablename__ = "media_binaries"
-
-    id = Column(
-        PG_UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
-    )
-    media_object_key = Column(
-        String(255),
-        ForeignKey("media_objects.object_key", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    type = Column(String(20), nullable=False)  # 'thumbnail' or 'proxy'
-    s3_key = Column(String(255), nullable=False, index=True)
-    size = Column(Integer, nullable=True)
-    mimetype = Column(String(255), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-
-    # Relationship back to media object
-    media_object = relationship("ORMMediaObject", back_populates="binaries")
-
-    # Unique constraint to prevent duplicate types per media object
-    __table_args__ = (
-        UniqueConstraint("media_object_key", "type", name="uq_media_object_type"),
-    )
-
-    def __repr__(self):
-        return f"<ORMMediaBinary(id={self.id}, media_object_key={self.media_object_key}, type={self.type})>"

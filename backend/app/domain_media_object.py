@@ -43,17 +43,11 @@ class MediaObjectRecord:
 
         Args:
             orm_obj: The ORM MediaObject
-            load_binary_fields: Whether to check for binaries
+            load_binary_fields: Unused - kept for compatibility
         """
-        # Check if has thumbnail/proxy by looking at binaries relationship
-        has_thumbnail = False
-        has_proxy = False
-        if load_binary_fields and hasattr(orm_obj, 'binaries'):
-            for binary in orm_obj.binaries:
-                if binary.type == 'thumbnail':
-                    has_thumbnail = True
-                elif binary.type == 'proxy':
-                    has_proxy = True
+        # Check if has thumbnail/proxy by looking at direct columns
+        has_thumbnail = getattr(orm_obj, "thumbnail_object_key", None) is not None
+        has_proxy = getattr(orm_obj, "proxy_object_key", None) is not None
         
         return cls(
             object_key=getattr(orm_obj, "object_key", ""),

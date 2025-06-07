@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.domain_media_object import MediaObjectRecord
-from app.models import MediaBinaryType, ORMMediaBinary, ORMMediaObject, IngestionStatus
+from app.models import ORMMediaObject, IngestionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -152,13 +152,13 @@ class MediaObjectRepository:
     def register_thumbnail(
         self, object_key: str, s3_key: str, mimetype: str, size: Optional[int] = None
     ) -> bool:
-        """Registers thumbnail S3 key for a MediaObject by creating/updating a MediaBinary record.
+        """Registers thumbnail S3 key for a MediaObject by updating the thumbnail_object_key column.
 
         Args:
             object_key: The object_key of the MediaObject.
             s3_key: The S3 key where the thumbnail is stored.
-            mimetype: The mimetype of the thumbnail.
-            size: Optional size of the thumbnail in bytes.
+            mimetype: The mimetype of the thumbnail (ignored - kept for compatibility).
+            size: Optional size of the thumbnail in bytes (ignored - kept for compatibility).
 
         Returns:
             True if the registration was successful, False otherwise.
@@ -168,30 +168,14 @@ class MediaObjectRepository:
                 f"Attempting to register thumbnail for object_key: {object_key}"
             )
 
-            # Check if thumbnail record already exists
-            existing_binary = (
-                self.db.query(ORMMediaBinary)
-                .filter_by(
-                    media_object_key=object_key, type=MediaBinaryType.THUMBNAIL
-                )
-                .first()
-            )
-
-            if existing_binary:
-                # Update existing
-                existing_binary.s3_key = s3_key  # type: ignore[assignment]
-                existing_binary.mimetype = mimetype  # type: ignore[assignment]
-                existing_binary.size = size  # type: ignore[assignment]
-            else:
-                # Create new
-                new_binary = ORMMediaBinary(
-                    media_object_key=object_key,
-                    type=MediaBinaryType.THUMBNAIL,
-                    s3_key=s3_key,
-                    mimetype=mimetype,
-                    size=size,
-                )
-                self.db.add(new_binary)
+            # Update the media_object directly
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            if orm_obj is None:
+                logger.error(f"MediaObject with key {object_key} not found")
+                return False
+                
+            orm_obj.thumbnail_object_key = s3_key  # type: ignore[assignment]
+            orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
             self.db.commit()
             logger.info(
@@ -208,13 +192,13 @@ class MediaObjectRepository:
     def register_proxy(
         self, object_key: str, s3_key: str, mimetype: str, size: Optional[int] = None
     ) -> bool:
-        """Registers proxy S3 key for a MediaObject by creating/updating a MediaBinary record.
+        """Registers proxy S3 key for a MediaObject by updating the proxy_object_key column.
 
         Args:
             object_key: The object_key of the MediaObject.
             s3_key: The S3 key where the proxy is stored.
-            mimetype: The mimetype of the proxy.
-            size: Optional size of the proxy in bytes.
+            mimetype: The mimetype of the proxy (ignored - kept for compatibility).
+            size: Optional size of the proxy in bytes (ignored - kept for compatibility).
 
         Returns:
             True if the registration was successful, False otherwise.
@@ -224,28 +208,14 @@ class MediaObjectRepository:
                 f"Attempting to register proxy for object_key: {object_key}"
             )
 
-            # Check if proxy record already exists
-            existing_binary = (
-                self.db.query(ORMMediaBinary)
-                .filter_by(media_object_key=object_key, type=MediaBinaryType.PROXY)
-                .first()
-            )
-
-            if existing_binary:
-                # Update existing
-                existing_binary.s3_key = s3_key  # type: ignore[assignment]
-                existing_binary.mimetype = mimetype  # type: ignore[assignment]
-                existing_binary.size = size  # type: ignore[assignment]
-            else:
-                # Create new
-                new_binary = ORMMediaBinary(
-                    media_object_key=object_key,
-                    type=MediaBinaryType.PROXY,
-                    s3_key=s3_key,
-                    mimetype=mimetype,
-                    size=size,
-                )
-                self.db.add(new_binary)
+            # Update the media_object directly
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            if orm_obj is None:
+                logger.error(f"MediaObject with key {object_key} not found")
+                return False
+                
+            orm_obj.proxy_object_key = s3_key  # type: ignore[assignment]
+            orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
             self.db.commit()
             logger.info(
@@ -309,7 +279,7 @@ class MediaObjectRepository:
                 .all()
             )
             
-            # Convert to domain objects - skip binary loading for better performance
+            # Convert to domain objects - thumbnail/proxy info comes from columns
             records = [
                 MediaObjectRecord.from_orm(obj, load_binary_fields=False)
                 for obj in orm_objs
@@ -519,15 +489,10 @@ class MediaObjectRepository:
             Tuple of (s3_key, mimetype) if found, None otherwise.
         """
         try:
-            binary = (
-                self.db.query(ORMMediaBinary)
-                .filter_by(
-                    media_object_key=object_key, type=MediaBinaryType.THUMBNAIL
-                )
-                .first()
-            )
-            if binary:
-                return (binary.s3_key, binary.mimetype)  # type: ignore[return-value]
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            if orm_obj and orm_obj.thumbnail_object_key:
+                # Return mimetype as 'image/jpeg' since we don't store it separately anymore
+                return (orm_obj.thumbnail_object_key, 'image/jpeg')
             return None
         except SQLAlchemyError as e:
             logger.error(f"Database error getting thumbnail for {object_key}: {e}")
@@ -540,13 +505,10 @@ class MediaObjectRepository:
             Tuple of (s3_key, mimetype) if found, None otherwise.
         """
         try:
-            binary = (
-                self.db.query(ORMMediaBinary)
-                .filter_by(media_object_key=object_key, type=MediaBinaryType.PROXY)
-                .first()
-            )
-            if binary:
-                return (binary.s3_key, binary.mimetype)  # type: ignore[return-value]
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            if orm_obj and orm_obj.proxy_object_key:
+                # Return mimetype as 'image/jpeg' since we don't store it separately anymore
+                return (orm_obj.proxy_object_key, 'image/jpeg')
             return None
         except SQLAlchemyError as e:
             logger.error(f"Database error getting proxy for {object_key}: {e}")
