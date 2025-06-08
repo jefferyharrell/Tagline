@@ -92,6 +92,11 @@ async def ingest(object_key: str) -> bool:
             }
         )
 
+        processor = None
+        content = None
+        thumbnail_bytes = None
+        proxy_bytes = None
+        
         try:
             # 1. Try to get the appropriate processor
             processor = get_processor(stored_media_obj)
@@ -199,17 +204,6 @@ async def ingest(object_key: str) -> bool:
                     repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
                     return False
 
-            # Memory cleanup: explicitly delete large variables
-            if content:
-                del content
-            if thumbnail_bytes:
-                del thumbnail_bytes
-            if proxy_bytes:
-                del proxy_bytes
-            
-            # Clear processor content cache
-            processor.clear_content_cache()
-            del processor
 
             # 6. Update MediaObject with extracted metadata
             metadata_to_update = {}
@@ -289,6 +283,28 @@ async def ingest(object_key: str) -> bool:
         gc.collect()
         return False
     finally:
+        # Comprehensive memory cleanup - always runs regardless of success/failure
+        try:
+            # Clear processor content cache
+            if processor is not None:
+                processor.clear_content_cache()
+                
+            # Explicitly delete large variables if they exist
+            if 'content' in locals() and content is not None:
+                del content
+            if 'thumbnail_bytes' in locals() and thumbnail_bytes is not None:
+                del thumbnail_bytes  
+            if 'proxy_bytes' in locals() and proxy_bytes is not None:
+                del proxy_bytes
+            if 'processor' in locals() and processor is not None:
+                del processor
+                
+            # Force garbage collection
+            gc.collect()
+            logger.debug(f"Completed memory cleanup for {object_key}")
+        except Exception as cleanup_error:
+            logger.warning(f"Error during memory cleanup for {object_key}: {cleanup_error}")
+        
         # Ensure proper cleanup of database session
         try:
             next(db_gen)

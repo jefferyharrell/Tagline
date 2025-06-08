@@ -51,38 +51,46 @@ class MediaProcessor(Protocol):
         from PIL import Image, ImageOps
 
         width, height = size
-        with Image.open(BytesIO(content)) as img:
-            # Apply EXIF orientation correction before any other processing
-            img = ImageOps.exif_transpose(img)
-            img = img.convert("RGB")
-            orig_w, orig_h = img.size
-            # If image is smaller than or equal to thumbnail size, do not resize
-            if orig_w <= width and orig_h <= height:
-                thumb = img
-            else:
-                # Scale so that the smallest dimension fits within the thumbnail size
-                scale = max(width / orig_w, height / orig_h)
-                new_w = int(orig_w * scale)
-                new_h = int(orig_h * scale)
-                img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-                # Center crop to the thumbnail size
-                left = (new_w - width) // 2
-                top = (new_h - height) // 2
-                right = left + width
-                bottom = top + height
-                thumb = img.crop((left, top, right, bottom))
-            out = BytesIO()
-            thumb.save(out, format=fmt.upper(), quality=quality)
-            fmt_lc = fmt.lower()
-            mimetype = {
-                "jpeg": "image/jpeg",
-                "jpg": "image/jpeg",
-                "webp": "image/webp",
-                "png": "image/png",
-                "heic": "image/heic",
-                "heif": "image/heif",
-            }.get(fmt_lc, f"image/{fmt_lc}")
-            return out.getvalue(), mimetype
+        content_stream = BytesIO(content)
+        try:
+            with Image.open(content_stream) as img:
+                # Apply EXIF orientation correction before any other processing
+                img = ImageOps.exif_transpose(img)
+                img = img.convert("RGB")
+                orig_w, orig_h = img.size
+                # If image is smaller than or equal to thumbnail size, do not resize
+                if orig_w <= width and orig_h <= height:
+                    thumb = img.copy()  # Create a copy since original will be closed
+                else:
+                    # Scale so that the smallest dimension fits within the thumbnail size
+                    scale = max(width / orig_w, height / orig_h)
+                    new_w = int(orig_w * scale)
+                    new_h = int(orig_h * scale)
+                    resized = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                    # Center crop to the thumbnail size
+                    left = (new_w - width) // 2
+                    top = (new_h - height) // 2
+                    right = left + width
+                    bottom = top + height
+                    thumb = resized.crop((left, top, right, bottom))
+                    resized.close()  # Explicitly close intermediate image
+                
+                out = BytesIO()
+                thumb.save(out, format=fmt.upper(), quality=quality)
+                thumb.close()  # Explicitly close thumbnail image
+                
+                fmt_lc = fmt.lower()
+                mimetype = {
+                    "jpeg": "image/jpeg",
+                    "jpg": "image/jpeg",
+                    "webp": "image/webp",
+                    "png": "image/png",
+                    "heic": "image/heic",
+                    "heif": "image/heif",
+                }.get(fmt_lc, f"image/{fmt_lc}")
+                return out.getvalue(), mimetype
+        finally:
+            content_stream.close()
 
     async def generate_proxy(
         self,
@@ -111,34 +119,40 @@ class MediaProcessor(Protocol):
         from PIL import Image, ImageOps
 
         width, height = size
-        with Image.open(BytesIO(content)) as img:
-            # Apply EXIF orientation correction before any other processing
-            img = ImageOps.exif_transpose(img)
-            img = img.convert("RGB")
-            orig_w, orig_h = img.size
+        content_stream = BytesIO(content)
+        try:
+            with Image.open(content_stream) as img:
+                # Apply EXIF orientation correction before any other processing
+                img = ImageOps.exif_transpose(img)
+                img = img.convert("RGB")
+                orig_w, orig_h = img.size
 
-            # If image is smaller than proxy size, do not resize
-            if orig_w <= width and orig_h <= height:
-                proxy = img
-            else:
-                # Calculate new dimensions while maintaining aspect ratio
-                ratio = min(width / orig_w, height / orig_h)
-                new_w = int(orig_w * ratio)
-                new_h = int(orig_h * ratio)
-                proxy = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                # If image is smaller than proxy size, do not resize
+                if orig_w <= width and orig_h <= height:
+                    proxy = img.copy()  # Create a copy since original will be closed
+                else:
+                    # Calculate new dimensions while maintaining aspect ratio
+                    ratio = min(width / orig_w, height / orig_h)
+                    new_w = int(orig_w * ratio)
+                    new_h = int(orig_h * ratio)
+                    proxy = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-            out = BytesIO()
-            proxy.save(out, format=fmt.upper(), quality=quality)
-            fmt_lc = fmt.lower()
-            mimetype = {
-                "jpeg": "image/jpeg",
-                "jpg": "image/jpeg",
-                "webp": "image/webp",
-                "png": "image/png",
-                "heic": "image/heic",
-                "heif": "image/heif",
-            }.get(fmt_lc, f"image/{fmt_lc}")
-            return out.getvalue(), mimetype
+                out = BytesIO()
+                proxy.save(out, format=fmt.upper(), quality=quality)
+                proxy.close()  # Explicitly close proxy image
+                
+                fmt_lc = fmt.lower()
+                mimetype = {
+                    "jpeg": "image/jpeg",
+                    "jpg": "image/jpeg",
+                    "webp": "image/webp",
+                    "png": "image/png",
+                    "heic": "image/heic",
+                    "heif": "image/heif",
+                }.get(fmt_lc, f"image/{fmt_lc}")
+                return out.getvalue(), mimetype
+        finally:
+            content_stream.close()
 
     def __init__(self, stored_media_object: StoredMediaObject):
         """Initialize with the stored media object and prepare for content loading."""
