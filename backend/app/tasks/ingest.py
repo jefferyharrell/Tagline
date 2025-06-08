@@ -1,18 +1,15 @@
 import gc
 import logging
 
-# Import necessary components for media processing
+# Import only lightweight dependencies at startup
 from app.config import get_settings
-from app.db.database import get_db
-from app.db.repositories.media_object import MediaObjectRepository
-from app.models import IngestionStatus
-
-# NOTE: Processor modules are imported lazily in get_processor() to avoid
-# loading heavy dependencies (like pillow-heif) at worker startup time
-from app.media_processing.factory import get_processor
-from app.s3_binary_storage import S3BinaryStorage, S3Config
 from app.schemas import StoredMediaObject
-from app.redis_events import publish_started_event, publish_complete_event
+
+# Heavy dependencies imported lazily:
+# - S3BinaryStorage/boto3 (AWS SDK ~100-200MB)  
+# - SQLAlchemy models and repositories (~50-100MB)
+# - Media processors with pillow-heif (~100-200MB)
+# - Redis events (~10-50MB)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +25,11 @@ async def ingest(object_key: str) -> bool:
     """
     logger.info(f"Starting ingestion for object_key: {object_key}")
     intrinsic_metadata = {}
+
+    # Lazy import heavy database dependencies
+    from app.db.database import get_db
+    from app.db.repositories.media_object import MediaObjectRepository
+    from app.models import IngestionStatus
 
     # Create a database session for this task
     db_gen = get_db()
@@ -47,6 +49,9 @@ async def ingest(object_key: str) -> bool:
             logger.error(f"Failed to retrieve MediaObject for key: {object_key}")
             return False
 
+        # Lazy import Redis events  
+        from app.redis_events import publish_started_event, publish_complete_event
+        
         # Publish started event
         try:
             media_obj_pydantic = media_obj.to_pydantic()
@@ -55,6 +60,9 @@ async def ingest(object_key: str) -> bool:
         except Exception as e:
             logger.warning(f"Failed to publish started event for {object_key}: {e}")
 
+        # Lazy import S3 storage (boto3 is memory-heavy)
+        from app.s3_binary_storage import S3BinaryStorage, S3Config
+        
         # Initialize S3 storage (required)
         settings = get_settings()
         if not all(
@@ -96,6 +104,9 @@ async def ingest(object_key: str) -> bool:
         proxy_bytes = None
         
         try:
+            # Lazy import media processor factory
+            from app.media_processing.factory import get_processor
+            
             # 1. Try to get the appropriate processor
             processor = get_processor(stored_media_obj)
 
