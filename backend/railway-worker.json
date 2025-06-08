@@ -4,6 +4,6 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "uv run rq worker ingest"
+    "startCommand": "uv run rq worker-pool ingest -n 24"
   }
 }
