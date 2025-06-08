@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Images, Calendar, LayoutDashboard, FolderSync } from "lucide-react";
+import { Images, Calendar, LayoutDashboard, FolderSync, Search } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
@@ -43,6 +43,12 @@ export default function LibrarySidebar() {
           href: "/library",
           isActive: pathname === "/library",
           icon: Images,
+        },
+        {
+          title: "Search",
+          href: "/search",
+          isActive: pathname === "/search",
+          icon: Search,
         },
       ],
     },
