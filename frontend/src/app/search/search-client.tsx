@@ -256,6 +256,7 @@ export default function SearchClient() {
               <PhotoThumbnail
                 key={photo.object_key}
                 media={photo}
+                position={index + 1}
                 onClick={() => {
                   setSelectedPhotoIndex(index);
                   setIsModalOpen(true);

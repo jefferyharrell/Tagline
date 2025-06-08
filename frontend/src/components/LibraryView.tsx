@@ -313,14 +313,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
           {/* Photo Grid */}
           {photos.length > 0 && (
             <ThumbnailGrid>
-          {photos.map((photo) => (
+          {photos.map((photo, index) => (
             <div key={photo.object_key} className="relative aspect-square overflow-visible">
               <PhotoThumbnail
                 media={photo}
+                position={index + 1}
                 onClick={() => {
                   // Open modal for regular clicks
-                  const photoIndex = photos.findIndex(p => p.object_key === photo.object_key);
-                  setSelectedPhotoIndex(photoIndex);
+                  setSelectedPhotoIndex(index);
                   setIsModalOpen(true);
                 }}
                 className="w-full h-full"

@@ -9,12 +9,14 @@ interface PhotoThumbnailProps {
   media: MediaObject;
   onClick: (media: MediaObject) => void;
   className?: string;
+  position?: number;
 }
 
 export default function PhotoThumbnail({
   media,
   onClick,
   className = "",
+  position,
 }: PhotoThumbnailProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -162,6 +164,13 @@ export default function PhotoThumbnail({
                 {media.metadata.description}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Position badge */}
+        {position && (
+          <div className="absolute top-1 right-1 bg-gray-500 text-white text-sm px-3 py-1 rounded font-medium min-w-[32px] text-center">
+            {position}
           </div>
         )}
       </div>
