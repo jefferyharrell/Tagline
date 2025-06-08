@@ -179,6 +179,12 @@ class MediaProcessor(Protocol):
         content_bytes = await self.get_content()
         return BytesIO(content_bytes)
 
+    def clear_content_cache(self) -> None:
+        """Clear the cached content to free memory."""
+        if self._content is not None:
+            logger.debug(f"Clearing content cache for {self.stored_media_object.object_key}")
+            self._content = None
+
     # Changed to async method
     @abstractmethod
     async def extract_intrinsic_metadata(self) -> dict[str, Any]:

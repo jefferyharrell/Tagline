@@ -1,3 +1,4 @@
+import gc
 import logging
 
 # Import necessary components for media processing
@@ -198,6 +199,18 @@ async def ingest(object_key: str) -> bool:
                     repo.update_ingestion_status(object_key, IngestionStatus.FAILED.value)
                     return False
 
+            # Memory cleanup: explicitly delete large variables
+            if content:
+                del content
+            if thumbnail_bytes:
+                del thumbnail_bytes
+            if proxy_bytes:
+                del proxy_bytes
+            
+            # Clear processor content cache
+            processor.clear_content_cache()
+            del processor
+
             # 6. Update MediaObject with extracted metadata
             metadata_to_update = {}
             if intrinsic_metadata:
@@ -226,6 +239,9 @@ async def ingest(object_key: str) -> bool:
             except Exception as e:
                 logger.warning(f"Failed to publish complete event for {object_key}: {e}")
             
+            # Force garbage collection to free memory immediately
+            gc.collect()
+            
             return True  # Indicate success
 
         except Exception as e:
@@ -243,6 +259,9 @@ async def ingest(object_key: str) -> bool:
                     logger.debug(f"Published failed complete event for {object_key}")
             except Exception as pub_error:
                 logger.warning(f"Failed to publish failed complete event for {object_key}: {pub_error}")
+            
+            # Force garbage collection on error to free any allocated memory
+            gc.collect()
             
             return False
 
@@ -265,6 +284,9 @@ async def ingest(object_key: str) -> bool:
                 
         except Exception:
             pass
+        
+        # Force garbage collection on outer exception to free any allocated memory
+        gc.collect()
         return False
     finally:
         # Ensure proper cleanup of database session
