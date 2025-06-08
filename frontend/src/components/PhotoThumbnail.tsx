@@ -47,7 +47,13 @@ export default function PhotoThumbnail({
   }, []);
 
   const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      // Let browser handle modifier keys naturally
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+        return; // Browser handles it
+      }
+      
+      // For regular clicks, prevent navigation and trigger modal
       e.preventDefault();
       onClick(media);
     },
@@ -67,16 +73,16 @@ export default function PhotoThumbnail({
   const shouldShowSkeleton = !shouldShowImage || !isImageLoaded;
 
   return (
-    <button
+    <a
+      href={`/media/${encodeURIComponent(media.object_key)}`}
       className={`
-        bg-white overflow-hidden transition-all duration-200 
+        block bg-white overflow-hidden transition-all duration-200 cursor-pointer
         ${isHovered ? "shadow-md scale-105" : "shadow-sm"}
         ${className}
       `}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      type="button"
       aria-label={`View ${media.metadata?.description || "photo"}`}
     >
       <div className="relative aspect-square bg-gray-100 flex items-center justify-center">
@@ -159,6 +165,6 @@ export default function PhotoThumbnail({
           </div>
         )}
       </div>
-    </button>
+    </a>
   );
 }
