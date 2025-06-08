@@ -21,6 +21,9 @@ def register_processor(processor_cls: Type[MediaProcessor]):
 
 def is_mimetype_supported(mimetype: str) -> bool:
     """Check if a given MIME type is supported by any registered processor."""
+    # Ensure processors are loaded before checking
+    _ensure_processors_loaded()
+    
     logger.debug(f"Checking if mimetype '{mimetype}' is supported.")
     logger.debug(f"Current registry: {_PROCESSOR_REGISTRY}")
     supported = any(
@@ -37,6 +40,9 @@ def get_supported_extensions() -> Set[str]:
     Returns:
         Set of lowercase file extensions (e.g., {'.jpg', '.png', '.heic'})
     """
+    # Ensure processors are loaded before checking
+    _ensure_processors_loaded()
+    
     supported_extensions = set()
     
     # Common extension to MIME type mappings for media files
@@ -99,6 +105,32 @@ def is_extension_supported(file_extension: str) -> bool:
     return file_extension in get_supported_extensions()
 
 
+def _ensure_processors_loaded():
+    """Lazily load processor modules to avoid heavy imports at worker startup."""
+    if len(_PROCESSOR_REGISTRY) == 0:
+        logger.debug("Lazy-loading media processors...")
+        # Import processor modules here to trigger registration
+        try:
+            from app.media_processing import jpegprocessor  # noqa: F401
+            logger.debug("Loaded JPEG processor")
+        except ImportError as e:
+            logger.warning(f"Failed to load JPEG processor: {e}")
+        
+        try:
+            from app.media_processing import heicprocessor  # noqa: F401
+            logger.debug("Loaded HEIC processor")
+        except ImportError as e:
+            logger.warning(f"Failed to load HEIC processor: {e}")
+            
+        try:
+            from app.media_processing import pngprocessor  # noqa: F401
+            logger.debug("Loaded PNG processor")
+        except ImportError as e:
+            logger.warning(f"Failed to load PNG processor: {e}")
+        
+        logger.info(f"Lazy-loaded {len(_PROCESSOR_REGISTRY)} media processors")
+
+
 def get_processor(stored_media_object: StoredMediaObject) -> MediaProcessor:
     """Finds and instantiates the appropriate processor for the media object."""
     mimetype = (stored_media_object.metadata or {}).get("mimetype")
@@ -107,6 +139,9 @@ def get_processor(stored_media_object: StoredMediaObject) -> MediaProcessor:
         raise ValueError(
             f"Media object {stored_media_object.object_key} missing mimetype"
         )
+
+    # Ensure processors are loaded before checking registry
+    _ensure_processors_loaded()
 
     applicable_processors = [
         p_cls for p_cls in _PROCESSOR_REGISTRY if p_cls.handles_mimetype(mimetype)

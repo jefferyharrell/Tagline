@@ -7,10 +7,8 @@ from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
 from app.models import IngestionStatus
 
-# Import processor modules to trigger registration via decorators
-# The noqa comment prevents linters from flagging unused import, which is needed here.
-from app.media_processing import heicprocessor  # noqa: F401
-from app.media_processing import jpegprocessor  # noqa: F401
+# NOTE: Processor modules are imported lazily in get_processor() to avoid
+# loading heavy dependencies (like pillow-heif) at worker startup time
 from app.media_processing.factory import get_processor
 from app.s3_binary_storage import S3BinaryStorage, S3Config
 from app.schemas import StoredMediaObject
