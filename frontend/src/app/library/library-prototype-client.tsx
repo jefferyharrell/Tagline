@@ -106,7 +106,7 @@ export default function LibraryPrototypeClient() {
   const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const ITEMS_PER_PAGE = 36;
+  const ITEMS_PER_PAGE = 100;
 
   // Navigate through the folder structure based on current path
   const getCurrentFolder = () => {

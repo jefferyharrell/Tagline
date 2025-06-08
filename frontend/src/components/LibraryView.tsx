@@ -62,7 +62,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     try {
       const pathString = path.join('/');
       const currentOffset = isLoadMore ? offsetRef.current : 0;
-      const url = `/api/library?path=${encodeURIComponent(pathString)}&offset=${currentOffset}&limit=36`;
+      const url = `/api/library?path=${encodeURIComponent(pathString)}&offset=${currentOffset}&limit=100`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -78,12 +78,12 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
           const newPhotos = (data.media_objects || []).filter(photo => !existingKeys.has(photo.object_key));
           return [...prev, ...newPhotos];
         });
-        offsetRef.current += 36;
+        offsetRef.current += 100;
       } else {
         // Replace photos and folders (initial load or path change)
         setFolders(data.folders || []);
         setPhotos(data.media_objects || []);
-        offsetRef.current = 36;
+        offsetRef.current = 100;
       }
       
       setHasMore(data.has_more || false);

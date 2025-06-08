@@ -70,7 +70,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
   const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const ITEMS_PER_PAGE = 36;
+  const ITEMS_PER_PAGE = 100;
 
 
 

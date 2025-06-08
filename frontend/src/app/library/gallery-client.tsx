@@ -33,7 +33,7 @@ export default function GalleryClient() {
   const [selectedMedia, setSelectedMedia] = useState<MediaObject | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const ITEMS_PER_PAGE = 36;
+  const ITEMS_PER_PAGE = 100;
 
   // Handle opening media in modal
   const handleMediaClick = useCallback(async (media: MediaObject) => {
