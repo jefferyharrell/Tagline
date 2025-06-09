@@ -20,19 +20,20 @@ logger = logging.getLogger(__name__)
 
 async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
     """
-    Parse CSV with variable columns for user management.
+    Parse CSV/TSV with variable columns for user management.
 
     Expected format:
-    firstname,lastname,email,[role1],[role2],...
+    firstname,lastname,email,[role1],[role2],... (CSV)
+    firstname	lastname	email	[role1]	[role2]	... (TSV)
 
     Args:
-        file: Uploaded CSV file
+        file: Uploaded CSV or TSV file
 
     Returns:
         List of user dictionaries with keys: firstname, lastname, email, roles
 
     Raises:
-        HTTPException: If CSV format is invalid
+        HTTPException: If CSV/TSV format is invalid
     """
     # Check file size (10MB limit)
     file_size = 0
@@ -54,21 +55,15 @@ async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
         # Decode content
         text_content = content.decode("utf-8-sig")  # Handle BOM if present
 
-        # Parse CSV
-        csv_reader = csv.reader(io.StringIO(text_content))
+        # Auto-detect delimiter (CSV vs TSV)
+        first_line = text_content.split('\n')[0] if text_content else ""
+        delimiter = '\t' if first_line.count('\t') > first_line.count(',') else ','
+        
+        # Parse CSV/TSV
+        csv_reader = csv.reader(io.StringIO(text_content), delimiter=delimiter)
 
-        # Skip comment lines and empty lines to find first data row
-        first_row = None
-        for row in csv_reader:
-            # Skip empty rows
-            if not row:
-                continue
-            # Skip comment lines (lines starting with #)
-            if len(row) >= 1 and row[0].strip().startswith("#"):
-                continue
-            first_row = row
-            break
-
+        # Get first row
+        first_row = next(csv_reader, None)
         if not first_row:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file is empty"
@@ -104,9 +99,6 @@ async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
             # Skip empty rows
             if not row or all(not col.strip() for col in row):
                 continue
-            # Skip comment lines (lines starting with #)
-            if len(row) >= 1 and row[0].strip().startswith("#"):
-                continue
 
             if len(row) < 3:
                 raise HTTPException(
@@ -137,18 +129,18 @@ async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
                 detail="No valid user data found in CSV",
             )
 
-        logger.info(f"Successfully parsed {len(users)} users from CSV")
+        logger.info(f"Successfully parsed {len(users)} users from {'TSV' if delimiter == '\t' else 'CSV'}")
         return users
 
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="CSV file encoding error. Please ensure the file is UTF-8 encoded",
+            detail="File encoding error. Please ensure the file is UTF-8 encoded",
         )
     except csv.Error as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"CSV parsing error: {str(e)}",
+            detail=f"File parsing error: {str(e)}",
         )
     except HTTPException:
         raise  # Re-raise HTTP exceptions
@@ -156,7 +148,7 @@ async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
         logger.error(f"Unexpected error parsing CSV: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while parsing the CSV",
+            detail="An unexpected error occurred while parsing the file",
         )
 
 
@@ -173,13 +165,8 @@ def generate_users_csv(users: List[Any]) -> str:
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # Write header with comment
-    output.write("# Tagline User Management Export\n")
-    output.write("# Format: firstname,lastname,email,[roles...]\n")
-    output.write(f"# Generated at: {datetime.utcnow().isoformat()}\n\n")
-
-    # Write header row
-    writer.writerow(["firstname", "lastname", "email", "roles..."])
+    # Write header row (no comments for better copy/paste compatibility)
+    writer.writerow(["firstname", "lastname", "email", "role", "…"])
 
     # Sort users by lastname, then firstname
     sorted_users = sorted(

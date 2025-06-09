@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { Upload, X } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { Upload, X, ClipboardPaste } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -51,6 +51,44 @@ export function CSVUploader({
     setSelectedFile(file);
     onFileSelect(file);
   }, [onFileSelect, maxSize]);
+
+  const handlePaste = useCallback((e: ClipboardEvent) => {
+    e.preventDefault();
+    
+    // Get pasted text
+    const pastedText = e.clipboardData?.getData('text/plain');
+    if (!pastedText) return;
+    
+    // Basic CSV/TSV validation - check if it looks like tabular data
+    const lines = pastedText.trim().split('\n');
+    if (lines.length < 2) return; // Need at least header and one data row
+    
+    // Check if first line has commas or tabs (basic CSV/TSV check)
+    if (!lines[0].includes(',') && !lines[0].includes('\t')) return;
+    
+    // Create a File object from the pasted text
+    const blob = new Blob([pastedText], { type: 'text/csv' });
+    const file = new File([blob], 'pasted_users.csv', { type: 'text/csv' });
+    
+    // Use the same file handler
+    handleFile(file);
+  }, [handleFile]);
+
+  // Add paste event listener
+  useEffect(() => {
+    const handlePasteEvent = (e: ClipboardEvent) => {
+      // Only handle paste if no file is currently uploading
+      if (!uploading) {
+        handlePaste(e);
+      }
+    };
+
+    document.addEventListener('paste', handlePasteEvent);
+    
+    return () => {
+      document.removeEventListener('paste', handlePasteEvent);
+    };
+  }, [handlePaste, uploading]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -109,9 +147,13 @@ export function CSVUploader({
             <div className="flex flex-col items-center justify-center pt-5 pb-6">
               <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
               <p className="mb-2 text-sm text-muted-foreground">
-                <span className="font-semibold">Click to upload</span> or drag and drop
+                <span className="font-semibold">Click to upload</span>, drag and drop, or paste CSV/TSV data
               </p>
-              <p className="text-xs text-muted-foreground">CSV files only (max {maxSize}MB)</p>
+              <p className="text-xs text-muted-foreground">CSV/TSV files only (max {maxSize}MB)</p>
+              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                <ClipboardPaste className="w-3 h-3" />
+                <span>Ctrl+V / Cmd+V to paste from clipboard</span>
+              </div>
             </div>
 
             {dragActive && (
