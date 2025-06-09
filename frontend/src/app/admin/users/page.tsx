@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, Users, UserCheck, Shield } from 'lucide-react';
+import { Download, Users, UserCheck, Shield, Copy, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,10 +16,23 @@ import {
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from 'sonner';
 
 import { CSVUploader } from '@/components/admin/CSVUploader';
 import { ImportPreview } from '@/components/admin/ImportPreview';
+
+interface UserChange {
+  email: string;
+  firstname?: string;
+  lastname?: string;
+  roles: string[];
+  previous_roles?: string[];
+}
 
 interface User {
   id: string;
@@ -53,10 +66,16 @@ export default function UserManagementPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewData, setPreviewData] = useState<{
+    to_add: UserChange[];
+    to_update: UserChange[];
+    to_deactivate: UserChange[];
+    invalid_roles?: string[];
+    validation_errors?: string[];
+  } | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await fetch('/api/admin/users');
@@ -102,6 +121,43 @@ export default function UserManagementPage() {
     } catch (error) {
       console.error('Error downloading CSV:', error);
       toast.error('Failed to export users');
+    }
+  };
+
+  const convertCsvToTsv = (csvText: string): string => {
+    // Parse CSV and convert to TSV on the fly
+    const lines = csvText.trim().split('\n');
+    const tsvLines = lines.map(line => {
+      // Simple CSV parsing - split by comma and join with tabs
+      // This works for our clean CSV format without quoted fields
+      const fields = line.split(',');
+      return fields.join('\t');
+    });
+    return tsvLines.join('\n');
+  };
+
+  const handleCopyFormat = async (format: 'tsv') => {
+    try {
+      const response = await fetch('/api/admin/users/export');
+      
+      if (!response.ok) {
+        throw new Error('Failed to export users');
+      }
+      
+      const csvText = await response.text();
+      
+      let textToCopy: string;
+      if (format === 'tsv') {
+        textToCopy = convertCsvToTsv(csvText);
+      } else {
+        textToCopy = csvText; // fallback to CSV
+      }
+      
+      await navigator.clipboard.writeText(textToCopy);
+      toast.success(`Users copied as ${format.toUpperCase()} to clipboard`);
+    } catch (error) {
+      console.error('Error copying users:', error);
+      toast.error('Failed to copy users to clipboard');
     }
   };
 
@@ -242,10 +298,32 @@ export default function UserManagementPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Current Users</CardTitle>
-            <Button onClick={handleDownloadCSV} variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Download CSV
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleDownloadCSV} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40" align="end">
+                  <div className="grid gap-2">
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => handleCopyFormat('tsv')}
+                    >
+                      Copy as TSV
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

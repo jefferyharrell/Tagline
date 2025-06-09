@@ -195,6 +195,7 @@ def generate_users_csv(users: List[Any]) -> str:
     return output.getvalue()
 
 
+
 def validate_roles_against_db(
     csv_roles: Set[str], db_roles: Set[str]
 ) -> Tuple[Set[str], Set[str]]:

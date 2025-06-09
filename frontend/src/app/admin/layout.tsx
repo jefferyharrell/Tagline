@@ -22,7 +22,7 @@ function parseJwt(token: string): JWTPayload | null {
         .join('')
     );
     return JSON.parse(jsonPayload);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
