@@ -31,19 +31,11 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // Get the CSV content and filename from the backend response
-    const csvContent = await response.text();
-    const contentDisposition = response.headers.get('Content-Disposition');
-    const filename = contentDisposition?.match(/filename=(.+)/)?.[1] || 'users.csv';
+    // Get the JSON user data from the backend response
+    const userData = await response.json();
 
-    // Return the CSV with proper headers
-    return new NextResponse(csvContent, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename=${filename}`,
-      },
-    });
+    // Return the JSON data
+    return NextResponse.json(userData);
   } catch (error) {
     console.error('Export error:', error);
     return NextResponse.json(

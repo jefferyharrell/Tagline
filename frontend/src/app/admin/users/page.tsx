@@ -25,6 +25,14 @@ import { toast } from 'sonner';
 
 import { CSVUploader } from '@/components/admin/CSVUploader';
 import { ImportPreview } from '@/components/admin/ImportPreview';
+import { 
+  parseUsersFromFile, 
+  generateCSV, 
+  generateTSV, 
+  downloadCSV, 
+  copyToClipboard,
+  type UserData 
+} from '@/lib/csv-utils';
 
 interface UserChange {
   email: string;
@@ -99,24 +107,19 @@ export default function UserManagementPage() {
     fetchUsers();
   }, [fetchUsers]);
 
+  const fetchUsersForExport = async (): Promise<UserData[]> => {
+    const response = await fetch('/api/admin/users/export');
+    if (!response.ok) {
+      throw new Error('Failed to fetch users');
+    }
+    return response.json();
+  };
+
   const handleDownloadCSV = async () => {
     try {
-      const response = await fetch('/api/admin/users/export');
-      
-      if (!response.ok) {
-        throw new Error('Failed to export users');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'tagline_users.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
+      const userData = await fetchUsersForExport();
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+      downloadCSV(userData, `tagline_users_${timestamp}.csv`);
       toast.success('Users exported successfully');
     } catch (error) {
       console.error('Error downloading CSV:', error);
@@ -124,36 +127,10 @@ export default function UserManagementPage() {
     }
   };
 
-  const convertCsvToTsv = (csvText: string): string => {
-    // Parse CSV and convert to TSV on the fly
-    const lines = csvText.trim().split('\n');
-    const tsvLines = lines.map(line => {
-      // Simple CSV parsing - split by comma and join with tabs
-      // This works for our clean CSV format without quoted fields
-      const fields = line.split(',');
-      return fields.join('\t');
-    });
-    return tsvLines.join('\n');
-  };
-
   const handleCopyFormat = async (format: 'tsv') => {
     try {
-      const response = await fetch('/api/admin/users/export');
-      
-      if (!response.ok) {
-        throw new Error('Failed to export users');
-      }
-      
-      const csvText = await response.text();
-      
-      let textToCopy: string;
-      if (format === 'tsv') {
-        textToCopy = convertCsvToTsv(csvText);
-      } else {
-        textToCopy = csvText; // fallback to CSV
-      }
-      
-      await navigator.clipboard.writeText(textToCopy);
+      const userData = await fetchUsersForExport();
+      await copyToClipboard(userData, format);
       toast.success(`Users copied as ${format.toUpperCase()} to clipboard`);
     } catch (error) {
       console.error('Error copying users:', error);
@@ -166,20 +143,63 @@ export default function UserManagementPage() {
     setUploadError(null);
     
     try {
-      setUploadProgress(50);
-      const formData = new FormData();
-      formData.append('file', file);
+      setUploadProgress(25);
       
+      // Parse the file using our CSV utilities
+      const parseResult = await parseUsersFromFile(file);
+      
+      setUploadProgress(50);
+      
+      if (parseResult.errors.length > 0) {
+        const errorMessage = `Parsing errors:\n${parseResult.errors.join('\n')}`;
+        setUploadError(errorMessage);
+        return;
+      }
+      
+      if (parseResult.data.length === 0) {
+        setUploadError('No valid user data found in file');
+        return;
+      }
+      
+      // Send parsed data to preview endpoint
       const response = await fetch('/api/admin/users/preview', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: parseResult.data }),
       });
       
       setUploadProgress(100);
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to preview import');
+        console.error('Preview error details:', errorData);
+        
+        // Handle different error formats - show actual backend errors
+        let errorMessage = 'Failed to preview import';
+        if (errorData.detail) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail;
+          } else if (Array.isArray(errorData.detail)) {
+            // Pydantic validation errors - format them nicely
+            const validationErrors = errorData.detail.map((err: any, index: number) => {
+              const location = err.loc ? err.loc.join('.') : 'unknown';
+              const message = err.msg || 'validation error';
+              const input = err.input ? `"${err.input}"` : '';
+              
+              // Extract row number from location (e.g., "body.users.224.email" -> "Row 225")
+              const rowMatch = location.match(/users\.(\d+)\./);
+              const rowInfo = rowMatch ? `Row ${parseInt(rowMatch[1]) + 1}` : location;
+              
+              return `${index + 1}. ${rowInfo}: ${message}${input ? ` (${input})` : ''}`;
+            });
+            errorMessage = `Validation errors found:\n\n${validationErrors.join('\n\n')}`;
+          } else {
+            // Backend sent non-string, non-array data
+            errorMessage = `Server error: ${JSON.stringify(errorData.detail)}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const preview = await response.json();
@@ -198,24 +218,58 @@ export default function UserManagementPage() {
     
     try {
       setImporting(true);
-      const formData = new FormData();
-      formData.append('file', selectedFile);
       
-      const response = await fetch('/api/admin/users/import', {
+      // Parse the file again to get the user data
+      const parseResult = await parseUsersFromFile(selectedFile);
+      
+      if (parseResult.errors.length > 0) {
+        throw new Error(`Parsing errors:\n${parseResult.errors.join('\n')}`);
+      }
+      
+      // Send parsed data to sync endpoint
+      const response = await fetch('/api/admin/users/sync', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: parseResult.data }),
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to import users');
+        console.error('Sync error details:', errorData);
+        
+        // Handle different error formats - show actual backend errors
+        let errorMessage = 'Failed to sync users';
+        if (errorData.detail) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail;
+          } else if (Array.isArray(errorData.detail)) {
+            // Pydantic validation errors - format them nicely
+            const validationErrors = errorData.detail.map((err: any, index: number) => {
+              const location = err.loc ? err.loc.join('.') : 'unknown';
+              const message = err.msg || 'validation error';
+              const input = err.input ? `"${err.input}"` : '';
+              
+              // Extract row number from location (e.g., "body.users.224.email" -> "Row 225")
+              const rowMatch = location.match(/users\.(\d+)\./);
+              const rowInfo = rowMatch ? `Row ${parseInt(rowMatch[1]) + 1}` : location;
+              
+              return `${index + 1}. ${rowInfo}: ${message}${input ? ` (${input})` : ''}`;
+            });
+            errorMessage = `Validation errors found:\n\n${validationErrors.join('\n\n')}`;
+          } else {
+            // Backend sent non-string, non-array data
+            errorMessage = `Server error: ${JSON.stringify(errorData.detail)}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const result: ImportSummary = await response.json();
       
       // Show success message
       toast.success(
-        `Import completed: ${result.users_added} added, ${result.users_updated} updated, ${result.users_deactivated} deactivated`
+        `Sync completed: ${result.users_added} added, ${result.users_updated} updated, ${result.users_deactivated} deactivated`
       );
       
       // Show warnings if any
@@ -231,8 +285,8 @@ export default function UserManagementPage() {
       setPreviewData(null);
       setSelectedFile(null);
     } catch (error) {
-      console.error('Error importing users:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to import users');
+      console.error('Error syncing users:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync users');
     } finally {
       setImporting(false);
     }

@@ -13,23 +13,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the form data from the request
-    const formData = await request.formData();
+    // Get the JSON data from the request
+    const userData = await request.json();
 
-    // Forward the form data to the backend
-    const backendFormData = new FormData();
-    const file = formData.get('file') as File;
-    if (file) {
-      backendFormData.append('file', file);
-    }
-
-    const response = await fetch(`${BACKEND_URL}/v1/auth/users/import`, {
+    const response = await fetch(`${BACKEND_URL}/v1/auth/users/sync`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'X-API-Key': BACKEND_API_KEY,
+        'Content-Type': 'application/json',
       },
-      body: backendFormData,
+      body: JSON.stringify(userData),
     });
 
     const data = await response.json();
@@ -40,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Import error:', error);
+    console.error('Sync error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

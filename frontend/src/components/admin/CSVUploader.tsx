@@ -198,7 +198,9 @@ export function CSVUploader({
 
         {error && (
           <Alert variant="destructive" className="mt-4">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              <div className="whitespace-pre-line">{error}</div>
+            </AlertDescription>
           </Alert>
         )}
       </CardContent>
