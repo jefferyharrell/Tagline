@@ -37,30 +37,7 @@ export function CSVUploader({
     }
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleFile(e.dataTransfer.files[0]);
-      }
-    },
-    [onFileSelect, maxSize]
-  );
-
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      e.preventDefault();
-      if (e.target.files && e.target.files[0]) {
-        handleFile(e.target.files[0]);
-      }
-    },
-    [onFileSelect, maxSize]
-  );
-
-  const handleFile = (file: File) => {
+  const handleFile = useCallback((file: File) => {
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.csv')) {
       return;
@@ -73,7 +50,30 @@ export function CSVUploader({
 
     setSelectedFile(file);
     onFileSelect(file);
-  };
+  }, [onFileSelect, maxSize]);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    },
+    [handleFile]
+  );
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      if (e.target.files && e.target.files[0]) {
+        handleFile(e.target.files[0]);
+      }
+    },
+    [handleFile]
+  );
 
   const clearFile = () => {
     setSelectedFile(null);
@@ -82,7 +82,7 @@ export function CSVUploader({
   return (
     <Card>
       <CardContent className="p-6">
-        <form onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+        <form onSubmit={(e) => e.preventDefault()}>
           <input
             type="file"
             id="csv-upload"
@@ -101,14 +101,12 @@ export function CSVUploader({
               ${dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
               ${uploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary hover:bg-primary/5'}
             `}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
           >
-            <div
-              className="flex flex-col items-center justify-center pt-5 pb-6"
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">
               <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
               <p className="mb-2 text-sm text-muted-foreground">
                 <span className="font-semibold">Click to upload</span> or drag and drop
@@ -117,8 +115,8 @@ export function CSVUploader({
             </div>
 
             {dragActive && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary/10">
-                <p className="text-primary font-semibold">Drop the file here</p>
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary/50 backdrop-blur-sm">
+                <p className="text-primary-foreground font-semibold text-lg">Drop the file here</p>
               </div>
             )}
           </label>
