@@ -57,8 +57,18 @@ async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
         # Parse CSV
         csv_reader = csv.reader(io.StringIO(text_content))
 
-        # Skip header row if present
-        first_row = next(csv_reader, None)
+        # Skip comment lines and empty lines to find first data row
+        first_row = None
+        for row in csv_reader:
+            # Skip empty rows
+            if not row:
+                continue
+            # Skip comment lines (lines starting with #)
+            if len(row) >= 1 and row[0].strip().startswith("#"):
+                continue
+            first_row = row
+            break
+
         if not first_row:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="CSV file is empty"
@@ -91,7 +101,11 @@ async def parse_users_csv(file: UploadFile) -> List[Dict[str, Any]]:
 
         # Process remaining rows
         for row in csv_reader:
-            if not row or all(not col.strip() for col in row):  # Skip empty rows
+            # Skip empty rows
+            if not row or all(not col.strip() for col in row):
+                continue
+            # Skip comment lines (lines starting with #)
+            if len(row) >= 1 and row[0].strip().startswith("#"):
                 continue
 
             if len(row) < 3:

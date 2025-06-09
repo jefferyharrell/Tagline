@@ -541,15 +541,21 @@ async def import_users_csv(
 
         # Add eligible emails for new users
         email_repo = EligibleEmailRepository(db)
+        batch_id = f"csv_import_{datetime.utcnow().isoformat()}"
         for user in csv_users:
             if user["roles"]:  # Only add if user has roles
                 try:
-                    email_repo.add(
-                        user["email"],
-                        batch_id=f"csv_import_{datetime.utcnow().isoformat()}",
-                    )
+                    # Check if email already exists before adding
+                    if not email_repo.is_eligible(user["email"]):
+                        email_repo.add(user["email"], batch_id=batch_id)
                 except IntegrityError:
-                    pass  # Email already exists
+                    # Rollback this specific transaction and continue
+                    db.rollback()
+                    logger.warning(f"Email {user['email']} already exists in eligible_emails")
+                except Exception as e:
+                    # Handle other potential errors
+                    db.rollback()
+                    logger.error(f"Error adding email {user['email']} to eligible_emails: {str(e)}")
 
         warnings = []
         if not admin_in_csv:

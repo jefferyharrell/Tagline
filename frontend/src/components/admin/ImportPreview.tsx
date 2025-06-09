@@ -59,7 +59,7 @@ export function ImportPreview({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-6xl max-h-[90vh] w-[90vw] sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>Import Preview</DialogTitle>
           <DialogDescription>
@@ -101,7 +101,7 @@ export function ImportPreview({
           </TabsList>
 
           <TabsContent value="add" className="mt-4">
-            <ScrollArea className="h-[300px] w-full rounded-md border">
+            <ScrollArea className="h-[400px] w-full rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -142,7 +142,7 @@ export function ImportPreview({
           </TabsContent>
 
           <TabsContent value="update" className="mt-4">
-            <ScrollArea className="h-[300px] w-full rounded-md border">
+            <ScrollArea className="h-[400px] w-full rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -193,7 +193,7 @@ export function ImportPreview({
           </TabsContent>
 
           <TabsContent value="deactivate" className="mt-4">
-            <ScrollArea className="h-[300px] w-full rounded-md border">
+            <ScrollArea className="h-[400px] w-full rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
