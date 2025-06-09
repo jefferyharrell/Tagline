@@ -98,9 +98,9 @@ export async function middleware(request: NextRequest) {
 
   // Check for role-specific routes
   const userRoles = (payload as { roles?: string[] }).roles || [];
-  if (pathname.startsWith("/admin") && !userRoles.includes("admin")) {
-    // Redirect to unauthorized page if user doesn't have admin role
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+  if (pathname.startsWith("/admin") && !userRoles.includes("administrator")) {
+    // Redirect to library if user doesn't have admin role
+    return NextResponse.redirect(new URL("/library", request.url));
   }
 
   // Allow authenticated requests to continue

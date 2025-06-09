@@ -7,16 +7,27 @@ This module provides API endpoints for:
 - User role management
 - Eligible email management
 - Development authentication bypass
+- User CSV import/export
 """
 
 import logging
+from datetime import datetime
 from typing import List
 
 import stytch
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import auth_schemas as schemas
+from app import auth_schemas as schemas, csv_utils
 from app.auth_utils import create_access_token, get_current_admin, get_current_user
 from app.config import Settings, get_settings
 from app.db.database import get_db
@@ -25,6 +36,21 @@ from app.db.repositories.auth import (
     RoleRepository,
     UserRepository,
 )
+
+
+def ensure_administrator_role(user, email: str, db: Session, settings: Settings):
+    """Ensure that the ADMINISTRATOR_EMAIL user has the administrator role."""
+    if (
+        settings.ADMINISTRATOR_EMAIL
+        and email.lower() == settings.ADMINISTRATOR_EMAIL.lower()
+    ):
+        role_repo = RoleRepository(db)
+        admin_role = role_repo.get_by_name("administrator")
+        if admin_role and not any(role.name == "administrator" for role in user.roles):
+            user.roles.append(admin_role)
+            logger.info(f"Assigned administrator role to {email}")
+            return True
+    return False
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +156,18 @@ async def authenticate_user(
                 member_role = role_repo.get_by_name("member")
                 if member_role:
                     user.roles.append(member_role)
-                    db.commit()
-                    db.refresh(user)
+                
+                # Check if this user should have administrator role
+                role_changed = ensure_administrator_role(user, email, db, settings)
+                
+                db.commit()
+                db.refresh(user)
+
+    # Ensure existing users get administrator role if they match ADMINISTRATOR_EMAIL
+    role_changed = ensure_administrator_role(user, email, db, settings)
+    if role_changed:
+        db.commit()
+        db.refresh(user)
 
     # Create JWT with user info and roles
     user_roles = [role.name for role in user.roles]
@@ -312,8 +348,18 @@ async def bypass_auth(
             member_role = role_repo.get_by_name("member")
             if member_role:
                 user.roles.append(member_role)
-                db.commit()
-                db.refresh(user)
+            
+            # Check if this user should have administrator role
+            role_changed = ensure_administrator_role(user, email_data.email, db, settings)
+            
+            db.commit()
+            db.refresh(user)
+
+    # Ensure existing users get administrator role if they match ADMINISTRATOR_EMAIL
+    role_changed = ensure_administrator_role(user, email_data.email, db, settings)
+    if role_changed:
+        db.commit()
+        db.refresh(user)
 
     # Create JWT with user info and roles
     user_roles = [role.name for role in user.roles]
@@ -357,3 +403,229 @@ async def bulk_add_eligible_emails(
     email_repo = EligibleEmailRepository(db)
     count = email_repo.bulk_add(email_data.emails, email_data.batch_id)
     return {"message": f"Successfully added {count} eligible emails"}
+
+
+# User management endpoints
+@router.get("/users", response_model=dict)
+async def list_users(
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _: schemas.User = Depends(get_current_admin),  # Only admins can list users
+):
+    """
+    List all users with pagination.
+
+    Returns users with their roles and basic statistics.
+    """
+    user_repo = UserRepository(db)
+    users, total = user_repo.list_all_users(limit=limit, offset=offset)
+
+    # Calculate statistics
+    active_count = sum(1 for user in users if user.is_active)
+    admin_count = sum(
+        1 for user in users if any(role.name == "administrator" for role in user.roles)
+    )
+
+    # Convert to response format
+    user_list = []
+    for user in users:
+        user_list.append(
+            {
+                "id": user.id,
+                "email": user.email,
+                "firstname": user.firstname,
+                "lastname": user.lastname,
+                "is_active": user.is_active,
+                "roles": [role.name for role in user.roles],
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+            }
+        )
+
+    return {
+        "users": user_list,
+        "total": total,
+        "statistics": {
+            "total_users": total,
+            "active_users": active_count,
+            "administrators": admin_count,
+        },
+    }
+
+
+@router.get("/users/export")
+async def export_users_csv(
+    db: Session = Depends(get_db),
+    _: schemas.User = Depends(get_current_admin),  # Only admins can export users
+):
+    """
+    Export all users as CSV with variable role columns.
+
+    Returns a CSV file with columns: firstname, lastname, email, [roles...]
+    """
+    user_repo = UserRepository(db)
+    users, _ = user_repo.list_all_users(limit=10000)  # Export all users
+
+    csv_content = csv_utils.generate_users_csv(users)
+
+    # Create filename with timestamp
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"tagline_users_{timestamp}.csv"
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.post("/users/import", response_model=schemas.ImportSummary)
+async def import_users_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_admin: schemas.User = Depends(
+        get_current_admin
+    ),  # Only admins can import users
+):
+    """
+    Import users from CSV, replacing entire user database.
+
+    The CSV should have columns: firstname, lastname, email, [roles...]
+    This will:
+    - Add new users
+    - Update existing users
+    - Deactivate users not in the CSV (except administrators)
+    """
+    # Parse CSV
+    try:
+        csv_users = await csv_utils.parse_users_csv(file)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error parsing CSV: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error parsing CSV: {str(e)}",
+        )
+
+    # Validate roles
+    role_repo = RoleRepository(db)
+    db_roles = {role.name for role in role_repo.get_all()}
+    csv_roles = set()
+    for user in csv_users:
+        csv_roles.update(user["roles"])
+
+    _, invalid_roles = csv_utils.validate_roles_against_db(csv_roles, db_roles)
+
+    if invalid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid roles found: {', '.join(sorted(invalid_roles))}",
+        )
+
+    # Safety check: ensure current admin won't lose access
+    admin_email = current_admin.email
+    admin_in_csv = any(
+        user["email"] == admin_email and "administrator" in user["roles"]
+        for user in csv_users
+    )
+
+    if not admin_in_csv:
+        # Add warning but don't block
+        logger.warning(f"Current admin {admin_email} not found with admin role in CSV")
+
+    # Perform the sync
+    user_repo = UserRepository(db)
+    try:
+        counts = user_repo.sync_users_from_csv(csv_users)
+
+        # Add eligible emails for new users
+        email_repo = EligibleEmailRepository(db)
+        for user in csv_users:
+            if user["roles"]:  # Only add if user has roles
+                try:
+                    email_repo.add(
+                        user["email"],
+                        batch_id=f"csv_import_{datetime.utcnow().isoformat()}",
+                    )
+                except IntegrityError:
+                    pass  # Email already exists
+
+        warnings = []
+        if not admin_in_csv:
+            warnings.append(
+                f"Current admin {admin_email} was not in the CSV with administrator role"
+            )
+
+        return schemas.ImportSummary(
+            users_added=counts["added"],
+            users_updated=counts["updated"],
+            users_deactivated=counts["deactivated"],
+            errors=[],
+            warnings=warnings,
+        )
+
+    except Exception as e:
+        logger.error(f"Error during import: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during import: {str(e)}",
+        )
+
+
+@router.post("/users/preview", response_model=schemas.ImportPreview)
+async def preview_import(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: schemas.User = Depends(get_current_admin),  # Only admins can preview import
+):
+    """
+    Preview changes that would be made by importing a CSV file.
+
+    This endpoint parses the CSV and shows what would happen without making changes.
+    """
+    # Parse CSV
+    try:
+        csv_users = await csv_utils.parse_users_csv(file)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        return schemas.ImportPreview(
+            to_add=[],
+            to_update=[],
+            to_deactivate=[],
+            validation_errors=[f"Error parsing CSV: {str(e)}"],
+        )
+
+    # Get existing users
+    user_repo = UserRepository(db)
+    existing_users = user_repo.get_all_users_dict()
+
+    # Validate roles
+    role_repo = RoleRepository(db)
+    db_roles = {role.name for role in role_repo.get_all()}
+    csv_roles = set()
+    for user in csv_users:
+        csv_roles.update(user["roles"])
+
+    _, invalid_roles = csv_utils.validate_roles_against_db(csv_roles, db_roles)
+
+    # Analyze changes
+    changes = csv_utils.analyze_import_changes(csv_users, existing_users)
+
+    # Convert to schema objects
+    to_add = [schemas.UserChange(**user) for user in changes["to_add"]]
+    to_update = [schemas.UserChange(**user) for user in changes["to_update"]]
+    to_deactivate = [schemas.UserChange(**user) for user in changes["to_deactivate"]]
+
+    validation_errors = []
+    if invalid_roles:
+        validation_errors.append(f"Invalid roles: {', '.join(sorted(invalid_roles))}")
+
+    return schemas.ImportPreview(
+        to_add=to_add,
+        to_update=to_update,
+        to_deactivate=to_deactivate,
+        invalid_roles=list(invalid_roles),
+        validation_errors=validation_errors,
+    )

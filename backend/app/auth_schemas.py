@@ -106,3 +106,41 @@ class EligibleEmail(EligibleEmailBase):
 
     class Config:
         from_attributes = True
+
+
+# CSV Import/Export schemas
+class ImportSummary(BaseModel):
+    """Summary of CSV import results"""
+
+    users_added: int
+    users_updated: int
+    users_deactivated: int
+    errors: List[str] = []
+    warnings: List[str] = []
+
+
+class UserChange(BaseModel):
+    """Represents a change to a user during import"""
+
+    email: EmailStr
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+    roles: List[str] = []
+    previous_roles: Optional[List[str]] = None  # For updates only
+
+
+class ImportPreview(BaseModel):
+    """Preview of changes that would be made by CSV import"""
+
+    to_add: List[UserChange]
+    to_update: List[UserChange]
+    to_deactivate: List[UserChange]
+    invalid_roles: List[str] = []
+    validation_errors: List[str] = []
+    total_changes: int = 0
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.total_changes = (
+            len(self.to_add) + len(self.to_update) + len(self.to_deactivate)
+        )

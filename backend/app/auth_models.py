@@ -43,7 +43,7 @@ class Role(Base):
     def seed_default_roles(cls, session):
         """Seed the default roles if they don't exist"""
         default_roles = [
-            {"name": "admin", "description": "Administrator with full access"},
+            {"name": "administrator", "description": "Administrator with full access"},
             {"name": "member", "description": "Basic JLLA member"},
             {"name": "active", "description": "Active JLLA member"},
             {"name": "sustainer", "description": "Sustainer JLLA member"},
