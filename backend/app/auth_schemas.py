@@ -108,7 +108,21 @@ class EligibleEmail(EligibleEmailBase):
         from_attributes = True
 
 
-# CSV Import/Export schemas
+# User sync schemas for JSON-based operations
+class UserSync(BaseModel):
+    """User data for JSON-based sync operations"""
+    email: EmailStr
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+    roles: List[str] = []
+
+
+class UserSyncList(BaseModel):
+    """List of users for bulk sync operations"""
+    users: List[UserSync]
+
+
+# CSV Import/Export schemas (deprecated - keeping for transition)
 class ImportSummary(BaseModel):
     """Summary of CSV import results"""
 

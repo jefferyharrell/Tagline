@@ -18,16 +18,13 @@ import stytch
 from fastapi import (
     APIRouter,
     Depends,
-    File,
     HTTPException,
-    Response,
-    UploadFile,
     status,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import auth_schemas as schemas, csv_utils
+from app import auth_schemas as schemas
 from app.auth_utils import create_access_token, get_current_admin, get_current_user
 from app.config import Settings, get_settings
 from app.db.database import get_db
@@ -36,6 +33,59 @@ from app.db.repositories.auth import (
     RoleRepository,
     UserRepository,
 )
+
+
+def analyze_sync_changes(json_users: List[dict], existing_users: dict) -> dict:
+    """
+    Analyze what changes would be made by syncing user data.
+    
+    Args:
+        json_users: Parsed user data from JSON
+        existing_users: Dict of existing users keyed by email
+        
+    Returns:
+        Dictionary with keys: to_add, to_update, to_deactivate
+    """
+    json_emails = {user["email"] for user in json_users}
+    existing_emails = set(existing_users.keys())
+    
+    to_add = []
+    to_update = []
+    
+    # Users in JSON data
+    for json_user in json_users:
+        email = json_user["email"]
+        if email in existing_emails:
+            existing = existing_users[email]
+            # Check if anything changed
+            if (
+                json_user["firstname"] != (existing.firstname or "")
+                or json_user["lastname"] != (existing.lastname or "")
+                or set(json_user["roles"]) != {r.name for r in existing.roles}
+            ):
+                to_update.append(
+                    {**json_user, "previous_roles": [r.name for r in existing.roles]}
+                )
+        else:
+            to_add.append(json_user)
+    
+    # Users not in JSON data (to be deactivated)
+    to_deactivate = []
+    for email in existing_emails - json_emails:
+        user = existing_users[email]
+        # Don't deactivate users who are administrators and not in JSON data
+        # This is a safety measure
+        if not any(role.name == "administrator" for role in user.roles):
+            to_deactivate.append(
+                {
+                    "email": email,
+                    "firstname": user.firstname or "",
+                    "lastname": user.lastname or "",
+                    "roles": [r.name for r in user.roles],
+                }
+            )
+    
+    return {"to_add": to_add, "to_update": to_update, "to_deactivate": to_deactivate}
 
 
 def ensure_administrator_role(user, email: str, db: Session, settings: Settings):
@@ -453,69 +503,67 @@ async def list_users(
     }
 
 
-@router.get("/users/export")
-async def export_users_csv(
+@router.get("/users/export", response_model=List[schemas.UserSync])
+async def export_users(
     db: Session = Depends(get_db),
     _: schemas.User = Depends(get_current_admin),  # Only admins can export users
 ):
     """
-    Export all users as CSV with variable role columns.
+    Export all users as JSON array.
 
-    Returns a CSV file with columns: firstname, lastname, email, [roles...]
+    Returns a JSON array with user objects containing: email, firstname, lastname, roles
     """
     user_repo = UserRepository(db)
     users, _ = user_repo.list_all_users(limit=10000)  # Export all users
 
-    csv_content = csv_utils.generate_users_csv(users)
+    # Convert to UserSync schema
+    user_list = []
+    for user in users:
+        user_list.append(schemas.UserSync(
+            email=user.email,
+            firstname=user.firstname,
+            lastname=user.lastname,
+            roles=[role.name for role in user.roles]
+        ))
 
-    # Create filename with timestamp
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"tagline_users_{timestamp}.csv"
-
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+    return user_list
 
 
-@router.post("/users/import", response_model=schemas.ImportSummary)
-async def import_users_csv(
-    file: UploadFile = File(...),
+@router.post("/users/sync", response_model=schemas.ImportSummary)
+async def sync_users(
+    user_data: schemas.UserSyncList,
     db: Session = Depends(get_db),
     current_admin: schemas.User = Depends(
         get_current_admin
-    ),  # Only admins can import users
+    ),  # Only admins can sync users
 ):
     """
-    Import users from CSV, replacing entire user database.
+    Sync users from JSON array, replacing entire user database.
 
-    The CSV should have columns: firstname, lastname, email, [roles...]
+    Accepts a JSON array with user objects containing: email, firstname, lastname, roles
     This will:
     - Add new users
     - Update existing users
-    - Deactivate users not in the CSV (except administrators)
+    - Deactivate users not in the array (except administrators)
     """
-    # Parse CSV
-    try:
-        csv_users = await csv_utils.parse_users_csv(file)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error parsing CSV: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error parsing CSV: {str(e)}",
-        )
+    # Convert Pydantic models to dict format for existing logic
+    json_users = []
+    for user in user_data.users:
+        json_users.append({
+            "email": user.email,
+            "firstname": user.firstname or "",
+            "lastname": user.lastname or "",
+            "roles": user.roles
+        })
 
     # Validate roles
     role_repo = RoleRepository(db)
     db_roles = {role.name for role in role_repo.get_all()}
-    csv_roles = set()
-    for user in csv_users:
-        csv_roles.update(user["roles"])
+    json_roles = set()
+    for user in json_users:
+        json_roles.update(user["roles"])
 
-    _, invalid_roles = csv_utils.validate_roles_against_db(csv_roles, db_roles)
+    invalid_roles = json_roles - db_roles
 
     if invalid_roles:
         raise HTTPException(
@@ -525,24 +573,24 @@ async def import_users_csv(
 
     # Safety check: ensure current admin won't lose access
     admin_email = current_admin.email
-    admin_in_csv = any(
+    admin_in_data = any(
         user["email"] == admin_email and "administrator" in user["roles"]
-        for user in csv_users
+        for user in json_users
     )
 
-    if not admin_in_csv:
+    if not admin_in_data:
         # Add warning but don't block
-        logger.warning(f"Current admin {admin_email} not found with admin role in CSV")
+        logger.warning(f"Current admin {admin_email} not found with admin role in data")
 
     # Perform the sync
     user_repo = UserRepository(db)
     try:
-        counts = user_repo.sync_users_from_csv(csv_users)
+        counts = user_repo.sync_users_from_csv(json_users)  # Method works with dict format
 
         # Add eligible emails for new users
         email_repo = EligibleEmailRepository(db)
-        batch_id = f"csv_import_{datetime.utcnow().isoformat()}"
-        for user in csv_users:
+        batch_id = f"json_sync_{datetime.utcnow().isoformat()}"
+        for user in json_users:
             if user["roles"]:  # Only add if user has roles
                 try:
                     # Check if email already exists before adding
@@ -558,9 +606,9 @@ async def import_users_csv(
                     logger.error(f"Error adding email {user['email']} to eligible_emails: {str(e)}")
 
         warnings = []
-        if not admin_in_csv:
+        if not admin_in_data:
             warnings.append(
-                f"Current admin {admin_email} was not in the CSV with administrator role"
+                f"Current admin {admin_email} was not in the data with administrator role"
             )
 
         return schemas.ImportSummary(
@@ -572,36 +620,33 @@ async def import_users_csv(
         )
 
     except Exception as e:
-        logger.error(f"Error during import: {str(e)}")
+        logger.error(f"Error during sync: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error during import: {str(e)}",
+            detail=f"Error during sync: {str(e)}",
         )
 
 
 @router.post("/users/preview", response_model=schemas.ImportPreview)
-async def preview_import(
-    file: UploadFile = File(...),
+async def preview_sync(
+    user_data: schemas.UserSyncList,
     db: Session = Depends(get_db),
-    _: schemas.User = Depends(get_current_admin),  # Only admins can preview import
+    _: schemas.User = Depends(get_current_admin),  # Only admins can preview sync
 ):
     """
-    Preview changes that would be made by importing a CSV file.
+    Preview changes that would be made by syncing user data.
 
-    This endpoint parses the CSV and shows what would happen without making changes.
+    This endpoint analyzes the JSON data and shows what would happen without making changes.
     """
-    # Parse CSV
-    try:
-        csv_users = await csv_utils.parse_users_csv(file)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        return schemas.ImportPreview(
-            to_add=[],
-            to_update=[],
-            to_deactivate=[],
-            validation_errors=[f"Error parsing CSV: {str(e)}"],
-        )
+    # Convert Pydantic models to dict format for existing logic
+    json_users = []
+    for user in user_data.users:
+        json_users.append({
+            "email": user.email,
+            "firstname": user.firstname or "",
+            "lastname": user.lastname or "",
+            "roles": user.roles
+        })
 
     # Get existing users
     user_repo = UserRepository(db)
@@ -610,14 +655,14 @@ async def preview_import(
     # Validate roles
     role_repo = RoleRepository(db)
     db_roles = {role.name for role in role_repo.get_all()}
-    csv_roles = set()
-    for user in csv_users:
-        csv_roles.update(user["roles"])
+    json_roles = set()
+    for user in json_users:
+        json_roles.update(user["roles"])
 
-    _, invalid_roles = csv_utils.validate_roles_against_db(csv_roles, db_roles)
+    invalid_roles = json_roles - db_roles
 
-    # Analyze changes
-    changes = csv_utils.analyze_import_changes(csv_users, existing_users)
+    # Analyze changes using existing utility
+    changes = analyze_sync_changes(json_users, existing_users)
 
     # Convert to schema objects
     to_add = [schemas.UserChange(**user) for user in changes["to_add"]]
