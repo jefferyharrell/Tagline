@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, Users, UserCheck, Shield, Copy, ChevronDown } from 'lucide-react';
+import { Download, Users, UserCheck, Shield, Copy, ChevronDown, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -466,7 +466,7 @@ export default function UserManagementPage() {
                 <TableRow>
                   <TableHead style={{ width: '200px', minWidth: '200px' }}>Name</TableHead>
                   <TableHead style={{ width: '300px', minWidth: '300px' }}>Email</TableHead>
-                  <TableHead style={{ width: '100px', minWidth: '100px' }}>Status</TableHead>
+                  <TableHead style={{ width: '100px', minWidth: '100px' }} className="text-center">Active</TableHead>
                   <TableHead style={{ width: '200px', minWidth: '200px' }}>Roles</TableHead>
                 </TableRow>
               )}
@@ -493,9 +493,11 @@ export default function UserManagementPage() {
                   </TableCell>
                   <TableCell className="font-mono text-sm" style={{ width: '300px', minWidth: '300px' }}>{user.email}</TableCell>
                   <TableCell style={{ width: '100px', minWidth: '100px' }}>
-                    <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <div className="flex justify-center">
+                      {user.is_active && (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell style={{ width: '200px', minWidth: '200px' }}>
                     <div className="flex gap-1 flex-wrap">
