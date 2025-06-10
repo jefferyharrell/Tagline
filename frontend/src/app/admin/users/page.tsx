@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { TableVirtuoso } from 'react-virtuoso';
 import { Separator } from '@/components/ui/separator';
 import { 
   Popover,
@@ -379,56 +379,66 @@ export default function UserManagementPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[400px] w-full">
-            <Table>
-              <TableHeader>
+          {users.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No users found
+            </div>
+          ) : (
+            <TableVirtuoso
+              style={{ height: '400px' }}
+              data={users}
+              fixedHeaderContent={() => (
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Roles</TableHead>
+                  <TableHead style={{ width: '200px', minWidth: '200px' }}>Name</TableHead>
+                  <TableHead style={{ width: '300px', minWidth: '300px' }}>Email</TableHead>
+                  <TableHead style={{ width: '100px', minWidth: '100px' }}>Status</TableHead>
+                  <TableHead style={{ width: '200px', minWidth: '200px' }}>Roles</TableHead>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{getFullName(user)}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{user.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                          {user.is_active ? 'Active' : 'Inactive'}
+              )}
+              components={{
+                Table: ({ style, ...props }) => (
+                  <Table {...props} style={{ ...style, width: '100%', tableLayout: 'fixed' }} />
+                ),
+                TableHead: ({ style, ...props }) => (
+                  <TableHeader {...props} style={{ ...style }} />
+                ),
+                TableBody: ({ style, ...props }) => (
+                  <TableBody {...props} style={{ ...style }} />
+                ),
+                TableRow: ({ style, ...props }) => (
+                  <TableRow {...props} style={{ ...style }} />
+                ),
+              }}
+              itemContent={(index, user) => (
+                <>
+                  <TableCell style={{ width: '200px', minWidth: '200px' }}>
+                    <div>
+                      <div className="font-medium">{getFullName(user)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm" style={{ width: '300px', minWidth: '300px' }}>{user.email}</TableCell>
+                  <TableCell style={{ width: '100px', minWidth: '100px' }}>
+                    <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell style={{ width: '200px', minWidth: '200px' }}>
+                    <div className="flex gap-1 flex-wrap">
+                      {user.roles.map((role) => (
+                        <Badge 
+                          key={role} 
+                          variant={role === 'administrator' ? 'destructive' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {role}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {user.roles.map((role) => (
-                            <Badge 
-                              key={role} 
-                              variant={role === 'administrator' ? 'destructive' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                      ))}
+                    </div>
+                  </TableCell>
+                </>
+              )}
+            />
+          )}
         </CardContent>
       </Card>
 

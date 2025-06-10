@@ -36,6 +36,7 @@
     "papaparse": "^5.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-virtuoso": "^4.12.8",
     "sharp": "^0.34.1",
     "sonner": "^2.0.3",
     "stytch": "^12.19.0",
