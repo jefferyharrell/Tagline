@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Download, Users, UserCheck, Shield, Copy, ChevronDown, Check } from 'lucide-react';
+import { Download, Users, UserCheck, Shield, Copy, ChevronDown, Check, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -90,16 +91,31 @@ export default function UserManagementPage() {
   const [downloadPopoverOpen, setDownloadPopoverOpen] = useState(false);
   const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active');
+  const [searchText, setSearchText] = useState('');
 
-  // Filter users based on active status
+  // Filter users based on active status and search text
   const filteredUsers = useMemo(() => {
+    let filtered = users;
+    
+    // First filter by active status
     if (activeFilter === 'active') {
-      return users.filter(user => user.is_active);
+      filtered = filtered.filter(user => user.is_active);
     } else if (activeFilter === 'inactive') {
-      return users.filter(user => !user.is_active);
+      filtered = filtered.filter(user => !user.is_active);
     }
-    return users; // 'all'
-  }, [users, activeFilter]);
+    
+    // Then filter by search text
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase().trim();
+      filtered = filtered.filter(user => {
+        const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').toLowerCase();
+        const email = user.email.toLowerCase();
+        return fullName.includes(searchLower) || email.includes(searchLower);
+      });
+    }
+    
+    return filtered;
+  }, [users, activeFilter, searchText]);
 
   const handleDownloadPopoverChange = useCallback((open: boolean) => {
     setDownloadPopoverOpen(open);
@@ -350,7 +366,7 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="container mx-auto p-8 space-y-8">
+    <div className="container mx-auto p-8 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">User Management</h1>
@@ -472,8 +488,8 @@ export default function UserManagementPage() {
         </CardHeader>
         
         {/* Filter Controls */}
-        <div className="px-6 pb-4">
-          <div className="flex items-center gap-4">
+        <div className="px-6 pb-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">Show:</label>
               <DropdownMenu>
@@ -497,8 +513,14 @@ export default function UserManagementPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredUsers.length} of {users.length} users
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search names or emails..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="pl-10 w-64"
+              />
             </div>
           </div>
         </div>
