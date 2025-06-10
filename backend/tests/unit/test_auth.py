@@ -25,7 +25,7 @@ def mock_user():
 
     # Create mock roles
     admin_role = MagicMock(spec=Role)
-    admin_role.name = "admin"
+    admin_role.name = "administrator"
     admin_role.id = str(uuid.uuid4())
 
     member_role = MagicMock(spec=Role)
@@ -36,12 +36,12 @@ def mock_user():
     user.roles = [admin_role, member_role]
 
     # Add role checking methods
-    user.has_role.side_effect = lambda role_name: role_name in ["admin", "member"]
+    user.has_role.side_effect = lambda role_name: role_name in ["administrator", "member"]
     user.has_any_role.side_effect = lambda role_names: any(
-        r in role_names for r in ["admin", "member"]
+        r in role_names for r in ["administrator", "member"]
     )
     user.has_all_roles.side_effect = lambda role_names: all(
-        r in ["admin", "member"] for r in role_names
+        r in ["administrator", "member"] for r in role_names
     )
 
     return user
@@ -96,16 +96,16 @@ def test_decode_token_expired():
 def test_get_user_with_roles():
     """Test the role-based authorization factory."""
     # Create a factory for users with admin role
-    admin_only = get_user_with_roles(["admin"])
+    admin_only = get_user_with_roles(["administrator"])
 
     # Create a factory for users with member role
     member_only = get_user_with_roles(["member"])
 
     # Create a factory for users with both roles
-    both_roles = get_user_with_roles(["admin", "member"], require_all=True)
+    both_roles = get_user_with_roles(["administrator", "member"], require_all=True)
 
     # Create a factory for users with either role
-    either_role = get_user_with_roles(["admin", "member"], require_all=False)
+    either_role = get_user_with_roles(["administrator", "member"], require_all=False)
 
     # Create a factory for users with a non-existent role
     non_existent_role = get_user_with_roles(["non_existent"])
@@ -113,7 +113,7 @@ def test_get_user_with_roles():
     # Create a mock user schema
     user_schema = MagicMock(spec=UserSchema)
     admin_role = MagicMock()
-    admin_role.name = "admin"
+    admin_role.name = "administrator"
     member_role = MagicMock()
     member_role.name = "member"
     user_schema.roles = [admin_role, member_role]

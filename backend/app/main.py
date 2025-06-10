@@ -5,12 +5,13 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api.v1.routes import private_router, public_router
+from app.api.v1.routes.auth import limiter
 from app.auth_utils import get_current_user
 from app.config import StorageProviderType, get_settings
-from app.db.database import get_db
-from app.db.init_db import init_db
 
 # Define required environment variables for each storage provider
 PROVIDER_REQUIRED_VARS = {
@@ -63,25 +64,6 @@ async def lifespan(app):
     validate_config_on_startup(settings)
     logging.info("Configuration validation complete.")
 
-    # Initialize database with default data
-    try:
-        logging.info("Initializing database with default data...")
-        # Use the next() to get the actual session from the generator
-        db_gen = get_db()
-        db = next(db_gen)
-        try:
-            init_db(db)
-        finally:
-            # Ensure proper cleanup
-            try:
-                next(db_gen)
-            except StopIteration:
-                pass
-        logging.info("Database initialization complete.")
-    except Exception as e:
-        logging.error(f"Error initializing database: {e}")
-        # Don't fail startup if this fails, as the app can still function
-
     logging.info("Application startup complete.")
     yield
 
@@ -94,6 +76,10 @@ app = FastAPI(
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
+
+# Configure rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

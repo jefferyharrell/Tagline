@@ -7,6 +7,12 @@ services:
       POSTGRES_USER: tagline
       POSTGRES_PASSWORD: tagline
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tagline -d tagline"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -28,6 +34,22 @@ services:
       - "9000:9000"  # MinIO API
       - "9001:9001"  # MinIO Console
 
+  # Run migrations before other services start
+  migrate:
+    build: .
+    container_name: tagline-migrate
+    command: python -m alembic upgrade head
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"  # Run once and exit
+
   backend:
     build: .
     container_name: tagline-backend
@@ -46,9 +68,14 @@ services:
       - S3_REGION=us-east-1
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
-      - minio
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
 
   ingest-orchestrator:
     build: .
@@ -63,8 +90,12 @@ services:
       - S3_REGION=us-east-1
       - PYTHONUNBUFFERED=1
     depends_on:
-      - redis
-      - minio
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
     env_file:
       - .env
     volumes:
@@ -86,8 +117,12 @@ services:
       - S3_REGION=us-east-1
       - PYTHONUNBUFFERED=1
     depends_on:
-      - redis
-      - minio
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
     env_file:
       - .env
     volumes:

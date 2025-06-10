@@ -1,7 +1,7 @@
 """Repository for managing authentication-related models."""
 
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -103,6 +103,131 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def list_all_users(
+        self, limit: int = 1000, offset: int = 0
+    ) -> Tuple[List[User], int]:
+        """
+        List all users with pagination.
+
+        Returns:
+            Tuple of (users list, total count)
+        """
+        query = self.db.query(User)
+        total = query.count()
+
+        users = (
+            query.order_by(User.lastname, User.firstname, User.email)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        return users, total
+
+    def get_all_users_dict(self) -> Dict[str, User]:
+        """
+        Get all users as a dictionary keyed by email.
+        Used for efficient lookups during CSV import.
+        """
+        users = self.db.query(User).all()
+        return {user.email: user for user in users}
+
+    def sync_users_from_csv(self, csv_users: List[Dict[str, Any]]) -> Dict[str, int]:
+        """
+        Sync entire user database with CSV data.
+
+        Args:
+            csv_users: List of user dictionaries from CSV
+
+        Returns:
+            Dictionary with counts: added, updated, deactivated, errors
+        """
+        counts = {"added": 0, "updated": 0, "deactivated": 0, "errors": 0}
+
+        try:
+            # Get all existing users
+            existing_users = self.get_all_users_dict()
+            csv_emails = {user["email"] for user in csv_users}
+
+            # Get role repository
+            role_repo = RoleRepository(self.db)
+            all_roles = {role.name.lower(): role for role in role_repo.get_all()}
+
+            # Process users in CSV
+            for csv_user in csv_users:
+                email = csv_user["email"]
+
+                try:
+                    if email in existing_users:
+                        # Update existing user
+                        user = existing_users[email]
+                        user.firstname = csv_user["firstname"] or None
+                        user.lastname = csv_user["lastname"] or None
+                        user.is_active = True
+
+                        # Update roles
+                        new_roles = []
+                        for role_name in csv_user["roles"]:
+                            role_lower = role_name.lower()
+                            if role_lower in all_roles:
+                                new_roles.append(all_roles[role_lower])
+
+                        user.roles = new_roles
+                        counts["updated"] += 1
+                    else:
+                        # Create new user
+                        user = User(
+                            email=email,
+                            firstname=csv_user["firstname"] or None,
+                            lastname=csv_user["lastname"] or None,
+                            is_active=True,
+                        )
+
+                        # Add roles
+                        for role_name in csv_user["roles"]:
+                            role_lower = role_name.lower()
+                            if role_lower in all_roles:
+                                user.roles.append(all_roles[role_lower])
+
+                        self.db.add(user)
+                        counts["added"] += 1
+
+                except Exception as e:
+                    logger.error(f"Error processing user {email}: {str(e)}")
+                    counts["errors"] += 1
+                    continue
+
+            # Deactivate users not in CSV
+            for email, user in existing_users.items():
+                if email not in csv_emails and user.is_active:
+                    # Safety check: don't deactivate administrators not in CSV
+                    is_admin = any(role.name == "administrator" for role in user.roles)
+                    if not is_admin:
+                        user.is_active = False
+                        user.roles = []  # Remove all roles
+                        counts["deactivated"] += 1
+
+            # Commit all changes
+            self.db.commit()
+
+            logger.info(f"User sync completed: {counts}")
+            return counts
+
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Error during user sync: {str(e)}")
+            raise
+
+    def get_admin_emails(self) -> List[str]:
+        """Get list of all administrator email addresses."""
+        admin_users = (
+            self.db.query(User)
+            .join(User.roles)
+            .filter(Role.name == "administrator")
+            .all()
+        )
+        return [user.email for user in admin_users]
 
 
 class EligibleEmailRepository:

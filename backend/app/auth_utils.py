@@ -168,6 +168,6 @@ def get_user_with_roles(
 
 
 # Common role-based dependencies
-get_current_admin = get_user_with_roles(["admin"])
-get_current_member = get_user_with_roles(["member", "admin"])
-get_current_active = get_user_with_roles(["active", "admin"])
+get_current_admin = get_user_with_roles(["administrator"])
+get_current_member = get_user_with_roles(["member", "administrator"])
+get_current_active = get_user_with_roles(["active", "administrator"])

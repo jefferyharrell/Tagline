@@ -39,24 +39,6 @@ class Role(Base):
     # Relationship with users
     users = relationship("User", secondary=user_roles, back_populates="roles")
 
-    @classmethod
-    def seed_default_roles(cls, session):
-        """Seed the default roles if they don't exist"""
-        default_roles = [
-            {"name": "admin", "description": "Administrator with full access"},
-            {"name": "member", "description": "Basic JLLA member"},
-            {"name": "active", "description": "Active JLLA member"},
-            {"name": "sustainer", "description": "Sustainer JLLA member"},
-        ]
-
-        for role_data in default_roles:
-            role = session.query(Role).filter_by(name=role_data["name"]).first()
-            if role is None:
-                role = Role(**role_data)
-                session.add(role)
-
-        session.commit()
-
 
 class User(Base):
     __tablename__ = "users"
