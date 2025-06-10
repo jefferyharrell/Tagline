@@ -547,7 +547,7 @@ async def export_users(
 
 
 @router.post("/users/sync", response_model=schemas.ImportSummary)
-@limiter.limit("3/10minutes")  # Most sensitive operation - very restrictive
+@limiter.limit("3/minute")  # Most sensitive operation - very restrictive
 async def sync_users(
     request: Request,
     user_data: schemas.UserSyncList,
