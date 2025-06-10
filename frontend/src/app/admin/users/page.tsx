@@ -84,6 +84,14 @@ export default function UserManagementPage() {
   const [downloadPopoverOpen, setDownloadPopoverOpen] = useState(false);
   const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
 
+  const handleDownloadPopoverChange = useCallback((open: boolean) => {
+    setDownloadPopoverOpen(open);
+  }, []);
+
+  const handleCopyPopoverChange = useCallback((open: boolean) => {
+    setCopyPopoverOpen(open);
+  }, []);
+
   const fetchUsers = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
@@ -376,7 +384,7 @@ export default function UserManagementPage() {
           <div className="flex items-center justify-between">
             <CardTitle>Current Users</CardTitle>
             <div className="flex items-center gap-2">
-              <Popover open={downloadPopoverOpen} onOpenChange={setDownloadPopoverOpen}>
+              <Popover open={downloadPopoverOpen} onOpenChange={handleDownloadPopoverChange}>
                 <PopoverTrigger asChild>
                   <Button variant="outline">
                     <Download className="mr-2 h-4 w-4" />
@@ -409,7 +417,7 @@ export default function UserManagementPage() {
                   </div>
                 </PopoverContent>
               </Popover>
-              <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
+              <Popover open={copyPopoverOpen} onOpenChange={handleCopyPopoverChange}>
                 <PopoverTrigger asChild>
                   <Button variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
