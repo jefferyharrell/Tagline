@@ -28,6 +28,7 @@ import { ImportPreview } from '@/components/admin/ImportPreview';
 import { 
   parseUsersFromFile, 
   downloadCSV, 
+  generateTSV,
   copyToClipboard,
   type UserData 
 } from '@/lib/csv-utils';
@@ -80,6 +81,8 @@ export default function UserManagementPage() {
     validation_errors?: string[];
   } | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [downloadPopoverOpen, setDownloadPopoverOpen] = useState(false);
+  const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
 
   const fetchUsers = useCallback(async (): Promise<void> => {
     try {
@@ -113,20 +116,42 @@ export default function UserManagementPage() {
     return response.json();
   };
 
-  const handleDownloadCSV = async () => {
+  const handleDownloadFormat = async (format: 'csv' | 'tsv') => {
     try {
+      setDownloadPopoverOpen(false); // Close the popover
       const userData = await fetchUsersForExport();
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
-      downloadCSV(userData, `tagline_users_${timestamp}.csv`);
-      toast.success('Users exported successfully');
+      
+      if (format === 'csv') {
+        downloadCSV(userData, `tagline_users_${timestamp}.csv`);
+      } else {
+        // Download TSV format
+        const tsvContent = generateTSV(userData);
+        const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `tagline_users_${timestamp}.tsv`;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(url);
+      }
+      
+      toast.success(`Users exported as ${format.toUpperCase()} successfully`);
     } catch (error) {
-      console.error('Error downloading CSV:', error);
+      console.error(`Error downloading ${format.toUpperCase()}:`, error);
       toast.error('Failed to export users');
     }
   };
 
-  const handleCopyFormat = async (format: 'tsv') => {
+  const handleCopyFormat = async (format: 'csv' | 'tsv') => {
     try {
+      setCopyPopoverOpen(false); // Close the popover
       const userData = await fetchUsersForExport();
       await copyToClipboard(userData, format);
       toast.success(`Users copied as ${format.toUpperCase()} to clipboard`);
@@ -351,11 +376,40 @@ export default function UserManagementPage() {
           <div className="flex items-center justify-between">
             <CardTitle>Current Users</CardTitle>
             <div className="flex items-center gap-2">
-              <Button onClick={handleDownloadCSV} variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
-              <Popover>
+              <Popover open={downloadPopoverOpen} onOpenChange={setDownloadPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56" align="end">
+                  <div className="grid gap-2">
+                    <Button
+                      variant="ghost"
+                      className="justify-start h-auto py-2"
+                      onClick={() => handleDownloadFormat('csv')}
+                    >
+                      <div className="text-left">
+                        <div>Download as CSV</div>
+                        <div className="text-xs text-muted-foreground">Comma-separated values</div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start h-auto py-2"
+                      onClick={() => handleDownloadFormat('tsv')}
+                    >
+                      <div className="text-left">
+                        <div>Download as TSV</div>
+                        <div className="text-xs text-muted-foreground">Best for Google Sheets</div>
+                      </div>
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
@@ -363,14 +417,27 @@ export default function UserManagementPage() {
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-40" align="end">
+                <PopoverContent className="w-56" align="end">
                   <div className="grid gap-2">
                     <Button
                       variant="ghost"
-                      className="justify-start"
+                      className="justify-start h-auto py-2"
+                      onClick={() => handleCopyFormat('csv')}
+                    >
+                      <div className="text-left">
+                        <div>Copy as CSV</div>
+                        <div className="text-xs text-muted-foreground">Comma-separated values</div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start h-auto py-2"
                       onClick={() => handleCopyFormat('tsv')}
                     >
-                      Copy as TSV
+                      <div className="text-left">
+                        <div>TSV</div>
+                        <div className="text-xs text-muted-foreground">Best for Google Sheets</div>
+                      </div>
                     </Button>
                   </div>
                 </PopoverContent>
@@ -447,9 +514,9 @@ export default function UserManagementPage() {
       {/* CSV Upload Section */}
       <div className="space-y-6">
         <div>
-          <h2 className="text-xl font-semibold mb-2">Import Users from CSV</h2>
+          <h2 className="text-xl font-semibold mb-2">Import Users from File</h2>
           <p className="text-muted-foreground text-sm">
-            Upload a CSV file to replace the entire user database. Format: firstname, lastname, email, [roles...]
+            Upload a CSV or TSV file to replace the entire user database. Format: firstname, lastname, email, [roles...]
           </p>
         </div>
 
