@@ -246,7 +246,14 @@ export function ImportPreview({
             onClick={onConfirm}
             disabled={loading || hasErrors}
           >
-            {loading ? 'Importing...' : 'Confirm Import'}
+            {loading ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              'Confirm Import'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
