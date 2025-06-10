@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download, Users, UserCheck, Shield, Copy, ChevronDown, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
 import { CSVUploader } from '@/components/admin/CSVUploader';
@@ -83,6 +89,17 @@ export default function UserManagementPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [downloadPopoverOpen, setDownloadPopoverOpen] = useState(false);
   const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active');
+
+  // Filter users based on active status
+  const filteredUsers = useMemo(() => {
+    if (activeFilter === 'active') {
+      return users.filter(user => user.is_active);
+    } else if (activeFilter === 'inactive') {
+      return users.filter(user => !user.is_active);
+    }
+    return users; // 'all'
+  }, [users, activeFilter]);
 
   const handleDownloadPopoverChange = useCallback((open: boolean) => {
     setDownloadPopoverOpen(open);
@@ -453,15 +470,48 @@ export default function UserManagementPage() {
             </div>
           </div>
         </CardHeader>
+        
+        {/* Filter Controls */}
+        <div className="px-6 pb-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Show:</label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-40 justify-between">
+                    {activeFilter === 'active' ? 'Active only' : 
+                     activeFilter === 'inactive' ? 'Inactive only' : 'All users'}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuItem onClick={() => setActiveFilter('active')}>
+                    Active only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveFilter('inactive')}>
+                    Inactive only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveFilter('all')}>
+                    All users
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Showing {filteredUsers.length} of {users.length} users
+            </div>
+          </div>
+        </div>
+        
         <CardContent>
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               No users found
             </div>
           ) : (
             <TableVirtuoso
               style={{ height: '400px' }}
-              data={users}
+              data={filteredUsers}
               fixedHeaderContent={() => (
                 <TableRow>
                   <TableHead style={{ width: '200px', minWidth: '200px' }}>Name</TableHead>
