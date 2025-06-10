@@ -19,8 +19,11 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Request,
     status,
 )
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -134,6 +137,9 @@ def ensure_user_has_admin_role(user, email: str, db: Session, settings: Settings
         db.refresh(user)
 
 logger = logging.getLogger(__name__)
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
@@ -464,7 +470,9 @@ async def bulk_add_eligible_emails(
 
 # User management endpoints
 @router.get("/users", response_model=dict)
+@limiter.limit("30/minute")  # Allow frequent pagination requests
 async def list_users(
+    request: Request,
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -511,7 +519,9 @@ async def list_users(
 
 
 @router.get("/users/export", response_model=List[schemas.UserSync])
+@limiter.limit("10/minute")  # Export is expensive, limit more strictly
 async def export_users(
+    request: Request,
     db: Session = Depends(get_db),
     _: schemas.User = Depends(get_current_admin),  # Only admins can export users
 ):
@@ -537,7 +547,9 @@ async def export_users(
 
 
 @router.post("/users/sync", response_model=schemas.ImportSummary)
+@limiter.limit("3/10minutes")  # Most sensitive operation - very restrictive
 async def sync_users(
+    request: Request,
     user_data: schemas.UserSyncList,
     db: Session = Depends(get_db),
     current_admin: schemas.User = Depends(
@@ -635,7 +647,9 @@ async def sync_users(
 
 
 @router.post("/users/preview", response_model=schemas.ImportPreview)
+@limiter.limit("15/minute")  # Preview operations for testing imports
 async def preview_sync(
+    request: Request,
     user_data: schemas.UserSyncList,
     db: Session = Depends(get_db),
     _: schemas.User = Depends(get_current_admin),  # Only admins can preview sync
