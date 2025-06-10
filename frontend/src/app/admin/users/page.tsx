@@ -339,32 +339,32 @@ export default function UserManagementPage() {
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statistics.total_users}</div>
+              <div className="text-2xl font-bold text-center">{statistics.total_users}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className="text-sm font-medium">Active Members</CardTitle>
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statistics.active_users}</div>
+              <div className="text-2xl font-bold text-center">{statistics.active_users}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className="text-sm font-medium">Administrators</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statistics.administrators}</div>
+              <div className="text-2xl font-bold text-center">{statistics.administrators}</div>
             </CardContent>
           </Card>
         </div>
