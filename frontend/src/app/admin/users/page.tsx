@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Download, Users, UserCheck, Shield, Copy, ChevronDown, Check, Search } from 'lucide-react';
+import { Download, Users, UserCheck, Shield, Copy, ChevronDown, Check, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -514,7 +514,7 @@ export default function UserManagementPage() {
               </DropdownMenu>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Search names or emails..."
                 value={searchText}
