@@ -32,5 +32,5 @@ RUN uv pip install --system -r pyproject.toml
 # Expose the PORT env variable
 EXPOSE ${PORT:-8000}
 
-# Start the application - run migrations first, then start the server
-CMD ["sh", "-c", "python -m alembic upgrade head && uvicorn app.main:app --host '' --port ${PORT:-8000}"]
+# Start the application - bind to :: and use the PORT environment variable
+CMD ["sh", "-c", "uvicorn app.main:app --host '' --port ${PORT:-8000}"]
