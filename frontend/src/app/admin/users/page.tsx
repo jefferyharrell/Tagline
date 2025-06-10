@@ -27,8 +27,6 @@ import { CSVUploader } from '@/components/admin/CSVUploader';
 import { ImportPreview } from '@/components/admin/ImportPreview';
 import { 
   parseUsersFromFile, 
-  generateCSV, 
-  generateTSV, 
   downloadCSV, 
   copyToClipboard,
   type UserData 
@@ -86,7 +84,7 @@ export default function UserManagementPage() {
   const fetchUsers = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/users');
+      const response = await fetch('/api/admin/users?limit=10000');
       
       if (!response.ok) {
         throw new Error('Failed to fetch users');
@@ -181,7 +179,7 @@ export default function UserManagementPage() {
             errorMessage = errorData.detail;
           } else if (Array.isArray(errorData.detail)) {
             // Pydantic validation errors - format them nicely
-            const validationErrors = errorData.detail.map((err: any, index: number) => {
+            const validationErrors = errorData.detail.map((err: { loc?: string[], msg?: string, input?: string }, index: number) => {
               const location = err.loc ? err.loc.join('.') : 'unknown';
               const message = err.msg || 'validation error';
               const input = err.input ? `"${err.input}"` : '';
@@ -244,7 +242,7 @@ export default function UserManagementPage() {
             errorMessage = errorData.detail;
           } else if (Array.isArray(errorData.detail)) {
             // Pydantic validation errors - format them nicely
-            const validationErrors = errorData.detail.map((err: any, index: number) => {
+            const validationErrors = errorData.detail.map((err: { loc?: string[], msg?: string, input?: string }, index: number) => {
               const location = err.loc ? err.loc.join('.') : 'unknown';
               const message = err.msg || 'validation error';
               const input = err.input ? `"${err.input}"` : '';

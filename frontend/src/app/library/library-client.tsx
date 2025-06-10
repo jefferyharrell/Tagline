@@ -283,7 +283,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
       setIsLoading(false);
       setIsTransitioning(false);
     }
-  }, [currentPath, searchQuery, prefetchThumbnails, expectedMediaCount]);
+  }, [currentPath, searchQuery, prefetchThumbnails]);
 
   // Store the latest fetchBrowseData in a ref
   useEffect(() => {
