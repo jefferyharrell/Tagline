@@ -102,6 +102,37 @@ def ensure_administrator_role(user, email: str, db: Session, settings: Settings)
             return True
     return False
 
+
+def setup_user_with_default_roles(user, email: str, db: Session, settings: Settings):
+    """
+    Setup user with default member role and administrator role if applicable.
+    Handles the commit and refresh automatically.
+    """
+    role_repo = RoleRepository(db)
+    
+    # Assign default member role if not already present
+    member_role = role_repo.get_by_name("member")
+    if member_role and not any(role.name == "member" for role in user.roles):
+        user.roles.append(member_role)
+    
+    # Check if this user should have administrator role
+    ensure_administrator_role(user, email, db, settings)
+    
+    # Commit changes
+    db.commit()
+    db.refresh(user)
+
+
+def ensure_user_has_admin_role(user, email: str, db: Session, settings: Settings):
+    """
+    Ensure existing user has administrator role if they match ADMINISTRATOR_EMAIL.
+    Handles the commit and refresh automatically.
+    """
+    role_changed = ensure_administrator_role(user, email, db, settings)
+    if role_changed:
+        db.commit()
+        db.refresh(user)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -200,24 +231,12 @@ async def authenticate_user(
             logger.info(f"Creating new user with email {email}")
             user = user_repo.create(email=email, stytch_user_id=auth_response.user_id)
 
-            # Assign default member role
+            # Setup user with default roles
             if user:
-                role_repo = RoleRepository(db)
-                member_role = role_repo.get_by_name("member")
-                if member_role:
-                    user.roles.append(member_role)
-                
-                # Check if this user should have administrator role
-                role_changed = ensure_administrator_role(user, email, db, settings)
-                
-                db.commit()
-                db.refresh(user)
+                setup_user_with_default_roles(user, email, db, settings)
 
     # Ensure existing users get administrator role if they match ADMINISTRATOR_EMAIL
-    role_changed = ensure_administrator_role(user, email, db, settings)
-    if role_changed:
-        db.commit()
-        db.refresh(user)
+    ensure_user_has_admin_role(user, email, db, settings)
 
     # Create JWT with user info and roles
     user_roles = [role.name for role in user.roles]
@@ -392,24 +411,12 @@ async def bypass_auth(
             email=email_data.email, stytch_user_id=f"dev-{email_data.email}"
         )
 
-        # Assign default member role
+        # Setup user with default roles
         if user:
-            role_repo = RoleRepository(db)
-            member_role = role_repo.get_by_name("member")
-            if member_role:
-                user.roles.append(member_role)
-            
-            # Check if this user should have administrator role
-            role_changed = ensure_administrator_role(user, email_data.email, db, settings)
-            
-            db.commit()
-            db.refresh(user)
+            setup_user_with_default_roles(user, email_data.email, db, settings)
 
     # Ensure existing users get administrator role if they match ADMINISTRATOR_EMAIL
-    role_changed = ensure_administrator_role(user, email_data.email, db, settings)
-    if role_changed:
-        db.commit()
-        db.refresh(user)
+    ensure_user_has_admin_role(user, email_data.email, db, settings)
 
     # Create JWT with user info and roles
     user_roles = [role.name for role in user.roles]
