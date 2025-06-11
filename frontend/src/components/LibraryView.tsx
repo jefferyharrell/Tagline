@@ -44,11 +44,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(-1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
   
   // Infinite scrolling state
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const offsetRef = useRef(0);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Fetch data from API
   const fetchData = useCallback(async (path: string[], isLoadMore = false) => {
@@ -56,7 +59,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       setIsLoadingMore(true);
     } else {
       setError(null);
+      setIsInitialLoading(true);
+      setShowLoadingSpinner(false);
       offsetRef.current = 0;
+      
+      // Set up a timeout to show loading spinner after 500ms
+      loadingTimeoutRef.current = setTimeout(() => {
+        setShowLoadingSpinner(true);
+      }, 500);
     }
     
     try {
@@ -99,6 +109,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     } finally {
       if (isLoadMore) {
         setIsLoadingMore(false);
+      } else {
+        // Clear the loading timeout if it exists
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+        setIsInitialLoading(false);
+        setShowLoadingSpinner(false);
       }
     }
   }, []);
@@ -194,6 +212,15 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     
     return unsubscribe;
   }, [subscribe, currentPath, handleMediaIngested]);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
   
   // Load more photos when scrolling near bottom
   const loadMorePhotos = useCallback(() => {
@@ -297,72 +324,89 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       
       {/* Content Area */}
       <div className="p-6 bg-white">
-          {/* Folder List */}
-          {folders.length > 0 && (
-            <>
-              <FolderList
-                folders={folders}
-                onFolderClick={handleFolderClick}
-              />
-              {photos.length > 0 && (
-                <div className="my-6 border-t border-gray-200"></div>
-              )}
-            </>
-          )}
-          
-          {/* Photo Grid */}
-          {photos.length > 0 && (
-            <ThumbnailGrid>
-          {photos.map((photo, index) => (
-            <div key={photo.object_key} className="relative aspect-square overflow-visible">
-              <PhotoThumbnail
-                media={photo}
-                position={index + 1}
-                onClick={() => {
-                  // Open modal for regular clicks
-                  setSelectedPhotoIndex(index);
-                  setIsModalOpen(true);
-                }}
-                className="w-full h-full"
-              />
-              {/* Invisible overlay link for cmd/ctrl clicks */}
-              <a
-                href={`/media/${photo.object_key}`}
-                className="absolute inset-0 z-10 pointer-events-none"
-                onClick={(e) => {
-                  // Only allow cmd/ctrl/middle clicks through
-                  if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
-                    e.preventDefault();
-                  }
-                }}
-                onMouseDown={(e) => {
-                  // Re-enable pointer events for cmd/ctrl/middle clicks
-                  if (e.metaKey || e.ctrlKey || e.button === 1) {
-                    e.currentTarget.style.pointerEvents = 'auto';
-                  }
-                }}
-                onMouseUp={(e) => {
-                  // Disable pointer events again
-                  e.currentTarget.style.pointerEvents = 'none';
-                }}
-                aria-hidden="true"
-                tabIndex={-1}
-              />
+        {isInitialLoading ? (
+          showLoadingSpinner ? (
+            /* Initial Loading State - only show after delay */
+            <div className="flex justify-center py-16">
+              <div className="flex items-center gap-2 text-gray-600">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                <span>Loading...</span>
+              </div>
             </div>
-          ))}
-        </ThumbnailGrid>
-      )}
-      
-      {/* Loading more indicator */}
-      {isLoadingMore && (
-        <div className="flex justify-center py-8">
-          <div className="flex items-center gap-2 text-gray-600">
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
-            <span>Loading more photos...</span>
+          ) : (
+            /* Loading but not showing spinner yet - show nothing */
+            <div className="py-16"></div>
+          )
+        ) : (
+          <>
+            {/* Folder List */}
+            {folders.length > 0 && (
+              <>
+                <FolderList
+                  folders={folders}
+                  onFolderClick={handleFolderClick}
+                />
+                {photos.length > 0 && (
+                  <div className="my-6 border-t border-gray-200"></div>
+                )}
+              </>
+            )}
+            
+            {/* Photo Grid - always render when no folders to show empty state */}
+            {(photos.length > 0 || folders.length === 0) && (
+              <ThumbnailGrid emptyMessage="No photos in this folder">
+            {photos.map((photo, index) => (
+              <div key={photo.object_key} className="relative aspect-square overflow-visible">
+                <PhotoThumbnail
+                  media={photo}
+                  position={index + 1}
+                  onClick={() => {
+                    // Open modal for regular clicks
+                    setSelectedPhotoIndex(index);
+                    setIsModalOpen(true);
+                  }}
+                  className="w-full h-full"
+                />
+                {/* Invisible overlay link for cmd/ctrl clicks */}
+                <a
+                  href={`/media/${photo.object_key}`}
+                  className="absolute inset-0 z-10 pointer-events-none"
+                  onClick={(e) => {
+                    // Only allow cmd/ctrl/middle clicks through
+                    if (!e.metaKey && !e.ctrlKey && e.button !== 1) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    // Re-enable pointer events for cmd/ctrl/middle clicks
+                    if (e.metaKey || e.ctrlKey || e.button === 1) {
+                      e.currentTarget.style.pointerEvents = 'auto';
+                    }
+                  }}
+                  onMouseUp={(e) => {
+                    // Disable pointer events again
+                    e.currentTarget.style.pointerEvents = 'none';
+                  }}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                />
+              </div>
+            ))}
+          </ThumbnailGrid>
+            )}
+          </>
+        )}
+        
+        {/* Loading more indicator */}
+        {isLoadingMore && (
+          <div className="flex justify-center py-8">
+            <div className="flex items-center gap-2 text-gray-600">
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+              <span>Loading more photos...</span>
+            </div>
           </div>
-        </div>
-      )}
-        </div>
+        )}
+      </div>
       
       {/* Media Modal */}
       <MediaModal 
