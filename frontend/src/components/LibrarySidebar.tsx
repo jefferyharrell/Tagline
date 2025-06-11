@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Images, Calendar, LayoutDashboard, Search, Users } from "lucide-react";
+import { Images, LayoutDashboard, Search, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
@@ -50,16 +50,6 @@ export default function LibrarySidebar() {
           isActive: pathname === "/search",
           icon: Search,
         },
-      ],
-    },
-    {
-      title: "By League Year",
-      items: [
-        { title: "2025-2026", href: "#", icon: Calendar },
-        { title: "2024-2025", href: "#", icon: Calendar },
-        { title: "2023-2024", href: "#", icon: Calendar },
-        { title: "2022-2023", href: "#", icon: Calendar },
-        { title: "2021-2022", href: "#", icon: Calendar },
       ],
     },
     {
