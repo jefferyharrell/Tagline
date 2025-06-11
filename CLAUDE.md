@@ -15,13 +15,13 @@ Tagline is a web application for the Junior League of Los Angeles (JLLA) that or
 1. **Content Silo**: Storage providers (Dropbox, filesystem) house the actual media files
 2. **Metadata Silo**: PostgreSQL database stores metadata, thumbnails, and proxy images
 
-**Current Status**: Several solid days away from MVP. Backend was recently rewritten (completed ~May 4, 2025) and frontend updated to communicate with new architecture. Initial demo was presented to stakeholders on April 30, 2025.
+**Current Status**: MVP functionality complete and actively being refined. Backend was rewritten (completed ~May 4, 2025) and frontend updated to communicate with new architecture. Initial demo was presented to stakeholders on April 30, 2025.
 
 **Active Development Focus**:
-- LibraryView component implementation and integration
-- Component-based UI architecture with shadcn/ui
-- Performance optimization of API response times
-- Media browsing and navigation user experience
+- User management via CSV import/export (recently completed)
+- Virtual scrolling for large datasets (1,700+ users)
+- Database performance optimization with comprehensive indexing
+- UI/UX refinements and sidebar organization
 
 **Note that** right now backend is considered more developed than frontend. If backend does something one way and frontend does it differently, check with the human but lean toward making frontend conform to backend.
 
@@ -262,6 +262,43 @@ Authentication Flow:
 6. JWT token generated and returned
 7. Frontend stores JWT in HTTP-only cookie
 
+## User Management System
+
+Tagline includes a comprehensive user management system designed for administrative control:
+
+### CSV-Based User Import/Export
+- **"CSV is Truth" Model**: Upload CSV completely replaces existing user and role state
+- **Variable Column Format**: Fixed columns (firstname, lastname, email) + variable role columns
+- **Download/Upload Workflow**: Export current roster → Edit in Excel/Google Sheets → Upload
+- **Role Assignment**: Natural handling of roles like "sustaining member" without quote complexity
+
+### Administrative Interface
+- **Access Control**: Only users with "administrator" role can access `/admin/users`
+- **Virtual Scrolling**: Handles 1,700+ users efficiently with react-virtuoso
+- **Real-time Filtering**: Search by name/email with active/inactive status filters
+- **Preview Changes**: Shows what will be added/updated/deactivated before applying
+- **Import Summary**: Displays counts of members added, updated, deactivated
+
+### Role System
+- `administrator`: Full admin access to user management and system features
+- `member`: Basic JLLA member with standard access
+- `active`: Active member status
+- `sustainer`: Sustaining member classification
+- Empty roles = inactive/ex-member user
+
+### Security Features
+- Role validation against database before sync
+- Administrator safety checks (won't deactivate current admin)
+- Rate limiting on sensitive operations (3/min for sync, 10/min for export)
+- Comprehensive audit logging
+
+### Eligible Emails System
+- **Whitelist Control**: `eligible_emails` table controls who can authenticate
+- **Automatic Population**: CSV user sync automatically adds emails to eligible list
+- **Just-in-Time Users**: Stytch creates user accounts on first login attempt
+- **Administrator Bypass**: `ADMINISTRATOR_EMAIL` environment variable bypasses eligibility check
+- **Batch Tracking**: Import operations tagged with batch_id for audit trail
+
 ## Key API Endpoints
 
 ### Backend
@@ -276,7 +313,7 @@ Authentication Flow:
 - `GET /v1/media/{id}/adjacent`: Get previous/next media objects
 - `POST /v1/auth/authenticate`: Authenticate with Stytch
 - `POST /v1/auth/bypass`: Developer authentication bypass
-- `POST /v1/ingest`: Scan storage for new media files
+- `GET /v1/events/ingest`: Server-sent events for real-time media processing updates
 - `GET /v1/tasks`: List background tasks
 - `GET /v1/tasks/{id}`: Get task status
 - `GET /v1/storage/browse`: Browse folders and files with auto-discovery
@@ -294,8 +331,9 @@ Authentication Flow:
 - `/api/library/{id}/thumbnail`: Proxy for thumbnail
 - `/api/library/{id}/proxy`: Proxy for proxy image
 - `/api/library/{id}/adjacent`: Proxy for adjacent media
-- `/api/ingest`: Proxy for ingest endpoint
+- `/api/events/ingest`: Server-sent events proxy for real-time updates
 - `/api/logs`: Centralized logging endpoint (proxies to backend)
+- `/api/admin/users`: User management endpoints (list, export, sync, preview)
 
 ## Frontend Logging System
 
@@ -340,6 +378,41 @@ Logs appear in backend stdout as:
 - **Development**: Enabled by default
 - **Production**: Enable via `localStorage.setItem('enableFrontendLogging', 'true')`
 - **Manual Control**: `logger.setEnabled(true/false)` or `logger.isEnabled()`
+
+## Real-time Updates System
+
+Tagline includes Server-Sent Events (SSE) for real-time media processing updates:
+
+### Architecture
+- **SSE Endpoint**: `/api/events/ingest` streams processing events from backend
+- **Frontend Integration**: `SSEProvider` context manages connections app-wide
+- **Component Integration**: `LibraryView` subscribes to relevant events for current path
+- **Event Filtering**: Only processes events relevant to current folder/path being viewed
+
+### Event Types
+- `queued`: Media file queued for processing (filtered out in UI)
+- `started`: Processing started (filtered out in UI) 
+- `complete`: Processing finished, thumbnail/proxy ready (displayed in UI)
+- `failed`: Processing failed with error information
+
+### Features
+- **Automatic Reconnection**: Exponential backoff with max 5 attempts
+- **Path Filtering**: Only shows events relevant to current directory
+- **Authentication Aware**: Connects only when user is authenticated
+- **Graceful Degradation**: UI works without SSE connection
+
+### Usage
+```typescript
+// Components subscribe via SSEProvider context
+const { subscribe } = useSSE();
+useEffect(() => {
+  const unsubscribe = subscribe((event: IngestEvent) => {
+    // Handle real-time thumbnail updates
+    handleMediaIngested(event);
+  });
+  return unsubscribe;
+}, []);
+```
 
 ## Environment Configuration
 
@@ -419,6 +492,29 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 **Note**: Auth bypass only works when `AUTH_BYPASS_ENABLED=true` and the email is in `AUTH_BYPASS_EMAILS` environment variables.
 
+## Database Management
+
+### Migrations
+- **Alembic Integration**: Database schema managed via Alembic migrations
+- **Automatic Seeding**: Default roles seeded via migration (not app startup)
+- **Migration Service**: Dedicated Docker service ensures migrations run before app starts
+- **Performance Indexes**: Comprehensive indexing for auth and media tables
+
+### Recent Migrations
+- `e52b568743dc_seed_default_roles.py`: Seeds administrator, member, active, sustainer roles
+- `9bd71a7c2a0d_add_missing_performance_indexes.py`: Adds 31 performance indexes
+  - Users table: lastname/firstname, is_active, created_at, stytch_user_id
+  - User roles: user_id, role_id indexes for join performance
+  - Media objects: file attributes, timestamps, status combinations
+  - Composite indexes for complex query patterns
+
+### Performance Optimizations
+- **Virtual Scrolling**: TableVirtuoso handles 1,700+ user records efficiently
+- **Database Indexing**: Comprehensive indexes for all common query patterns
+- **Lazy Loading**: Components load data on demand
+- **Rate Limiting**: Prevents abuse of expensive operations
+- **Connection Pooling**: SQLAlchemy connection pooling for database efficiency
+
 ## Docker Compose Setup
 
 The application runs in Docker containers orchestrated with Docker Compose.
@@ -426,7 +522,9 @@ The application runs in Docker containers orchestrated with Docker Compose.
 ### Backend Services
 
 - `postgres`: PostgreSQL 17 database with pgvector extension (port 5432)
+  - Includes healthcheck with pg_isready for reliable startup
 - `redis`: Redis 7 for task queue (port 6379)
+- `migrate`: Dedicated migration service ensures database is ready before app starts
 - `backend`: FastAPI application (port 8000)
 - `ingest-orchestrator`: Single RQ worker for task orchestration
 - `ingest-worker`: RQ workers for parallel processing (8 replicas)
@@ -439,7 +537,9 @@ The application runs in Docker containers orchestrated with Docker Compose.
 
 ### Service Dependencies
 
-- Backend depends on postgres and redis
+- Postgres includes healthcheck for reliable startup sequence
+- Migrate service depends on postgres being healthy
+- Backend depends on migrate service completion, postgres, and redis
 - Workers depend on backend, postgres, and redis
 - Frontend can run independently but requires backend for API
 
@@ -504,6 +604,12 @@ The frontend uses a modular component approach centered around the LibraryView c
 - Shows status-specific icons (pending, processing, completed, failed)
 - Handles image loading and error states
 - Uses Skeleton component during loading
+
+**LibrarySidebar** (`src/components/LibrarySidebar.tsx`):
+- App-wide navigation sidebar using shadcn/ui Sidebar components
+- Sections: Library (Photos, Search), By League Year, Admin, Me
+- Active state detection based on current pathname
+- Conditional admin menu items based on user roles
 
 **MediaModal** (`src/components/MediaModal.tsx`):
 - Reusable modal for photo viewing
