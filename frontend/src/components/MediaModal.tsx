@@ -4,7 +4,13 @@ import React, { useEffect, useCallback, useState } from "react";
 import { X, ChevronRight, Lock, Unlock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Carousel,
   CarouselContent,
@@ -34,21 +40,24 @@ export default function MediaModal({
   onMediaUpdate,
 }: MediaModalProps) {
   const router = useRouter();
-  
+
   // Carousel API state
   const [api, setApi] = useState<CarouselApi>();
-  
+
   // Get current media from photos array
   const currentMedia = photos[currentIndex];
-  
+
   // Description editing state
-  const [description, setDescription] = useState(currentMedia?.metadata?.description || "");
+  const [description, setDescription] = useState(
+    currentMedia?.metadata?.description || "",
+  );
   const [isDescriptionLocked, setIsDescriptionLocked] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastSavedDescription, setLastSavedDescription] = useState(currentMedia?.metadata?.description || "");
+  const [lastSavedDescription, setLastSavedDescription] = useState(
+    currentMedia?.metadata?.description || "",
+  );
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
-
 
   // Handle carousel API events
   useEffect(() => {
@@ -98,7 +107,6 @@ export default function MediaModal({
       document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose, api, isDescriptionLocked]);
-
 
   // Sync description state when currentMedia changes
   useEffect(() => {
@@ -275,7 +283,7 @@ export default function MediaModal({
 
             {/* Media Display with Navigation */}
             <div className="relative">
-              <Carousel 
+              <Carousel
                 className="w-full max-w-5xl relative"
                 setApi={setApi}
                 opts={{
@@ -287,7 +295,7 @@ export default function MediaModal({
                 <CarouselContent>
                   {photos.map((photo) => (
                     <CarouselItem key={photo.object_key}>
-                      <div className="flex justify-center">
+                      <div className="flex justify-center relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
@@ -295,6 +303,91 @@ export default function MediaModal({
                           className="max-w-full w-auto h-auto"
                           style={{ maxHeight: "calc(100vh - 8rem)" }}
                         />
+
+                        {/* Description Section - Only show for current photo */}
+                        {photo.object_key === currentMedia.object_key && (
+                          <div className="absolute bottom-0 left-0 right-0 p-4">
+                            <div className="relative max-w-3xl mx-auto">
+                              {/* Helper text and status - positioned above textarea */}
+                              <div className="flex justify-end mb-2 h-6">
+                                {/* Helper text when editing */}
+                                {!isDescriptionLocked &&
+                                  !isOptimisticUpdate && (
+                                    <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
+                                      Click the lock icon to save changes, or
+                                      press Escape to cancel
+                                    </p>
+                                  )}
+
+                                {/* Subtle loading indicator for optimistic updates */}
+                                {isOptimisticUpdate && (
+                                  <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
+                                    <svg
+                                      className="animate-pulse h-3 w-3 mr-1.5 text-jl-red"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                    Saving...
+                                  </div>
+                                )}
+                              </div>
+
+                              <Textarea
+                                value={description || ""}
+                                onChange={(e) => setDescription(e.target.value)}
+                                readOnly={isDescriptionLocked}
+                                rows={3}
+                                className={`!text-lg font-medium w-full resize-none bg-white/50 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 transition-opacity duration-200 ${
+                                  isDescriptionLocked
+                                    ? "text-gray-900 cursor-default"
+                                    : "text-gray-900"
+                                } ${isOptimisticUpdate ? "opacity-70" : ""}`}
+                                placeholder={
+                                  isDescriptionLocked
+                                    ? ""
+                                    : "Enter a description for this media..."
+                                }
+                                onClick={() => {
+                                  if (isDescriptionLocked && !description) {
+                                    toggleDescriptionLock();
+                                  }
+                                }}
+                              />
+
+                              {/* Padlock Icon */}
+                              <button
+                                onClick={toggleDescriptionLock}
+                                disabled={isLoading}
+                                className={`absolute top-10 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
+                                  isLoading
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
+                                }`}
+                                title={
+                                  isLoading
+                                    ? "Saving..."
+                                    : isDescriptionLocked
+                                      ? "Click to edit description"
+                                      : "Click to save and lock description"
+                                }
+                              >
+                                {isLoading ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
+                                ) : isDescriptionLocked ? (
+                                  <Lock className="h-4 w-4 text-gray-600" />
+                                ) : (
+                                  <Unlock className="h-4 w-4 text-jl-red" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CarouselItem>
                   ))}
@@ -302,139 +395,60 @@ export default function MediaModal({
                 <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
                 <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
               </Carousel>
-
-              {/* Description Section - Positioned at Bottom of Photo */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <div className="relative max-w-3xl mx-auto">
-                  {/* Helper text and status - positioned above textarea */}
-                  <div className="flex justify-end mb-2 h-6">
-                    {/* Helper text when editing */}
-                    {!isDescriptionLocked && !isOptimisticUpdate && (
-                      <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
-                        Click the lock icon to save changes, or press Escape to cancel
-                      </p>
-                    )}
-
-                    {/* Subtle loading indicator for optimistic updates */}
-                    {isOptimisticUpdate && (
-                      <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
-                        <svg
-                          className="animate-pulse h-3 w-3 mr-1.5 text-jl-red"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Saving...
-                      </div>
-                    )}
-                  </div>
-
-                  <Textarea
-                    value={description || ""}
-                    onChange={(e) => setDescription(e.target.value)}
-                    readOnly={isDescriptionLocked}
-                    rows={3}
-                    className={`!text-lg font-medium w-full resize-none bg-white/50 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 transition-opacity duration-200 ${
-                      isDescriptionLocked
-                        ? "text-gray-900 cursor-default"
-                        : "text-gray-900"
-                    } ${isOptimisticUpdate ? "opacity-70" : ""}`}
-                    placeholder={
-                      isDescriptionLocked
-                        ? ""
-                        : "Enter a description for this media..."
-                    }
-                    onClick={() => {
-                      if (isDescriptionLocked && !description) {
-                        toggleDescriptionLock();
-                      }
-                    }}
-                  />
-
-                  {/* Padlock Icon */}
-                  <button
-                    onClick={toggleDescriptionLock}
-                    disabled={isLoading}
-                    className={`absolute top-10 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
-                      isLoading ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    title={
-                      isLoading
-                        ? "Saving..."
-                        : isDescriptionLocked
-                          ? "Click to edit description"
-                          : "Click to save and lock description"
-                    }
-                  >
-                    {isLoading ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
-                    ) : isDescriptionLocked ? (
-                      <Lock className="h-4 w-4 text-gray-600" />
-                    ) : (
-                      <Unlock className="h-4 w-4 text-jl-red" />
-                    )}
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Raw Metadata Card - Below the photo */}
             <div className="max-w-5xl w-full mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Raw Metadata</CardTitle>
-                <CardDescription>
-                  All available metadata for this media object
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Basic Properties */}
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Object Key:</span>
-                      <span className="font-mono text-xs break-all">
-                        {currentMedia.object_key}
-                      </span>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Raw Metadata</CardTitle>
+                  <CardDescription>
+                    All available metadata for this media object
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Basic Properties */}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Object Key:</span>
+                        <span className="font-mono text-xs break-all">
+                          {currentMedia.object_key}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Raw JSON */}
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium text-sm text-gray-700 mb-2">
-                      Raw JSON
-                    </h4>
-                    <div className="bg-gray-50 rounded-lg p-4 overflow-auto max-h-64">
-                      <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
-                        {JSON.stringify(currentMedia, null, 2)}
-                      </pre>
+                    {/* Raw JSON */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2">
+                        Raw JSON
+                      </h4>
+                      <div className="bg-gray-50 rounded-lg p-4 overflow-auto max-h-64">
+                        <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                          {JSON.stringify(currentMedia, null, 2)}
+                        </pre>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* View Full Details Link */}
-            <div className="pt-4 border-t mt-6">
-              <a
-                href={`/media/${currentMedia.object_key}`}
-                className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-                onClick={(e) => {
-                  e.preventDefault();
-                  router.push(`/media/${currentMedia.object_key}`);
-                  onClose();
-                }}
-              >
-                View Full Details
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </a>
+                </CardContent>
+              </Card>
+
+              {/* View Full Details Link */}
+              <div className="pt-4 border-t mt-6">
+                <a
+                  href={`/media/${currentMedia.object_key}`}
+                  className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push(`/media/${currentMedia.object_key}`);
+                    onClose();
+                  }}
+                >
+                  View Full Details
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </a>
+              </div>
             </div>
-          </div>
           </div>
 
           {/* Save Confirmation Dialog */}
