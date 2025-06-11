@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Images, Calendar, LayoutDashboard, FolderSync, Search, Users } from "lucide-react";
+import { Images, Calendar, LayoutDashboard, Search, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
@@ -65,12 +65,6 @@ export default function LibrarySidebar() {
     {
       title: "Admin",
       items: [
-        {
-          title: "Batch Ingest",
-          href: "/ingest",
-          isActive: pathname === "/ingest",
-          icon: FolderSync,
-        },
         {
           title: "User Management",
           href: "/admin/users",

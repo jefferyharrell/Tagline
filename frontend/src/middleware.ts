@@ -15,7 +15,7 @@ const publicPaths = [
 ];
 
 // Paths that are handled by API routes (they do their own auth)
-const apiPaths = ["/api/library", "/api/ingest"];
+const apiPaths = ["/api/library"];
 
 // Stytch magic link redirect pattern
 const STYTCH_REDIRECT_PATTERN = /test\.stytch\.com\/v1\/magic_links\/redirect/;
