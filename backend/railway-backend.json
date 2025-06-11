@@ -4,6 +4,6 @@
     "dockerfilePath": "backend/Dockerfile"
   },
   "deploy": {
-    "startCommand": "uv run uvicorn main:app --host 0.0.0.0 --port $PORT"
+    "startCommand": "sh -c \"uv run uvicorn main:app --host 0.0.0.0 --port $PORT\""
   }
 }
