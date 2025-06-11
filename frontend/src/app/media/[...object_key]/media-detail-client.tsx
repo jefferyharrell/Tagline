@@ -409,10 +409,19 @@ export default function MediaDetailClient({
       <Sheet open={isMetadataOpen} onOpenChange={setIsMetadataOpen}>
         {/* Photo Section with Positioned Description */}
         <div
-          className={`relative flex justify-center ${isModal ? "h-full items-center p-4" : "pt-4"}`}
+          className={`relative ${isModal ? "h-full flex flex-col p-4" : "pt-4 flex flex-col items-center"}`}
         >
+          {/* Object Key Display */}
+          <div className={`w-full ${isModal ? "max-w-5xl mx-auto" : "max-w-4xl"} px-4 mb-3 ${isModal ? "flex-shrink-0" : ""}`}>
+            <div className="text-center">
+              <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-xs font-mono rounded-md">
+                {mediaObject.object_key}
+              </span>
+            </div>
+          </div>
+
           <div
-            className={`relative ${isModal ? "w-full h-full flex items-center justify-center" : "w-full max-w-4xl"}`}
+            className={`relative ${isModal ? "flex-1 flex items-center justify-center w-full max-w-5xl mx-auto" : "w-full max-w-4xl"}`}
             style={
               !isModal
                 ? {

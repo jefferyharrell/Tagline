@@ -264,6 +264,15 @@ export default function MediaModal({
         <div className="h-full overflow-auto">
           {/* Photo and Content Container */}
           <div className="p-4 min-h-full flex flex-col items-center">
+            {/* Object Key Display */}
+            <div className="w-full max-w-5xl mb-3">
+              <div className="text-center">
+                <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-xs font-mono rounded-md">
+                  {currentMedia.object_key}
+                </span>
+              </div>
+            </div>
+
             {/* Media Display with Navigation */}
             <div className="relative">
               <Carousel 
