@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Loader2, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import MobilePageHeader from '@/components/MobilePageHeader';
 import ThumbnailGrid from '@/components/ThumbnailGrid';
 import PhotoThumbnail from '@/components/PhotoThumbnail';
 import MediaModal from '@/components/MediaModal';
@@ -183,6 +184,9 @@ export default function SearchClient() {
 
   return (
     <div className="min-h-screen">
+      {/* Mobile Header */}
+      <MobilePageHeader title="Search" />
+      
       {/* Header with search input */}
       <div className="sticky top-0 z-10 bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 py-6">

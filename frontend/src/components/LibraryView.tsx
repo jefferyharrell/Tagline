@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, AlertCircle, RefreshCw } from 'lucide-react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import MobilePageHeader from './MobilePageHeader';
 import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
@@ -250,28 +251,28 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   // Render breadcrumb navigation
   const renderBreadcrumbs = () => (
     <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          {currentPath.length === 0 ? (
-            // Current page is Home - show as non-clickable
-            <BreadcrumbPage className="flex items-center gap-2">
-              <Home className="w-4 h-4" />
-              <span>Home</span>
-            </BreadcrumbPage>
-          ) : (
-            // Not on Home - show as clickable
-            <BreadcrumbLink asChild>
-              <button
-                onClick={() => handleBreadcrumbClick(-1)}
-                className="flex items-center gap-2"
-                aria-label="Go to library home"
-              >
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            {currentPath.length === 0 ? (
+              // Current page is Home - show as non-clickable
+              <BreadcrumbPage className="flex items-center gap-2">
                 <Home className="w-4 h-4" />
                 <span>Home</span>
-              </button>
-            </BreadcrumbLink>
-          )}
-        </BreadcrumbItem>
+              </BreadcrumbPage>
+            ) : (
+              // Not on Home - show as clickable
+              <BreadcrumbLink asChild>
+                <button
+                  onClick={() => handleBreadcrumbClick(-1)}
+                  className="flex items-center gap-2"
+                  aria-label="Go to library home"
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Home</span>
+                </button>
+              </BreadcrumbLink>
+            )}
+          </BreadcrumbItem>
         
         {currentPath.map((segment, index) => (
           <React.Fragment key={index}>
@@ -293,8 +294,8 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
             </BreadcrumbItem>
           </React.Fragment>
         ))}
-      </BreadcrumbList>
-    </Breadcrumb>
+        </BreadcrumbList>
+      </Breadcrumb>
   );
   
   // Render error state
@@ -317,6 +318,9 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   
   return (
     <div className={`${className}`}>
+      {/* Mobile Header */}
+      <MobilePageHeader title="Library" />
+      
       {/* Breadcrumb Navigation */}
       <div className="px-6 py-4 border-b border-gray-200 bg-white">
         {renderBreadcrumbs()}
