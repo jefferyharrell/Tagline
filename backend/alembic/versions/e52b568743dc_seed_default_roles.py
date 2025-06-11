@@ -23,39 +23,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Seed default roles for the authentication system."""
-    # Create a table reference for bulk operations
-    roles_table = table('roles',
-        column('id', String),
-        column('name', String),
-        column('description', String)
-    )
-    
     # Define default roles
     default_roles = [
-        {
-            'id': str(uuid.uuid4()),
-            'name': 'administrator',
-            'description': 'Administrator with full access'
-        },
-        {
-            'id': str(uuid.uuid4()),
-            'name': 'member',
-            'description': 'Basic JLLA member'
-        },
-        {
-            'id': str(uuid.uuid4()),
-            'name': 'active',
-            'description': 'Active JLLA member'
-        },
-        {
-            'id': str(uuid.uuid4()),
-            'name': 'sustainer',
-            'description': 'Sustainer JLLA member'
-        }
+        ('administrator', 'Administrator with full access'),
+        ('member', 'Basic JLLA member'),
+        ('active', 'Active JLLA member'),
+        ('sustainer', 'Sustainer JLLA member')
     ]
     
-    # Insert default roles
-    op.bulk_insert(roles_table, default_roles)
+    # Insert default roles with ON CONFLICT DO NOTHING to handle existing records
+    for role_name, description in default_roles:
+        role_id = str(uuid.uuid4())
+        op.execute(f"""
+            INSERT INTO roles (id, name, description)
+            VALUES ('{role_id}', '{role_name}', '{description}')
+            ON CONFLICT (name) DO NOTHING
+        """)
 
 
 def downgrade() -> None:
