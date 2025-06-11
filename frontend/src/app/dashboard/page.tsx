@@ -78,28 +78,28 @@ export default async function Dashboard({
                     User Management
                   </h3>
                   <p className="text-gray-600 mb-4">
-                    Manage user accounts, permissions, and access controls
-                    (coming soon).
+                    Manage user accounts, permissions, and access controls.
                   </p>
-                  <span className="inline-flex items-center text-gray-400">
-                    Coming Soon
-                  </span>
-                </div>
-
-                <div className="border border-green-100 rounded-lg p-6 hover:border-green-300 hover:shadow transition-all bg-green-50">
-                  <h3 className="text-lg font-semibold mb-2">Media Ingest</h3>
-                  <p className="text-gray-600 mb-4">
-                    Scan storage for new media files and import them into the
-                    system.
-                  </p>
-                  <form action="/api/ingest" method="post">
-                    <button
-                      type="submit"
-                      className="inline-flex items-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md"
+                  <Link
+                    href="/admin/users"
+                    className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
+                  >
+                    Manage Users
+                    <svg
+                      className="w-4 h-4 ml-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
                     >
-                      Start Ingest
-                    </button>
-                  </form>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 5l7 7-7 7"
+                      ></path>
+                    </svg>
+                  </Link>
                 </div>
               </div>
             </div>

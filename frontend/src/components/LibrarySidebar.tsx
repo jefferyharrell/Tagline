@@ -3,14 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Images, Calendar, LayoutDashboard, FolderSync, Search, Users } from "lucide-react";
+import { Images, Search, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
@@ -18,79 +17,47 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { UserAvatar } from "@/components/user-avatar";
-
-interface SidebarSection {
-  title: string;
-  items: SidebarItem[];
-}
+import { useUser } from "@/contexts/user-context";
 
 interface SidebarItem {
   title: string;
-  href?: string;
-  isActive?: boolean;
-  icon?: React.ComponentType<{ className?: string }>;
+  href: string;
+  isActive: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
 }
 
 export default function LibrarySidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
+  
+  // Check if user is an administrator
+  const isAdmin = user?.roles?.some(role => role.name === 'administrator') ?? false;
 
-  const sections: SidebarSection[] = [
+  const items: SidebarItem[] = [
     {
       title: "Library",
-      items: [
-        {
-          title: "Photos",
-          href: "/library",
-          isActive: pathname === "/library",
-          icon: Images,
-        },
-        {
-          title: "Search",
-          href: "/search",
-          isActive: pathname === "/search",
-          icon: Search,
-        },
-      ],
+      href: "/library",
+      isActive: pathname === "/library" || pathname.startsWith("/library/"),
+      icon: Images,
     },
     {
-      title: "By League Year",
-      items: [
-        { title: "2025-2026", href: "#", icon: Calendar },
-        { title: "2024-2025", href: "#", icon: Calendar },
-        { title: "2023-2024", href: "#", icon: Calendar },
-        { title: "2022-2023", href: "#", icon: Calendar },
-        { title: "2021-2022", href: "#", icon: Calendar },
-      ],
+      title: "Search",
+      href: "/search",
+      isActive: pathname === "/search",
+      icon: Search,
     },
     {
-      title: "Admin",
-      items: [
-        {
-          title: "Batch Ingest",
-          href: "/ingest",
-          isActive: pathname === "/ingest",
-          icon: FolderSync,
-        },
-        {
-          title: "User Management",
-          href: "/admin/users",
-          isActive: pathname === "/admin/users",
-          icon: Users,
-        },
-      ],
-    },
-    {
-      title: "Me",
-      items: [
-        {
-          title: "Dashboard",
-          href: "/dashboard",
-          isActive: pathname === "/dashboard",
-          icon: LayoutDashboard,
-        },
-      ],
+      title: "User Management",
+      href: "/admin/users",
+      isActive: pathname === "/admin/users",
+      icon: Users,
+      adminOnly: true,
     },
   ];
+
+  // Filter items based on admin status
+  const visibleItems = items.filter(item => !item.adminOnly || isAdmin);
 
   return (
     <Sidebar collapsible="offcanvas" variant="inset">
@@ -107,32 +74,22 @@ export default function LibrarySidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        {sections.map((section, sectionIndex) => (
-          <SidebarGroup key={sectionIndex}>
-            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item, itemIndex) => (
-                  <SidebarMenuItem key={itemIndex}>
-                    {item.href && item.href !== "#" ? (
-                      <SidebarMenuButton asChild isActive={item.isActive}>
-                        <Link href={item.href}>
-                          {item.icon && <item.icon />}
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    ) : (
-                      <SidebarMenuButton disabled>
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {visibleItems.map((item, index) => (
+                <SidebarMenuItem key={index}>
+                  <SidebarMenuButton asChild isActive={item.isActive}>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="pb-4">
         <UserAvatar />
