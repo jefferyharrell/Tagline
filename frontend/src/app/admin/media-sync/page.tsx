@@ -227,6 +227,23 @@ export default function MediaSyncPage() {
     }
   }
 
+  const getDisplayStatus = (status: string) => {
+    switch (status) {
+      case 'not_found':
+        return 'Not Started'
+      case 'started':
+        return 'Running'
+      case 'queued':
+        return 'Queued'
+      case 'completed':
+        return 'Completed'
+      case 'failed':
+        return 'Failed'
+      default:
+        return status
+    }
+  }
+
   // Use live progress if available and sync is running
   const displayProgress = liveProgress || syncStatus?.metadata
   const progressPercent = displayProgress?.progress_percent || 0
@@ -273,7 +290,7 @@ export default function MediaSyncPage() {
               <span className="text-lg font-medium">
                 Status:{' '}
                 <Badge variant={getStatusBadgeVariant(syncStatus?.status || 'not_found')}>
-                  {syncStatus?.status || 'Not Started'}
+                  {getDisplayStatus(syncStatus?.status || 'not_found')}
                 </Badge>
               </span>
             </div>
