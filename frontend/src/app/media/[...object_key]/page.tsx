@@ -4,13 +4,14 @@ import { redirect } from "next/navigation";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import LibrarySidebar from "@/components/LibrarySidebar";
 import MediaDetailClient from "./media-detail-client";
+import { verifyJwtToken } from "@/lib/jwt-utils";
 
 // This will handle fetching the media object on the server side
 async function getMediaObject(objectKey: string) {
   const cookieStore = await cookies();
   const authToken = cookieStore.get("auth_token");
 
-  if (!authToken) {
+  if (!authToken?.value) {
     return null;
   }
 
@@ -51,7 +52,13 @@ export default async function MediaDetailPage({
   const resolvedParams = await params;
   const authToken = cookieStore.get("auth_token");
 
-  if (!authToken) {
+  if (!authToken?.value) {
+    redirect("/");
+  }
+
+  // Verify the JWT token is valid
+  const payload = await verifyJwtToken(authToken.value);
+  if (!payload) {
     redirect("/");
   }
 

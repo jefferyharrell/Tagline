@@ -5,19 +5,25 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import LibrarySidebar from "@/components/LibrarySidebar";
 import Link from "next/link";
 import DashboardClient from "./dashboard-client";
+import { verifyJwtToken } from "@/lib/jwt-utils";
 
 export default async function Dashboard({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // In a real implementation, we would verify the JWT and get user data
-  // For now, we'll just check if the auth_token cookie exists
+  // Check if the user is authenticated with a valid token
   const cookieStore = await cookies();
   const params = await searchParams;
   const authToken = cookieStore.get("auth_token");
 
-  if (!authToken) {
+  if (!authToken?.value) {
+    redirect("/");
+  }
+
+  // Verify the JWT token is valid
+  const payload = await verifyJwtToken(authToken.value);
+  if (!payload) {
     redirect("/");
   }
 

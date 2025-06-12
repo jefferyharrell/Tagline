@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
+import { verifyJwtToken } from "@/lib/jwt-utils";
 
 interface LibraryFolderProps {
   params: Promise<{
@@ -9,11 +10,17 @@ interface LibraryFolderProps {
 }
 
 export default async function LibraryFolder({ params }: LibraryFolderProps) {
-  // Check if the user is authenticated
+  // Check if the user is authenticated with a valid token
   const cookieStore = await cookies();
   const authToken = cookieStore.get("auth_token");
 
-  if (!authToken) {
+  if (!authToken?.value) {
+    redirect("/");
+  }
+
+  // Verify the JWT token is valid
+  const payload = await verifyJwtToken(authToken.value);
+  if (!payload) {
     redirect("/");
   }
 
