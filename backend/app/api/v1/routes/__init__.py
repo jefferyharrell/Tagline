@@ -9,7 +9,6 @@ from .logs import router as logs_router
 from .media import router as media_router
 from .search import router as search_router
 from .storage import router as storage_router
-from .tasks import router as tasks_router
 
 public_router = APIRouter()
 private_router = APIRouter()
@@ -26,4 +25,3 @@ private_router.include_router(logs_router, prefix="/logs", tags=["logs"])
 private_router.include_router(media_router)
 private_router.include_router(search_router, prefix="/search", tags=["search"])
 private_router.include_router(storage_router, prefix="/storage", tags=["storage"])
-private_router.include_router(tasks_router)

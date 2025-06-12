@@ -77,32 +77,6 @@ services:
       migrate:
         condition: service_completed_successfully
 
-  ingest-orchestrator:
-    build: .
-    command: rq worker orchestrator
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app
-      - S3_ENDPOINT_URL=http://minio:9000
-      - S3_ACCESS_KEY_ID=minioadmin
-      - S3_SECRET_ACCESS_KEY=minioadmin
-      - S3_BUCKET_NAME=tagline-media
-      - S3_REGION=us-east-1
-      - PYTHONUNBUFFERED=1
-    depends_on:
-      redis:
-        condition: service_started
-      minio:
-        condition: service_started
-      migrate:
-        condition: service_completed_successfully
-    env_file:
-      - .env
-    volumes:
-      - .:/app
-    # Only one replica ensures singleton orchestrator
-    deploy:
-      replicas: 1
 
   ingest-worker:
     build: .
