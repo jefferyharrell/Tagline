@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from enum import Enum
 
 import redis
@@ -155,24 +156,40 @@ async def ingest_orchestrator(
                     logger.debug(f"Object {obj.object_key} ({mimetype}) is UNSUPPORTED")
                     continue
                 logger.debug(f"Object {obj.object_key} ({mimetype}) is SUPPORTED")
-                exists = repo.get_by_object_key(obj.object_key)
-                if exists:
-                    logger.info(f"Skipping {obj.object_key}: already present in DB.")
-                    continue
-                orchestrator_job.meta["total_items"] = total_count
-                orchestrator_job.meta["current_stage"] = "enqueueing_items"
-                orchestrator_job.save_meta()
                 
-                if dry_run:
-                    logger.info(f"[DRY RUN] Would queue ingest for {obj.object_key}")
-                    queued_count += 1
+                # Create sparse MediaObject record (with ON CONFLICT DO NOTHING behavior)
+                file_last_modified = None
+                if obj.last_modified:
+                    try:
+                        file_last_modified = datetime.fromisoformat(obj.last_modified.replace('Z', '+00:00'))
+                    except Exception as e:
+                        logger.warning(f"Could not parse last_modified date for {obj.object_key}: {e}")
+                
+                media_obj, was_created = repo.create_sparse(
+                    object_key=obj.object_key,
+                    file_size=obj.metadata.get('size') if obj.metadata else None,
+                    file_mimetype=obj.metadata.get('mimetype') if obj.metadata else None,
+                    file_last_modified=file_last_modified
+                )
+                
+                # Only queue for ingestion if we actually created the object
+                if media_obj and was_created:
+                    orchestrator_job.meta["total_items"] = total_count
+                    orchestrator_job.meta["current_stage"] = "enqueueing_items"
+                    orchestrator_job.save_meta()
+                    
+                    if dry_run:
+                        logger.info(f"[DRY RUN] Would queue ingest for {obj.object_key}")
+                        queued_count += 1
+                    else:
+                        ingest_job = ingest_queue.enqueue(
+                            "app.tasks.ingest.ingest", obj.object_key
+                        )
+                        logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
+                        job_ids.append(ingest_job.id)
+                        queued_count += 1
                 else:
-                    ingest_job = ingest_queue.enqueue(
-                        "app.tasks.ingest.ingest", obj.object_key
-                    )
-                    logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
-                    job_ids.append(ingest_job.id)
-                    queued_count += 1
+                    logger.info(f"Skipping {obj.object_key}: already present in DB.")
 
             logger.info(f"Found {total_count} total media objects.")
             if unsupported_count > 0:

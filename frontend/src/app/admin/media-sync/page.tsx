@@ -92,6 +92,8 @@ export default function MediaSyncPage() {
       
       if (response.status === 409) {
         setError('Sync is already running')
+      } else if (response.status === 429) {
+        setError('Rate limit exceeded. You can only start 1 sync per hour.')
       } else if (!response.ok) {
         throw new Error(data.detail || 'Failed to start sync')
       } else {
@@ -219,9 +221,12 @@ export default function MediaSyncPage() {
       case 'started':
         return 'default'
       case 'completed':
+      case 'finished':
         return 'secondary'
       case 'failed':
         return 'destructive'
+      case 'canceled':
+        return 'outline'
       default:
         return 'outline'
     }
@@ -236,9 +241,12 @@ export default function MediaSyncPage() {
       case 'queued':
         return 'Queued'
       case 'completed':
+      case 'finished':
         return 'Completed'
       case 'failed':
         return 'Failed'
+      case 'canceled':
+        return 'Canceled'
       default:
         return status
     }
@@ -296,7 +304,7 @@ export default function MediaSyncPage() {
             </div>
             
             <div className="flex gap-2">
-              {(!syncStatus || syncStatus.status?.toLowerCase() === 'not_found' || syncStatus.status?.toLowerCase() === 'completed' || syncStatus.status?.toLowerCase() === 'failed') && (
+              {(!syncStatus || syncStatus.status?.toLowerCase() === 'not_found' || syncStatus.status?.toLowerCase() === 'completed' || syncStatus.status?.toLowerCase() === 'finished' || syncStatus.status?.toLowerCase() === 'failed' || syncStatus.status?.toLowerCase() === 'canceled') && (
                 <>
                   <Button
                     onClick={() => startSync(true)}
@@ -430,7 +438,7 @@ export default function MediaSyncPage() {
               <strong>Full Sync:</strong> Scans all files and queues any missing items for thumbnail generation
             </li>
             <li>
-              Rate limited to 1 sync per hour to prevent system overload
+              Rate limited to 5 syncs per hour to prevent system overload
             </li>
             <li>
               Only processes supported image formats (JPEG, PNG, HEIC)

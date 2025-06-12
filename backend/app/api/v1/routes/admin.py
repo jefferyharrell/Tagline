@@ -72,7 +72,7 @@ class IngestHistoryItem(BaseModel):
     status_code=status.HTTP_202_ACCEPTED,
     response_model=dict,
 )
-@limiter.limit("1/hour")
+@limiter.limit("5/hour")
 async def start_ingest(
     request: Request,
     ingest_request: IngestStartRequest,
