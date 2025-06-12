@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Images, Search, Users } from "lucide-react";
+import { Images, Search, Users, RefreshCw } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
@@ -52,6 +52,13 @@ export default function LibrarySidebar() {
       href: "/admin/users",
       isActive: pathname === "/admin/users",
       icon: Users,
+      adminOnly: true,
+    },
+    {
+      title: "Media Sync",
+      href: "/admin/media-sync",
+      isActive: pathname === "/admin/media-sync",
+      icon: RefreshCw,
       adminOnly: true,
     },
   ];

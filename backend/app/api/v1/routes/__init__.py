@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .admin import router as admin_router
 from .auth import router as auth_router
 from .events import router as events_router
 from .health import router as health_router
@@ -18,6 +19,7 @@ public_router.include_router(health_router)
 public_router.include_router(auth_router, prefix="/auth", tags=["authentication"])
 
 # All protected endpoints go on private_router
+private_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 private_router.include_router(events_router, prefix="/events", tags=["events"])
 private_router.include_router(library_router, prefix="/library", tags=["library"])
 private_router.include_router(logs_router, prefix="/logs", tags=["logs"])

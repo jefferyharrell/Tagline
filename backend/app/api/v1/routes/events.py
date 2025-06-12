@@ -17,8 +17,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app import auth_schemas as schemas
-from app.auth_utils import get_current_user
-from app.redis_events import INGEST_EVENTS_CHANNEL
+from app.auth_utils import get_current_user, get_current_admin
+from app.redis_events import INGEST_EVENTS_CHANNEL, ORCHESTRATOR_EVENTS_CHANNEL
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +188,147 @@ async def stream_ingest_events(
         asyncio.set_event_loop(loop)
         try:
             async_gen = get_ingest_events(since_timestamp=since)
+            while True:
+                try:
+                    yield loop.run_until_complete(async_gen.__anext__())
+                except StopAsyncIteration:
+                    break
+        finally:
+            loop.close()
+
+    return StreamingResponse(
+        generate_events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
+        },
+    )
+
+
+async def get_orchestrator_events() -> AsyncGenerator[str, None]:
+    """
+    Generate Server-Sent Events for orchestrator progress updates using Redis pub/sub.
+    
+    This subscribes to the Redis pub/sub channel for real-time orchestrator events
+    and streams them to the client.
+    """
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    redis_conn = None
+    pubsub = None
+    
+    try:
+        # Connect to Redis
+        redis_conn = redis.from_url(redis_url)
+        pubsub = redis_conn.pubsub()
+        
+        # Subscribe to the orchestrator events channel
+        await asyncio.get_event_loop().run_in_executor(
+            None, pubsub.subscribe, ORCHESTRATOR_EVENTS_CHANNEL
+        )
+        
+        logger.info(f"Subscribed to Redis channel: {ORCHESTRATOR_EVENTS_CHANNEL}")
+        
+        # Send initial connection message
+        yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to orchestrator event stream'})}\n\n"
+        
+        # Send periodic heartbeats
+        last_heartbeat = asyncio.get_event_loop().time()
+        heartbeat_interval = 30  # seconds
+        
+        while True:
+            try:
+                # Check for new messages with timeout
+                message = await asyncio.get_event_loop().run_in_executor(
+                    None, pubsub.get_message, True, 1.0
+                )
+                
+                # Send heartbeat if needed
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_heartbeat > heartbeat_interval:
+                    yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': str(current_time)})}\n\n"
+                    last_heartbeat = current_time
+                
+                if message and message['type'] == 'message':
+                    # Parse the event data
+                    try:
+                        event_data = json.loads(message['data'])
+                        logger.debug(f"Received orchestrator event: {event_data.get('stage')}")
+                        
+                        # Send event to client
+                        yield f"data: {json.dumps(event_data)}\n\n"
+                        
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse orchestrator event data: {e}")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Error processing orchestrator event: {e}")
+                        continue
+                        
+            except redis.ConnectionError:
+                logger.error("Redis connection lost in orchestrator SSE stream")
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Redis connection lost'})}\n\n"
+                break
+            except Exception as e:
+                logger.error(f"Error in orchestrator events stream: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                await asyncio.sleep(5)  # Wait before retrying
+                
+    except Exception as e:
+        logger.error(f"Failed to initialize orchestrator events stream: {e}")
+        yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to initialize stream'})}\n\n"
+    finally:
+        # Clean up Redis connections
+        if pubsub:
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, pubsub.unsubscribe, ORCHESTRATOR_EVENTS_CHANNEL
+                )
+                await asyncio.get_event_loop().run_in_executor(
+                    None, pubsub.close
+                )
+            except Exception as e:
+                logger.warning(f"Error closing orchestrator pub/sub connection: {e}")
+        
+        if redis_conn:
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, redis_conn.close
+                )
+            except Exception as e:
+                logger.warning(f"Error closing Redis connection: {e}")
+        
+        logger.info("Orchestrator SSE connection closed")
+
+
+@router.get("/orchestrator", response_class=StreamingResponse)
+async def stream_orchestrator_events(
+    _: schemas.User = Depends(get_current_admin),
+):
+    """
+    Stream real-time orchestrator progress events via Server-Sent Events.
+    
+    This endpoint provides a persistent connection that streams updates
+    during media sync orchestration including progress and completion status.
+    
+    Admin access required.
+    
+    Events include:
+    - orchestrator_progress: Progress updates during scanning
+    - orchestrator_complete: Final status when orchestration completes
+    - connected: Initial connection confirmation
+    - heartbeat: Periodic keep-alive messages
+    - error: When errors occur in the stream
+    """
+    
+    def generate_events():
+        """Synchronous wrapper for the async generator."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async_gen = get_orchestrator_events()
             while True:
                 try:
                     yield loop.run_until_complete(async_gen.__anext__())

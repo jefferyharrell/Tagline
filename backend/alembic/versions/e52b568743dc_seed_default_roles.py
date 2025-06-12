@@ -8,9 +8,6 @@ Create Date: 2025-06-10 15:20:06.829686
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.sql import table, column
-from sqlalchemy import String
 import uuid
 
 

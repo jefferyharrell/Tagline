@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
 from app.media_processing.factory import is_mimetype_supported
+from app.redis_events import publish_orchestrator_progress, publish_orchestrator_complete
 from app.storage_provider import StorageProviderException, get_storage_provider
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ class IngestStatus(Enum):
 
 async def ingest_orchestrator(
     redis_url: str | None = None,
+    path_filter: str | None = None,
+    dry_run: bool = False,
 ) -> IngestStatus:
     """Orchestrates the media ingest process.
 
@@ -38,6 +41,8 @@ async def ingest_orchestrator(
 
     Args:
         redis_url: Optional Redis connection URL for the lock.
+        path_filter: Optional path to limit scanning to a specific folder and its subfolders.
+        dry_run: If True, only simulate the process without queuing tasks.
 
     Returns:
         IngestStatus indicating the outcome.
@@ -48,6 +53,13 @@ async def ingest_orchestrator(
         return IngestStatus.FAILED
 
     logger.info(f"Ingest orchestrator started with job ID: {orchestrator_job.id}")
+    logger.info(f"Parameters: path_filter={path_filter}, dry_run={dry_run}")
+    
+    # Store parameters in job metadata
+    orchestrator_job.meta["path_filter"] = path_filter
+    orchestrator_job.meta["dry_run"] = dry_run
+    orchestrator_job.save_meta()
+    
     try:
         logger.info("Starting ingest process.")
         try:
@@ -57,8 +69,9 @@ async def ingest_orchestrator(
             # Use the new generator for efficient iteration
             logger.info(
                 f"Iterating media objects from {storage_provider.provider_name}"
+                + (f" with path filter: {path_filter}" if path_filter else "")
             )
-            media_objects_iter = storage_provider.all_media_objects()
+            media_objects_iter = storage_provider.all_media_objects(prefix=path_filter)
             # We'll count as we go
             total_count = 0
         except StorageProviderException as e:
@@ -66,6 +79,17 @@ async def ingest_orchestrator(
             orchestrator_job.meta["current_stage"] = "error_fetching"
             orchestrator_job.meta["error_message"] = str(e)
             orchestrator_job.save_meta()
+            
+            # Publish error event
+            publish_orchestrator_complete(
+                job_id=orchestrator_job.id,
+                total_items=0,
+                processed_items=0,
+                path_filter=path_filter,
+                dry_run=dry_run,
+                error=str(e),
+            )
+            
             return IngestStatus.FAILED
         except Exception as e:
             logger.exception(f"Unexpected error during object listing: {e}")
@@ -96,9 +120,32 @@ async def ingest_orchestrator(
             orchestrator_job.meta["processed_items"] = 0
             orchestrator_job.meta["current_stage"] = "fetching_items"
             orchestrator_job.save_meta()
+            
+            # Publish initial progress event
+            publish_orchestrator_progress(
+                job_id=orchestrator_job.id,
+                stage="fetching_items",
+                total_items=0,
+                processed_items=0,
+                path_filter=path_filter,
+                dry_run=dry_run,
+            )
 
             for obj in media_objects_iter:
                 total_count += 1
+                
+                # Publish progress update every 10 items
+                if total_count % 10 == 0:
+                    publish_orchestrator_progress(
+                        job_id=orchestrator_job.id,
+                        stage="scanning",
+                        total_items=total_count,
+                        processed_items=total_count,
+                        queued_items=queued_count,
+                        path_filter=path_filter,
+                        dry_run=dry_run,
+                    )
+                
                 mimetype = str((obj.metadata or {}).get("mimetype"))
                 logger.debug(
                     f"Checking object {obj.object_key} with raw mimetype: {mimetype}"
@@ -115,12 +162,17 @@ async def ingest_orchestrator(
                 orchestrator_job.meta["total_items"] = total_count
                 orchestrator_job.meta["current_stage"] = "enqueueing_items"
                 orchestrator_job.save_meta()
-                ingest_job = ingest_queue.enqueue(
-                    "app.tasks.ingest.ingest", obj.object_key
-                )
-                logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
-                job_ids.append(ingest_job.id)
-                queued_count += 1
+                
+                if dry_run:
+                    logger.info(f"[DRY RUN] Would queue ingest for {obj.object_key}")
+                    queued_count += 1
+                else:
+                    ingest_job = ingest_queue.enqueue(
+                        "app.tasks.ingest.ingest", obj.object_key
+                    )
+                    logger.debug(f"Queued ingest job {ingest_job.id} for {obj.object_key}")
+                    job_ids.append(ingest_job.id)
+                    queued_count += 1
 
             logger.info(f"Found {total_count} total media objects.")
             if unsupported_count > 0:
@@ -131,10 +183,29 @@ async def ingest_orchestrator(
                 logger.info("No unsupported media objects filtered out.")
             logger.info(f"Queued {queued_count} new media objects for processing")
 
+            if dry_run:
+                logger.info(f"[DRY RUN] Would have queued {queued_count} items for ingestion.")
+                orchestrator_job.meta["current_stage"] = IngestStatus.COMPLETED.value
+                orchestrator_job.meta["queued_items"] = queued_count
+                orchestrator_job.save_meta()
+                
+                # Publish completion event
+                publish_orchestrator_complete(
+                    job_id=orchestrator_job.id,
+                    total_items=total_count,
+                    processed_items=total_count,
+                    queued_items=queued_count,
+                    path_filter=path_filter,
+                    dry_run=dry_run,
+                )
+                
+                return IngestStatus.COMPLETED
+            
             logger.info(f"Finished enqueueing {queued_count} items for ingestion.")
 
             # Set stage to indicate waiting for jobs to finish
             orchestrator_job.meta["current_stage"] = "waiting_for_ingest_jobs"
+            orchestrator_job.meta["queued_items"] = queued_count
             orchestrator_job.save_meta()
 
             # Wait for all ingest jobs to finish
@@ -180,6 +251,18 @@ async def ingest_orchestrator(
                     logger.info(
                         f"Progress: {completed_count}/{total_jobs} items processed ({orchestrator_job.meta['progress_percent']}%)"
                     )
+                    
+                    # Publish progress event for monitoring completion
+                    publish_orchestrator_progress(
+                        job_id=orchestrator_job.id,
+                        stage="monitoring_ingest_completion",
+                        total_items=total_jobs,
+                        processed_items=completed_count,
+                        queued_items=queued_count,
+                        progress_percent=orchestrator_job.meta['progress_percent'],
+                        path_filter=path_filter,
+                        dry_run=dry_run,
+                    )
 
                 time.sleep(poll_interval)
                 job_ids = remaining
@@ -194,6 +277,17 @@ async def ingest_orchestrator(
                 IngestStatus.COMPLETED.value
             )  # Use the enum value for the final stage
             orchestrator_job.save_meta()
+            
+            # Publish final completion event
+            publish_orchestrator_complete(
+                job_id=orchestrator_job.id,
+                total_items=total_count,
+                processed_items=completed_count,
+                queued_items=queued_count,
+                path_filter=path_filter,
+                dry_run=dry_run,
+            )
+            
             return IngestStatus.COMPLETED
         finally:
             # Ensure proper cleanup of database session

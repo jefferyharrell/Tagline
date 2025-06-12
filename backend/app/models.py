@@ -1,17 +1,14 @@
-import uuid
 from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import (
     Column,
     DateTime,
-    ForeignKey,
     Integer,
     String,
-    UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 

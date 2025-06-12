@@ -5,11 +5,10 @@ This module provides functionality to publish real-time ingest events
 to Redis pub/sub channels for consumption by SSE endpoints.
 """
 
-import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Optional, Literal, Union
+from typing import Optional, Literal
 
 import redis
 from pydantic import BaseModel
@@ -19,10 +18,11 @@ from app.schemas import MediaObject
 logger = logging.getLogger(__name__)
 
 # Event types
-EventType = Literal["queued", "started", "complete"]
+EventType = Literal["queued", "started", "complete", "orchestrator_progress", "orchestrator_complete"]
 
-# Redis channel for all ingest events
+# Redis channels
 INGEST_EVENTS_CHANNEL = "ingest:events"
+ORCHESTRATOR_EVENTS_CHANNEL = "orchestrator:events"
 
 
 class IngestEvent(BaseModel):
@@ -30,6 +30,21 @@ class IngestEvent(BaseModel):
     event_type: EventType
     timestamp: str
     media_object: MediaObject
+    error: Optional[str] = None
+
+
+class OrchestratorEvent(BaseModel):
+    """Structure for orchestrator progress events published to Redis."""
+    event_type: Literal["orchestrator_progress", "orchestrator_complete"]
+    timestamp: str
+    job_id: str
+    stage: str
+    total_items: int
+    processed_items: int
+    queued_items: int = 0
+    progress_percent: int = 0
+    path_filter: Optional[str] = None
+    dry_run: bool = False
     error: Optional[str] = None
 
 
@@ -120,6 +135,38 @@ class RedisEventPublisher:
         except Exception as e:
             logger.error(f"Failed to publish {event_type} event for {media_object.object_key}: {e}")
             return False
+    
+    def publish_orchestrator_event(self, event: OrchestratorEvent) -> bool:
+        """
+        Publish an orchestrator progress event to Redis pub/sub.
+        
+        Args:
+            event: OrchestratorEvent with progress information
+            
+        Returns:
+            bool: True if event was published successfully, False otherwise
+        """
+        if not self._ensure_connected():
+            logger.error("Cannot publish orchestrator event: Redis connection failed")
+            return False
+        
+        try:
+            # Serialize to JSON
+            event_json = event.model_dump_json()
+            
+            # Publish to Redis channel
+            subscriber_count = self._redis_conn.publish(ORCHESTRATOR_EVENTS_CHANNEL, event_json)
+            
+            logger.info(
+                f"Published orchestrator {event.stage} event "
+                f"to {subscriber_count} subscribers"
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to publish orchestrator event: {e}")
+            return False
 
 
 # Global publisher instance
@@ -175,3 +222,88 @@ def publish_complete_event(media_object: MediaObject, error: Optional[str] = Non
     """
     publisher = get_event_publisher()
     return publisher.publish_event("complete", media_object, error)
+
+
+def publish_orchestrator_progress(
+    job_id: str,
+    stage: str,
+    total_items: int,
+    processed_items: int,
+    queued_items: int = 0,
+    progress_percent: int = 0,
+    path_filter: Optional[str] = None,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Publish orchestrator progress update.
+    
+    Args:
+        job_id: Orchestrator job ID
+        stage: Current stage of processing
+        total_items: Total number of items to process
+        processed_items: Number of items processed so far
+        queued_items: Number of items queued for processing
+        progress_percent: Progress percentage (0-100)
+        path_filter: Optional path filter being used
+        dry_run: Whether this is a dry run
+        
+    Returns:
+        bool: True if published successfully
+    """
+    event = OrchestratorEvent(
+        event_type="orchestrator_progress",
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        job_id=job_id,
+        stage=stage,
+        total_items=total_items,
+        processed_items=processed_items,
+        queued_items=queued_items,
+        progress_percent=progress_percent,
+        path_filter=path_filter,
+        dry_run=dry_run,
+    )
+    
+    publisher = get_event_publisher()
+    return publisher.publish_orchestrator_event(event)
+
+
+def publish_orchestrator_complete(
+    job_id: str,
+    total_items: int,
+    processed_items: int,
+    queued_items: int = 0,
+    path_filter: Optional[str] = None,
+    dry_run: bool = False,
+    error: Optional[str] = None,
+) -> bool:
+    """
+    Publish orchestrator completion event.
+    
+    Args:
+        job_id: Orchestrator job ID
+        total_items: Total number of items processed
+        processed_items: Number of items successfully processed
+        queued_items: Number of items queued for processing
+        path_filter: Optional path filter that was used
+        dry_run: Whether this was a dry run
+        error: Optional error message if orchestrator failed
+        
+    Returns:
+        bool: True if published successfully
+    """
+    event = OrchestratorEvent(
+        event_type="orchestrator_complete",
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        job_id=job_id,
+        stage="completed" if not error else "failed",
+        total_items=total_items,
+        processed_items=processed_items,
+        queued_items=queued_items,
+        progress_percent=100 if not error else 0,
+        path_filter=path_filter,
+        dry_run=dry_run,
+        error=error,
+    )
+    
+    publisher = get_event_publisher()
+    return publisher.publish_orchestrator_event(event)
