@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from redis.exceptions import ConnectionError
@@ -74,7 +74,8 @@ class IngestHistoryItem(BaseModel):
 )
 @limiter.limit("1/hour")
 async def start_ingest(
-    request: IngestStartRequest,
+    request: Request,
+    ingest_request: IngestStartRequest,
     _: schemas.User = Depends(get_current_admin),
 ):
     """
@@ -84,7 +85,8 @@ async def start_ingest(
     If orchestration is already running, returns 409 Conflict.
     
     Args:
-        request: Ingest start parameters
+        request: HTTP request object (for rate limiting)
+        ingest_request: Ingest start parameters
         
     Returns:
         Status and job ID if successfully enqueued
@@ -124,20 +126,20 @@ async def start_ingest(
         job = orchestrator_queue.enqueue(
             ingest_orchestrator,
             redis_url=redis_url,
-            path_filter=request.path,
-            dry_run=request.dry_run,
+            path_filter=ingest_request.path,
+            dry_run=ingest_request.dry_run,
             job_id=ORCHESTRATOR_JOB_ID,
             job_timeout=3600,  # 1 hour timeout
         )
         
-        logger.info(f"Enqueued ingest orchestrator job {job.id} with path_filter={request.path}, dry_run={request.dry_run}")
+        logger.info(f"Enqueued ingest orchestrator job {job.id} with path_filter={ingest_request.path}, dry_run={ingest_request.dry_run}")
         
         return JSONResponse(
             {
                 "status": "enqueued",
                 "job_id": job.id,
-                "path_filter": request.path,
-                "dry_run": request.dry_run,
+                "path_filter": ingest_request.path,
+                "dry_run": ingest_request.dry_run,
             },
             status_code=status.HTTP_202_ACCEPTED,
         )
