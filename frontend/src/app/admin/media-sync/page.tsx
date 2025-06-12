@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { Play, Pause, AlertCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react'
+import { Play, Pause, AlertCircle, CheckCircle2, Clock, Loader2, Square } from 'lucide-react'
 
 interface IngestStatus {
   job_id: string
@@ -174,7 +174,7 @@ export default function MediaSyncPage() {
     fetchSyncStatus()
     
     // Connect to SSE if sync is running
-    if (syncStatus?.status === 'started' || syncStatus?.status === 'queued') {
+    if (syncStatus?.status?.toLowerCase() === 'started' || syncStatus?.status?.toLowerCase() === 'queued') {
       connectToSSE()
     }
     
@@ -187,7 +187,7 @@ export default function MediaSyncPage() {
 
   // Update connection when status changes
   useEffect(() => {
-    if (syncStatus?.status === 'started' || syncStatus?.status === 'queued') {
+    if (syncStatus?.status?.toLowerCase() === 'started' || syncStatus?.status?.toLowerCase() === 'queued') {
       if (!eventSource) {
         connectToSSE()
       }
@@ -296,7 +296,7 @@ export default function MediaSyncPage() {
             </div>
             
             <div className="flex gap-2">
-              {(!syncStatus || syncStatus.status === 'not_found' || syncStatus.status === 'completed' || syncStatus.status === 'failed') && (
+              {(!syncStatus || syncStatus.status?.toLowerCase() === 'not_found' || syncStatus.status?.toLowerCase() === 'completed' || syncStatus.status?.toLowerCase() === 'failed') && (
                 <>
                   <Button
                     onClick={() => startSync(true)}
@@ -324,20 +324,20 @@ export default function MediaSyncPage() {
                 </>
               )}
               
-              {(syncStatus?.status === 'started' || syncStatus?.status === 'queued') && (
+              {(syncStatus?.status?.toLowerCase() === 'started' || syncStatus?.status?.toLowerCase() === 'queued') && (
                 <Button
                   onClick={cancelSync}
                   variant="destructive"
                 >
-                  <Pause className="mr-2 h-4 w-4" />
-                  Cancel
+                  <Square className="mr-2 h-4 w-4" />
+                  Stop Sync
                 </Button>
               )}
             </div>
           </div>
 
           {/* Progress */}
-          {displayProgress && (syncStatus?.status === 'started' || syncStatus?.status === 'queued') && (
+          {displayProgress && (syncStatus?.status?.toLowerCase() === 'started' || syncStatus?.status?.toLowerCase() === 'queued') && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Progress</span>

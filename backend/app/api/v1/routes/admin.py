@@ -199,7 +199,7 @@ async def get_ingest_status(
             
         return IngestStatusResponse(
             job_id=job.id,
-            status=str(job_status),
+            status=job_status.value if hasattr(job_status, 'value') else str(job_status),
             metadata=metadata,
             enqueued_at=job.enqueued_at.isoformat() if job.enqueued_at else None,
             started_at=job.started_at.isoformat() if job.started_at else None,
@@ -332,7 +332,7 @@ async def get_ingest_history(
                 
             history_item = IngestHistoryItem(
                 job_id=job.id,
-                status=str(job.get_status()),
+                status=job.get_status().value if hasattr(job.get_status(), 'value') else str(job.get_status()),
                 started_at=job.started_at.isoformat() if job.started_at else None,
                 ended_at=job.ended_at.isoformat() if job.ended_at else None,
                 duration_seconds=duration,
