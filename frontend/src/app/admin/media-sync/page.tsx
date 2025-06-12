@@ -49,7 +49,7 @@ export default function MediaSyncPage() {
   const [liveProgress, setLiveProgress] = useState<OrchestratorEvent | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch current sync status
+  // Fetch current sync status (for initial load)
   const fetchSyncStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/ingest/status', {
@@ -65,9 +65,31 @@ export default function MediaSyncPage() {
       setError(null)
     } catch (err) {
       console.error('Error fetching sync status:', err)
-      setError('Failed to load sync status')
+      // Only set error if we don't already have status data
+      if (!syncStatus) {
+        setError('Failed to load sync status')
+      }
     } finally {
       setIsLoading(false)
+    }
+  }, [syncStatus])
+
+  // Silent status refresh that doesn't set errors (for background updates)
+  const refreshStatusSilently = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/ingest/status', {
+        credentials: 'include',
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSyncStatus(data)
+        // Clear any existing errors if the refresh succeeds
+        setError(null)
+      }
+    } catch (err) {
+      // Silently ignore errors from background refresh
+      console.log('Background status refresh failed:', err)
     }
   }, [])
 
@@ -98,7 +120,7 @@ export default function MediaSyncPage() {
         throw new Error(data.detail || 'Failed to start sync')
       } else {
         // Refresh status after starting
-        await fetchSyncStatus()
+        await refreshStatusSilently()
         // Start listening to SSE events
         connectToSSE()
       }
@@ -124,7 +146,7 @@ export default function MediaSyncPage() {
       }
       
       // Refresh status after cancelling
-      await fetchSyncStatus()
+      await refreshStatusSilently()
     } catch (err) {
       console.error('Error cancelling sync:', err)
       setError(err instanceof Error ? err.message : 'Failed to cancel sync')
@@ -152,9 +174,12 @@ export default function MediaSyncPage() {
         if (data.event_type === 'orchestrator_progress' || data.event_type === 'orchestrator_complete') {
           setLiveProgress(data)
           
+          // Clear any errors since we're receiving valid SSE data
+          setError(null)
+          
           // If complete, refresh the full status
           if (data.event_type === 'orchestrator_complete') {
-            fetchSyncStatus()
+            refreshStatusSilently()
           }
         }
       } catch (err) {
@@ -169,23 +194,22 @@ export default function MediaSyncPage() {
     }
 
     setEventSource(source)
-  }, [eventSource, fetchSyncStatus])
+  }, [eventSource, refreshStatusSilently])
 
   // Cleanup SSE on unmount
   useEffect(() => {
+    // Initial status fetch
     fetchSyncStatus()
     
-    // Connect to SSE if sync is running
-    if (syncStatus?.status?.toLowerCase() === 'started' || syncStatus?.status?.toLowerCase() === 'queued') {
-      connectToSSE()
-    }
+    // Always start with SSE connection to get live updates
+    connectToSSE()
     
     return () => {
       if (eventSource) {
         eventSource.close()
       }
     }
-  }, [fetchSyncStatus, syncStatus?.status, connectToSSE, eventSource])
+  }, [fetchSyncStatus, connectToSSE, eventSource])
 
   // Update connection when status changes
   useEffect(() => {
@@ -275,7 +299,7 @@ export default function MediaSyncPage() {
         </p>
       </div>
 
-      {error && (
+      {error && !syncStatus && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
