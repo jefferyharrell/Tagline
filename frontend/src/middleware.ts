@@ -66,7 +66,22 @@ async function verifyJWT(token: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
+  // Special handling for root path: redirect authenticated users to /library
+  if (pathname === "/") {
+    const token = getJwtToken(request);
+    if (token) {
+      // Verify the token is valid
+      const payload = await verifyJWT(token);
+      if (payload) {
+        // User is authenticated, redirect to library
+        return NextResponse.redirect(new URL("/library", request.url));
+      }
+    }
+    // No valid token, let them access the login page
+    return NextResponse.next();
+  }
+
+  // Allow other public paths (excluding root which we handled above)
   if (isPublicPath(pathname) || isPublicPath(request.url)) {
     return NextResponse.next();
   }
