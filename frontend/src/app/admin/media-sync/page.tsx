@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { Play, Pause, AlertCircle, CheckCircle2, Clock, Loader2, Square } from 'lucide-react'
+import { Play, AlertCircle, CheckCircle2, Clock, Loader2, Square } from 'lucide-react'
 
 interface IngestStatus {
   job_id: string
@@ -132,7 +132,7 @@ export default function MediaSyncPage() {
   }
 
   // Connect to Server-Sent Events for real-time updates
-  const connectToSSE = () => {
+  const connectToSSE = useCallback(() => {
     if (eventSource) {
       eventSource.close()
     }
@@ -169,7 +169,7 @@ export default function MediaSyncPage() {
     }
 
     setEventSource(source)
-  }
+  }, [eventSource, fetchSyncStatus])
 
   // Cleanup SSE on unmount
   useEffect(() => {
@@ -185,7 +185,7 @@ export default function MediaSyncPage() {
         eventSource.close()
       }
     }
-  }, [])
+  }, [fetchSyncStatus, syncStatus?.status, connectToSSE, eventSource])
 
   // Update connection when status changes
   useEffect(() => {
@@ -199,7 +199,7 @@ export default function MediaSyncPage() {
         setEventSource(null)
       }
     }
-  }, [syncStatus?.status])
+  }, [syncStatus?.status, connectToSSE, eventSource])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
