@@ -8,8 +8,6 @@ This module provides administrative endpoints for:
 import logging
 from fastapi import APIRouter
 
-from app import auth_schemas as schemas
-from app.auth_utils import get_current_admin
 
 logger = logging.getLogger(__name__)
 
