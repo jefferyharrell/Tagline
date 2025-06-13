@@ -9,9 +9,6 @@ const publicPaths = [
   "/authenticate",
   "/api/auth/callback",
   "/api/auth/check-email",
-  "/debug-auth",
-  "/api/auth/dev-login",
-  "/components",
 ];
 
 // Paths that are handled by API routes (they do their own auth)
@@ -31,6 +28,19 @@ function isPublicPath(path: string): boolean {
   const isStaticFile =
     /\.(svg|png|jpg|jpeg|gif|ico|css|js|woff|woff2|ttf|eot)$/i.test(path);
   if (isStaticFile) {
+    return true;
+  }
+
+  // Development-only paths (NEVER allow in production)
+  const isDevelopmentPath = path === "/debug-auth" || 
+                          path === "/api/auth/dev-login" || 
+                          path.startsWith("/components");
+  if (isDevelopmentPath && process.env.NODE_ENV !== "development") {
+    return false; // Force authentication check for these paths in production
+  }
+
+  // Allow development paths only in development
+  if (isDevelopmentPath && process.env.NODE_ENV === "development") {
     return true;
   }
 

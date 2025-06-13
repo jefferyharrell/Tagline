@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { redirect } from "next/navigation";
 
 export default function DebugAuth() {
+  // Production guard - redirect to home if in production
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      redirect("/");
+    }
+  }, []);
   const [envVars, setEnvVars] = useState<Record<string, string>>({});
   const [cookies, setCookies] = useState<string>("");
 
