@@ -1,4 +1,4 @@
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import LibrarySidebar from "@/components/LibrarySidebar";
 
 export default function SearchLayout({
@@ -9,9 +9,9 @@ export default function SearchLayout({
   return (
     <SidebarProvider>
       <LibrarySidebar />
-      <SidebarInset className="bg-gray-50">
+      <main className="flex-1 bg-gray-50">
         {children}
-      </SidebarInset>
+      </main>
     </SidebarProvider>
   );
 }
