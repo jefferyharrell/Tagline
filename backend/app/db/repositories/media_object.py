@@ -684,3 +684,55 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting subfolders with prefix {prefix}: {e}")
             return []
+
+    def delete_by_object_key(self, object_key: str) -> bool:
+        """Delete a MediaObject by its object_key, including S3 cleanup.
+        
+        Args:
+            object_key: The object key of the MediaObject to delete
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            logger.debug(f"Deleting MediaObject with object_key: {object_key}")
+            
+            # First, get the media object to check for S3 keys
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            
+            if not orm_obj:
+                logger.debug(f"No MediaObject found to delete with object_key: {object_key}")
+                return False
+            
+            # Clean up S3 objects if they exist
+            try:
+                from app.dependencies import get_s3_binary_storage
+                s3_storage = get_s3_binary_storage()
+                
+                # Delete thumbnail and proxy from S3
+                s3_storage.delete_binaries(object_key)
+                logger.info(f"Cleaned up S3 binaries for: {object_key}")
+                
+            except Exception as e:
+                # Log S3 cleanup failure but don't fail the whole operation
+                logger.warning(f"Failed to cleanup S3 binaries for {object_key}: {e}")
+            
+            # Delete the database record
+            deleted_count = (
+                self.db.query(ORMMediaObject)
+                .filter_by(object_key=object_key)
+                .delete()
+            )
+            
+            if deleted_count > 0:
+                self.db.commit()
+                logger.info(f"Successfully deleted MediaObject and S3 binaries: {object_key}")
+                return True
+            else:
+                logger.debug(f"No MediaObject found to delete with object_key: {object_key}")
+                return False
+                
+        except SQLAlchemyError as e:
+            logger.error(f"Database error deleting MediaObject {object_key}: {e}")
+            self.db.rollback()
+            return False

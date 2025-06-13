@@ -308,6 +308,36 @@ async def browse_library(
         # For root level, we pass None to get a special handling in the repository
         prefix_filter = f"{path}/" if path else None
         
+        # If refresh was requested, sync database with current Dropbox state
+        if refresh:
+            logger.info(f"🔄 REFRESH: Starting database sync for path: {path}")
+            
+            # Get current media objects in database for this path
+            existing_media_objects = media_repo.get_all(limit=10000, offset=0, prefix=prefix_filter)
+            existing_object_keys = {obj.object_key for obj in existing_media_objects}
+            logger.info(f"🔄 REFRESH: Found {len(existing_object_keys)} existing media objects in database")
+            logger.info(f"🔄 REFRESH: Existing keys: {list(existing_object_keys)}")
+            
+            # Get current files from Dropbox (already fetched above)
+            current_file_keys = {file_item.object_key for file_item in files if file_item.object_key}
+            logger.info(f"🔄 REFRESH: Found {len(current_file_keys)} files in Dropbox")
+            logger.info(f"🔄 REFRESH: Current Dropbox keys: {list(current_file_keys)}")
+            
+            # Find media objects that exist in database but not in Dropbox (deleted files)
+            deleted_keys = existing_object_keys - current_file_keys
+            logger.info(f"🔄 REFRESH: Keys to delete: {list(deleted_keys)}")
+            
+            if deleted_keys:
+                logger.info(f"🔄 REFRESH: Removing {len(deleted_keys)} deleted media objects from database")
+                for deleted_key in deleted_keys:
+                    try:
+                        success = media_repo.delete_by_object_key(deleted_key)
+                        logger.info(f"🔄 REFRESH: Delete result for {deleted_key}: {success}")
+                    except Exception as e:
+                        logger.error(f"🔄 REFRESH: Failed to delete media object {deleted_key}: {e}")
+            else:
+                logger.info(f"🔄 REFRESH: No media objects to delete")
+        
         # Get paginated MediaObjects
         media_objects = media_repo.get_all(
             limit=limit,
