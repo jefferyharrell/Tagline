@@ -3,14 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Available when auth bypass is enabled
 export async function POST(request: NextRequest) {
   try {
-    // NEVER allow in production regardless of environment variables
-    if (process.env.NODE_ENV !== "development") {
-      return NextResponse.json(
-        { message: "This endpoint is not available in production" },
-        { status: 403 },
-      );
-    }
-
+    // Only allow when auth bypass is explicitly enabled
     if (process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED !== "true") {
       return NextResponse.json(
         { message: "Auth bypass not enabled" },

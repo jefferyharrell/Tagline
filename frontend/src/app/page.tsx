@@ -201,9 +201,8 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Dev Login Button - Only visible when bypass is enabled AND not in production */}
-          {process.env.NODE_ENV === "development" && 
-           process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true" && (
+          {/* Dev Login Button - Only visible when bypass is enabled */}
+          {process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true" && (
             <div className="mt-4">
               <button
                 type="button"
