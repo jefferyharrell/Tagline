@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tagline - JLLA Media Management",
+  title: "JLLA Media Library",
   description: "Media management for the Junior League of Los Angeles",
 };
 
