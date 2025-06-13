@@ -31,17 +31,21 @@ function isPublicPath(path: string): boolean {
     return true;
   }
 
-  // Development-only paths (NEVER allow in production)
-  const isDevelopmentPath = path === "/debug-auth" || 
-                          path === "/api/auth/dev-login" || 
-                          path.startsWith("/components");
-  if (isDevelopmentPath && process.env.NODE_ENV !== "development") {
+  // Development-only paths that require NODE_ENV check
+  const isDevelopmentOnlyPath = path === "/debug-auth" || 
+                               path.startsWith("/components");
+  if (isDevelopmentOnlyPath && process.env.NODE_ENV !== "development") {
     return false; // Force authentication check for these paths in production
   }
 
-  // Allow development paths only in development
-  if (isDevelopmentPath && process.env.NODE_ENV === "development") {
+  // Allow development-only paths in development
+  if (isDevelopmentOnlyPath && process.env.NODE_ENV === "development") {
     return true;
+  }
+
+  // Auth bypass endpoint - controlled by AUTH_BYPASS_ENABLED, not NODE_ENV
+  if (path === "/api/auth/dev-login") {
+    return true; // Let the API route handle its own security
   }
 
   return publicPaths.some(

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import LibrarySidebar from "@/components/LibrarySidebar";
 
 interface JWTPayload {
@@ -50,9 +50,9 @@ export default async function AdminLayout({
   return (
     <SidebarProvider>
       <LibrarySidebar />
-      <SidebarInset className="bg-gray-50">
+      <main className="flex-1 bg-gray-50">
         {children}
-      </SidebarInset>
+      </main>
     </SidebarProvider>
   );
 }

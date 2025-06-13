@@ -322,7 +322,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       <MobilePageHeader title="Library" />
       
       {/* Breadcrumb Navigation */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-white">
+      <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-white">
         {renderBreadcrumbs()}
       </div>
       
