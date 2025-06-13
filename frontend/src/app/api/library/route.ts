@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const path = searchParams.get("path");
     const limit = searchParams.get("limit") || "36";
     const offset = searchParams.get("offset") || "0";
+    const refresh = searchParams.get("refresh");
     
     // Call the backend API for library browsing
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
@@ -25,6 +26,9 @@ export async function GET(request: NextRequest) {
     const url = new URL(`${backendUrl}/v1/library${path ? `/${path}` : ""}`);
     url.searchParams.set("limit", limit);
     url.searchParams.set("offset", offset);
+    if (refresh === "true") {
+      url.searchParams.set("refresh", "true");
+    }
 
     const response = await fetch(url.toString(), {
       headers: {

@@ -6,17 +6,24 @@ This module provides API endpoints for:
 - Triggering background ingestion for discovered media files
 """
 
+import os
 import logging
+from datetime import datetime
 from typing import List, Optional
 
+import redis
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from rq import Queue
 from sqlalchemy.orm import Session
 
 from app import auth_schemas as schemas
 from app.auth_utils import get_current_user
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
+from app.media_processing.factory import is_extension_supported
+from app.storage_provider import get_storage_provider
+from app.storage_providers.base import StorageProviderBase
 
 # Import processor modules to trigger registration via decorators
 # The noqa comment prevents linters from flagging unused import, which is needed here.
@@ -24,6 +31,8 @@ from app.media_processing import heicprocessor  # noqa: F401
 from app.media_processing import jpegprocessor  # noqa: F401
 from app.media_processing import pngprocessor   # noqa: F401
 from app.schemas import MediaObject
+from app.tasks.ingest import ingest
+from app.redis_events import publish_queued_event
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +60,20 @@ class MediaByFolderResponse(BaseModel):
     media_objects: List[MediaObject]
     folder_path: Optional[str]
     total: int
+
+
+class IngestRequest(BaseModel):
+    """Request model for ingest operation."""
+    path: str = ""
+    preserve_metadata: bool = False
+    force_regenerate: bool = False
+
+
+class IngestResponse(BaseModel):
+    """Response model for ingest operation."""
+    success: bool
+    message: str
+    queued_count: int
 
 
 
@@ -186,4 +209,141 @@ async def get_media_by_folder(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get media objects: {str(e)}"
+        )
+
+
+@router.post("/ingest", response_model=IngestResponse)
+async def trigger_ingest(
+    request: IngestRequest,
+    storage_provider: StorageProviderBase = Depends(get_storage_provider),
+    db: Session = Depends(get_db),
+    _: schemas.User = Depends(get_current_user),
+):
+    """Trigger manual ingest operation for a specific path.
+    
+    This endpoint can be used to:
+    - Re-ingest files with thumbnail/proxy regeneration
+    - Preserve existing metadata while regenerating media derivatives
+    - Force processing of previously processed files
+    
+    Args:
+        request: Ingest configuration including path and options
+        storage_provider: Storage provider instance
+        db: Database session
+        
+    Returns:
+        IngestResponse with operation result and queue count
+    """
+    try:
+        logger.info(f"Manual ingest requested for path: {request.path}, preserve_metadata: {request.preserve_metadata}, force_regenerate: {request.force_regenerate}")
+        
+        # Initialize repository and Redis for queueing
+        media_repo = MediaObjectRepository(db)
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_conn = redis.from_url(redis_url)
+        ingest_queue = Queue("ingest", connection=redis_conn)
+        
+        # Get directory listing from storage provider
+        items = storage_provider.list_directory(prefix=request.path if request.path else None)
+        
+        # Filter to only files (not folders)
+        files = [item for item in items if not item.is_folder]
+        
+        # Process discovered files: create MediaObjects and queue ingest tasks
+        newly_queued = 0
+        requeued_count = 0
+        
+        for file_item in files:
+            if not file_item.object_key:
+                continue
+                
+            # Check if it's a supported media file using dynamic processor registry
+            _, ext = os.path.splitext(file_item.object_key.lower())
+            if not is_extension_supported(ext):
+                continue
+                
+            # Parse file metadata
+            file_last_modified = None
+            if file_item.last_modified:
+                try:
+                    file_last_modified = datetime.fromisoformat(file_item.last_modified.replace('Z', '+00:00'))
+                except ValueError:
+                    logger.warning(f"Could not parse last_modified for {file_item.object_key}: {file_item.last_modified}")
+            
+            # Handle existing vs new objects based on preserve_metadata flag
+            if request.preserve_metadata:
+                # Check if object already exists
+                existing_obj = media_repo.get_by_object_key(file_item.object_key)
+                if existing_obj:
+                    # Object exists - only queue if force_regenerate is True
+                    if request.force_regenerate:
+                        try:
+                            job = ingest_queue.enqueue(ingest, file_item.object_key)
+                            logger.info(f"Requeued existing object for regeneration: {file_item.object_key} (job {job.id})")
+                            requeued_count += 1
+                            
+                            # Publish queued event
+                            media_obj_pydantic = existing_obj.to_pydantic()
+                            publish_queued_event(media_obj_pydantic)
+                            
+                        except Exception as e:
+                            logger.error(f"Failed to requeue ingest job for {file_item.object_key}: {e}")
+                    continue
+                else:
+                    # New object - create it and queue for processing
+                    media_obj, was_created = media_repo.create_sparse(
+                        object_key=file_item.object_key,
+                        file_size=file_item.size,
+                        file_mimetype=file_item.mimetype,
+                        file_last_modified=file_last_modified
+                    )
+            else:
+                # Not preserving metadata - create/update object normally
+                media_obj, was_created = media_repo.create_sparse(
+                    object_key=file_item.object_key,
+                    file_size=file_item.size,
+                    file_mimetype=file_item.mimetype,
+                    file_last_modified=file_last_modified
+                )
+            
+            # Queue for ingestion if we created the object or force_regenerate is True
+            should_queue = (media_obj and was_created) or (request.force_regenerate and media_obj)
+            
+            if should_queue and media_obj:
+                try:
+                    job = ingest_queue.enqueue(ingest, file_item.object_key)
+                    logger.info(f"Queued ingest job {job.id} for file: {file_item.object_key}")
+                    newly_queued += 1
+                    
+                    # Publish queued event with MediaObject data
+                    media_obj_pydantic = media_obj.to_pydantic()
+                    publish_queued_event(media_obj_pydantic)
+                    logger.debug(f"Published queued event for {media_obj.object_key}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to queue ingest job for {file_item.object_key}: {e}")
+        
+        total_queued = newly_queued + requeued_count
+        
+        if total_queued > 0:
+            logger.info(f"Manual ingest completed: {newly_queued} new files, {requeued_count} requeued files")
+            message = f"Queued {total_queued} files for processing"
+            if request.preserve_metadata:
+                message += " (preserving metadata)"
+            if request.force_regenerate:
+                message += " (forcing regeneration)"
+        else:
+            message = "No files found to process"
+            
+        return IngestResponse(
+            success=True,
+            message=message,
+            queued_count=total_queued
+        )
+        
+    except Exception as e:
+        logger.error(f"Error during manual ingest for path {request.path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger ingest: {str(e)}"
         )
