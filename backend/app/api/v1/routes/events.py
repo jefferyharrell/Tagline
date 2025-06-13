@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app import auth_schemas as schemas
-from app.auth_utils import get_current_user, get_current_admin
+from app.auth_utils import get_current_user
 from app.redis_events import INGEST_EVENTS_CHANNEL
 
 logger = logging.getLogger(__name__)

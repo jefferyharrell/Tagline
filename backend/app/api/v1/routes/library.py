@@ -47,7 +47,7 @@ def get_cache_key(path: Optional[str]) -> str:
     return f"dropbox_list:{path or 'root'}"
 
 
-def cache_directory_listing(redis_conn: redis.Redis, path: Optional[str], items: List, ttl: int = 300):
+def cache_directory_listing(redis_conn: redis.Redis, path: Optional[str], items: List, ttl: int = 86400 * 30):
     """Cache directory listing in Redis."""
     cache_key = get_cache_key(path)
     # Convert items to dict format for JSON serialization
@@ -92,7 +92,7 @@ def get_cached_directory_listing(redis_conn: redis.Redis, path: Optional[str]):
     return None
 
 
-async def prefetch_subfolders_async(storage_provider, redis_conn: redis.Redis, folders: List, ttl: int = 300):
+async def prefetch_subfolders_async(storage_provider, redis_conn: redis.Redis, folders: List, ttl: int = 86400 * 30):
     """Asynchronously prefetch and cache first-level subfolders."""
     import concurrent.futures
     
@@ -202,6 +202,7 @@ async def browse_library(
     path: Optional[str] = None,
     limit: int = 36,
     offset: int = 0,
+    refresh: bool = False,
     storage_provider: StorageProviderBase = Depends(get_storage_provider),
     db: Session = Depends(get_db),
     _: schemas.User = Depends(get_current_user),
@@ -215,6 +216,7 @@ async def browse_library(
         path: Directory path to browse (None for root)
         limit: Maximum number of media objects to return
         offset: Number of media objects to skip
+        refresh: If True, bypass cache and refresh from storage provider
         storage_provider: Storage provider instance
         db: Database session
         
@@ -233,16 +235,23 @@ async def browse_library(
         redis_conn = redis.from_url(redis_url)
         ingest_queue = Queue("ingest", connection=redis_conn)
         
-        # Try to get directory listing from cache first
-        cached_items = get_cached_directory_listing(redis_conn, path)
+        # Try to get directory listing from cache first (unless refresh is requested)
+        cached_items = None if refresh else get_cached_directory_listing(redis_conn, path)
         
         if cached_items:
             items = cached_items
             logger.info(f"Using cached directory listing for path: {path} ({len(items)} items)")
         else:
+            # Clear cache if refresh was requested
+            if refresh:
+                cache_key = get_cache_key(path)
+                redis_conn.delete(cache_key)
+                logger.info(f"Cleared cache for path: {path} due to refresh request")
+            
             # Get directory listing from storage provider and cache it
             items = storage_provider.list_directory(prefix=path)
-            cache_directory_listing(redis_conn, path, items, ttl=300)  # Cache for 5 minutes
+            # Use longer TTL for archived content (30 days)
+            cache_directory_listing(redis_conn, path, items, ttl=86400 * 30)
             logger.info(f"Fetched and cached directory listing for path: {path} ({len(items)} items)")
         
         # Separate folders and files
@@ -299,6 +308,36 @@ async def browse_library(
         # For root level, we pass None to get a special handling in the repository
         prefix_filter = f"{path}/" if path else None
         
+        # If refresh was requested, sync database with current Dropbox state
+        if refresh:
+            logger.info(f"🔄 REFRESH: Starting database sync for path: {path}")
+            
+            # Get current media objects in database for this path
+            existing_media_objects = media_repo.get_all(limit=10000, offset=0, prefix=prefix_filter)
+            existing_object_keys = {obj.object_key for obj in existing_media_objects}
+            logger.info(f"🔄 REFRESH: Found {len(existing_object_keys)} existing media objects in database")
+            logger.info(f"🔄 REFRESH: Existing keys: {list(existing_object_keys)}")
+            
+            # Get current files from Dropbox (already fetched above)
+            current_file_keys = {file_item.object_key for file_item in files if file_item.object_key}
+            logger.info(f"🔄 REFRESH: Found {len(current_file_keys)} files in Dropbox")
+            logger.info(f"🔄 REFRESH: Current Dropbox keys: {list(current_file_keys)}")
+            
+            # Find media objects that exist in database but not in Dropbox (deleted files)
+            deleted_keys = existing_object_keys - current_file_keys
+            logger.info(f"🔄 REFRESH: Keys to delete: {list(deleted_keys)}")
+            
+            if deleted_keys:
+                logger.info(f"🔄 REFRESH: Removing {len(deleted_keys)} deleted media objects from database")
+                for deleted_key in deleted_keys:
+                    try:
+                        success = media_repo.delete_by_object_key(deleted_key)
+                        logger.info(f"🔄 REFRESH: Delete result for {deleted_key}: {success}")
+                    except Exception as e:
+                        logger.error(f"🔄 REFRESH: Failed to delete media object {deleted_key}: {e}")
+            else:
+                logger.info(f"🔄 REFRESH: No media objects to delete")
+        
         # Get paginated MediaObjects
         media_objects = media_repo.get_all(
             limit=limit,
@@ -332,7 +371,7 @@ async def browse_library(
         if not path and folders:
             logger.info(f"At root level, starting presumptive prefetch for {len(folders)} subfolders")
             # Start background task to prefetch subfolders (don't await)
-            asyncio.create_task(prefetch_subfolders_async(storage_provider, redis_conn, folders))
+            asyncio.create_task(prefetch_subfolders_async(storage_provider, redis_conn, folders, ttl=86400 * 30))
         
         return BrowseResponse(
             folders=folder_responses,
