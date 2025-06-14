@@ -71,7 +71,7 @@ bounce:
     just up
 
 restart:
-    docker compose restart backend ingest-orchestrator ingest-worker
+    docker compose restart backend ingest-worker
 
 build:
     # Build Docker images

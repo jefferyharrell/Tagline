@@ -70,15 +70,18 @@ class MediaObjectRepository:
         try:
             logger.debug(f"Creating sparse MediaObject for key: {object_key}")
             
+            # Calculate path depth (number of '/' separators + 1)
+            path_depth = object_key.count('/') + 1
+            
             # Use raw SQL with ON CONFLICT DO NOTHING to avoid duplicate key errors
             result = self.db.execute(
                 text("""
                     INSERT INTO media_objects 
                     (object_key, ingestion_status, object_metadata, file_size, 
-                     file_mimetype, file_last_modified, created_at, updated_at)
+                     file_mimetype, file_last_modified, path_depth, created_at, updated_at)
                     VALUES 
                     (:object_key, :ingestion_status, CAST(:metadata AS jsonb), :file_size,
-                     :file_mimetype, :file_last_modified, :created_at, :updated_at)
+                     :file_mimetype, :file_last_modified, :path_depth, :created_at, :updated_at)
                     ON CONFLICT (object_key) DO NOTHING
                     RETURNING object_key
                 """),
@@ -89,6 +92,7 @@ class MediaObjectRepository:
                     "file_size": file_size,
                     "file_mimetype": file_mimetype,
                     "file_last_modified": file_last_modified,
+                    "path_depth": path_depth,
                     "created_at": dt.utcnow(),
                     "updated_at": dt.utcnow()
                 }
@@ -250,17 +254,20 @@ class MediaObjectRepository:
             
             # Apply prefix filter if provided
             if prefix is not None:
-                # For exact folder matching, we need to filter by prefix but exclude subfolders
-                # E.g., prefix="folder/" should match "folder/file.jpg" but not "folder/subfolder/file.jpg"
+                # Calculate expected path depth for this prefix
+                # prefix="folder/" should have path_depth = number of "/" in prefix + 1
+                expected_depth = prefix.count('/') + 1
+                
+                # Use optimized prefix matching with path depth filter
                 query = query.filter(
-                    ORMMediaObject.object_key.startswith(prefix)
+                    ORMMediaObject.object_key.like(f"{prefix}%")
                 ).filter(
-                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                    ORMMediaObject.path_depth == expected_depth
                 )
             else:
-                # For root level (prefix is None), only return files without any "/" in the path
+                # For root level (prefix is None), only return files with path_depth = 1
                 query = query.filter(
-                    ~ORMMediaObject.object_key.contains("/")
+                    ORMMediaObject.path_depth == 1
                 )
             
             # Natural sort using the indexed expression - should be fast now
@@ -393,17 +400,17 @@ class MediaObjectRepository:
             from sqlalchemy import func
             
             if prefix is not None:
-                # For exact folder matching, count files with prefix but exclude subfolders
-                # Use simple and fast operations
+                # Calculate expected path depth and use optimized counting
+                expected_depth = prefix.count('/') + 1
                 query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
                     ORMMediaObject.object_key.like(f"{prefix}%")
                 ).filter(
-                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                    ORMMediaObject.path_depth == expected_depth
                 )
             else:
-                # For root level (prefix is None), only count files without any "/" in the path
+                # For root level (prefix is None), only count files with path_depth = 1
                 query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
-                    ~ORMMediaObject.object_key.contains("/")
+                    ORMMediaObject.path_depth == 1
                 )
             
             total = query.scalar() or 0
