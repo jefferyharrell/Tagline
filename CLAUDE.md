@@ -319,6 +319,8 @@ Tagline includes a comprehensive user management system designed for administrat
 - `GET /v1/storage/browse`: Browse folders and files with auto-discovery
 - `GET /v1/folders/{path}`: Get folder structure at path (folders only)
 - `GET /v1/media/by-folder/{path}`: Get media objects in specific folder (non-recursive)
+- `GET /v1/diagnostics/health`: Detailed health check with timing and resource info
+- `GET /v1/diagnostics/detailed`: Comprehensive system diagnostics and performance metrics
 
 ### Frontend
 
@@ -471,26 +473,46 @@ For testing backend APIs directly without going through the frontend authenticat
 
 1. **Get authentication bypass token**:
 ```bash
+# Using curl
 TOKEN=$(curl -s -X POST "http://localhost:8000/v1/auth/bypass" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: dev-api-key-12345" \
   -d '{"email": "test@example.com"}' | jq -r '.access_token')
+
+# Using HTTPie (alternative)
+TOKEN=$(http POST localhost:8000/v1/auth/bypass \
+  Content-Type:application/json \
+  X-API-Key:dev-api-key-12345 \
+  email=test@example.com --print=b | jq -r '.access_token')
 ```
 
 2. **Use token in API calls**:
 ```bash
-# Test media objects
+# Test media objects (curl)
 curl -H "Authorization: Bearer $TOKEN" \
      -H "X-API-Key: dev-api-key-12345" \
      "http://localhost:8000/v1/media?limit=5"
 
-# Test storage browse
+# Test media objects (HTTPie)
+http GET localhost:8000/v1/media limit==5 \
+  Authorization:"Bearer $TOKEN" \
+  X-API-Key:dev-api-key-12345
+
+# Test storage browse (curl)
 curl -H "Authorization: Bearer $TOKEN" \
      -H "X-API-Key: dev-api-key-12345" \
      "http://localhost:8000/v1/storage/browse"
+
+# Test storage browse (HTTPie)
+http GET localhost:8000/v1/storage/browse \
+  Authorization:"Bearer $TOKEN" \
+  X-API-Key:dev-api-key-12345
 ```
 
-**Note**: Auth bypass only works when `AUTH_BYPASS_ENABLED=true` and the email is in `AUTH_BYPASS_EMAILS` environment variables.
+**Note**: 
+- Auth bypass only works when `AUTH_BYPASS_ENABLED=true` and the email is in `AUTH_BYPASS_EMAILS` environment variables
+- Both `curl` and `http`/`https` (HTTPie) commands are available for API testing
+- HTTPie often provides cleaner syntax for JSON APIs
 
 ## Database Management
 
@@ -578,6 +600,14 @@ The application runs in Docker containers orchestrated with Docker Compose.
 - Implement proper error handling with retry mechanisms
 - Create component specifications in `docs/component_specs/` for complex components
 
+### Backend Architecture Guidelines
+
+- **Streaming Responses**: Use FastAPI's native async streaming instead of creating new event loops
+- **Singleton Pattern**: Implement for expensive-to-create clients (storage, Redis, S3)
+- **Resource Management**: Always implement proper cleanup in `finally` blocks for streaming endpoints
+- **Long-running Processes**: Monitor resource accumulation over time, especially in containerized environments
+- **Event Loop Management**: Never create new event loops in FastAPI endpoints - reuse the existing one
+
 ### Current Component Architecture
 
 The frontend uses a modular component approach centered around the LibraryView component:
@@ -620,6 +650,56 @@ The frontend uses a modular component approach centered around the LibraryView c
 - Library pages (`/library`, `/library/[...path]`) use LibraryView directly
 - Component test pages available at `/components/*` for development
 - All components follow TypeScript strict mode with proper interfaces
+
+## Production Debugging & Performance
+
+### Resource Leak Prevention
+
+Tagline implements several patterns to prevent resource accumulation in long-running containers:
+
+**Singleton Patterns**:
+- `StorageProviderSingleton`: Prevents creating new Dropbox/filesystem clients per request
+- `S3BinaryStorage`: Reuses S3 client connections with proper pooling
+- `RedisEventPublisher`: Single Redis connection for pub/sub events
+- `Database Engine`: Connection pooling with NullPool for containerized environments
+
+**Known Issues & Solutions**:
+- **SSE Event Loops**: Fixed resource leak where SSE connections created new event loops
+- **Connection Accumulation**: Monitor Redis connections and implement connection TTL
+- **Memory Growth**: Use diagnostics endpoints to track resource usage over time
+
+### Performance Debugging Methodology
+
+For production slowness issues:
+
+1. **Isolate the problem scope**:
+   ```bash
+   # Test direct FastAPI endpoints vs routed endpoints
+   curl -w "Time: %{time_total}s\n" https://app.com/openapi.json
+   curl -w "Time: %{time_total}s\n" https://app.com/v1/health
+   ```
+
+2. **Check resource accumulation**:
+   ```bash
+   # Redis connections
+   redis-cli CLIENT LIST | wc -l
+   
+   # Use diagnostics endpoints
+   http GET localhost:8000/v1/diagnostics/detailed \
+     Authorization:"Bearer $TOKEN" X-API-Key:dev-api-key-12345
+   ```
+
+3. **Look for patterns**:
+   - Time-based degradation (hours/days)
+   - Route-specific vs global slowness
+   - Resource type (memory, connections, file descriptors)
+
+### UI Performance Considerations
+
+**PhotoThumbnail State Management**:
+- Tracks processing history to prevent UI flashing during ingestion
+- Continues showing spinner until image actually loads (prevents icon → spinner → icon → thumbnail flash)
+- Limits spinners to actively processing items plus recently completed items
 
 ## Stakeholder Context
 
