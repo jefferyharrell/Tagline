@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Image, Clock, Loader, CircleX } from "lucide-react";
 import { MediaObject } from "@/types/media";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,16 @@ export default function PhotoThumbnail({
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
+  const [wasEverProcessing, setWasEverProcessing] = useState(
+    media.ingestion_status === "pending" || media.ingestion_status === "processing"
+  );
+
+  // Track if this item ever enters processing state
+  useEffect(() => {
+    if (media.ingestion_status === "pending" || media.ingestion_status === "processing") {
+      setWasEverProcessing(true);
+    }
+  }, [media.ingestion_status]);
 
   // Get the appropriate icon based on ingestion status
   const getStatusIcon = (status: string) => {
@@ -72,7 +82,11 @@ export default function PhotoThumbnail({
 
   const isProcessing = media.ingestion_status === "pending" || media.ingestion_status === "processing";
   const shouldShowImage = media.has_thumbnail && !hasImageError && !isProcessing;
-  const shouldShowSkeleton = !shouldShowImage || !isImageLoaded;
+  
+  // Only show extended processing state for items that were actually processing and now need their image to load
+  const isWaitingForImageAfterProcessing = wasEverProcessing && media.ingestion_status === "completed" && media.has_thumbnail && !isImageLoaded && !hasImageError;
+  
+  const shouldShowSkeleton = !shouldShowImage || isWaitingForImageAfterProcessing;
 
   return (
     <a
@@ -94,10 +108,12 @@ export default function PhotoThumbnail({
             <Skeleton className="w-full h-full" />
             <div className="absolute inset-0 flex items-center justify-center">
               {(() => {
-                const IconComponent = getStatusIcon(media.ingestion_status || "completed");
+                // Show spinner ONLY if actively processing OR waiting for image after processing
+                const showSpinner = media.ingestion_status === "processing" || isWaitingForImageAfterProcessing;
+                const IconComponent = showSpinner ? Loader : getStatusIcon(media.ingestion_status || "completed");
                 return (
                   <IconComponent 
-                    className={`w-8 h-8 text-gray-300 ${media.ingestion_status === "processing" ? "animate-[spin_6s_linear_infinite]" : ""}`} 
+                    className={`w-8 h-8 text-gray-300 ${showSpinner ? "animate-[spin_6s_linear_infinite]" : ""}`} 
                     aria-hidden="true" 
                   />
                 );
