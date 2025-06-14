@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Home, AlertCircle, RefreshCw } from 'lucide-react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { Button } from '@/components/ui/button';
 import MobilePageHeader from './MobilePageHeader';
 import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
@@ -47,6 +48,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Infinite scrolling state
   const [hasMore, setHasMore] = useState(false);
@@ -55,7 +57,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Fetch data from API
-  const fetchData = useCallback(async (path: string[], isLoadMore = false) => {
+  const fetchData = useCallback(async (path: string[], isLoadMore = false, forceRefresh = false) => {
     if (isLoadMore) {
       setIsLoadingMore(true);
     } else {
@@ -73,14 +75,26 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     try {
       const pathString = path.join('/');
       const currentOffset = isLoadMore ? offsetRef.current : 0;
-      const url = `/api/library?path=${encodeURIComponent(pathString)}&offset=${currentOffset}&limit=100`;
-      const response = await fetch(url);
+      const url = new URL('/api/library', window.location.origin);
+      url.searchParams.set('path', pathString);
+      url.searchParams.set('offset', currentOffset.toString());
+      url.searchParams.set('limit', '100');
+      if (forceRefresh) {
+        url.searchParams.set('refresh', 'true');
+        console.log('📡 fetchData with forceRefresh - URL:', url.toString());
+      }
+      const response = await fetch(url.toString());
       
       if (!response.ok) {
         throw new Error(`Failed to load library: ${response.statusText}`);
       }
       
       const data: BrowseResponse = await response.json();
+      
+      if (forceRefresh) {
+        console.log('📡 Received refresh data - folders:', data.folders?.length, 'photos:', data.media_objects?.length);
+        console.log('📡 New folders:', data.folders?.map(f => f.name));
+      }
       
       if (isLoadMore) {
         // Append new photos to existing ones, but deduplicate by object_key
@@ -92,6 +106,9 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         offsetRef.current += 100;
       } else {
         // Replace photos and folders (initial load or path change)
+        if (forceRefresh) {
+          console.log('📡 Setting folders state to:', data.folders?.map(f => f.name));
+        }
         setFolders(data.folders || []);
         setPhotos(data.media_objects || []);
         offsetRef.current = 100;
@@ -248,6 +265,62 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     fetchData(currentPath);
   }, [currentPath, fetchData]);
   
+  // Handle refresh button click
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    
+    console.log('🔄 Refresh button clicked, currentPath:', currentPath);
+    setIsRefreshing(true);
+    try {
+      const pathString = currentPath.join('/');
+      console.log('🔄 Starting refresh for path:', pathString);
+      
+      // First, clear cache and reload from storage provider
+      console.log('🔄 Calling fetchData with forceRefresh=true');
+      await fetchData(currentPath, false, true);
+      console.log('🔄 fetchData completed');
+      
+      // Then trigger re-ingest for new content with metadata preservation
+      console.log('🔄 Triggering ingest...');
+      const response = await fetch('/api/library/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path: pathString }),
+      });
+      
+      console.log('🔄 Ingest response status:', response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('🔄 Ingest trigger failed:', response.statusText, errorText);
+        logger.warn(`Ingest trigger failed: ${response.statusText}`, 'LibraryView', {
+          path: pathString
+        });
+        // Don't throw - cache refresh is the important part
+      } else {
+        const result = await response.json();
+        console.log('🔄 Ingest result:', result);
+      }
+      
+      console.log('🔄 Folder refresh completed successfully');
+      logger.info('Folder refresh completed', 'LibraryView', {
+        path: pathString
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh folder';
+      console.error('🔄 Refresh failed:', err);
+      logger.error(`Refresh failed: ${errorMessage}`, 'LibraryView', {
+        path: currentPath.join('/'),
+        error: err
+      });
+      // TODO: Show error toast
+    } finally {
+      console.log('🔄 Setting isRefreshing to false');
+      setIsRefreshing(false);
+    }
+  }, [currentPath, fetchData, isRefreshing]);
+  
   // Render breadcrumb navigation
   const renderBreadcrumbs = () => (
     <Breadcrumb>
@@ -323,7 +396,20 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       
       {/* Breadcrumb Navigation */}
       <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-white">
-        {renderBreadcrumbs()}
+        <div className="flex items-center justify-between">
+          {renderBreadcrumbs()}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="ml-4 shrink-0"
+            aria-label="Refresh folder"
+            title="Refresh folder"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
       
       {/* Content Area */}

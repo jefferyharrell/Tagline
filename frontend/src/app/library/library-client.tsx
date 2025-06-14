@@ -260,9 +260,7 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
           setHasMore(data.has_more);
           
           // Identify pending media objects (those without thumbnails)
-          const pending = sanitizedItems.filter(obj => 
-            obj.ingestion_status === 'pending' || !obj.has_thumbnail
-          );
+          const pending = sanitizedItems.filter(obj => !obj.has_thumbnail);
           setPendingMediaObjects(pending);
           
           
@@ -591,8 +589,8 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
             >
               {/* Render media objects - both completed and pending */}
               {mediaObjects.map((media) => {
-                // Check if this media object is pending (no thumbnail)
-                const isPending = media.ingestion_status === 'pending' || !media.has_thumbnail;
+                // Check if this media object is pending (no thumbnail available)
+                const isPending = !media.has_thumbnail;
                 
                 if (isPending) {
                   // Show skeleton for pending media objects

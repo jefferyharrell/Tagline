@@ -122,8 +122,8 @@ export default function PhotoThumbnail({
           />
         )}
 
-        {/* Processing overlay - only show for items that have thumbnails but are still processing */}
-        {isProcessing && media.has_thumbnail && (
+        {/* Processing overlay - only show for items that are truly processing and don't have a usable thumbnail yet */}
+        {isProcessing && media.has_thumbnail && hasImageError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
             <div className="text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
               Processing...

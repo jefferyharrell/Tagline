@@ -51,6 +51,9 @@ class ORMMediaObject(Base):
     # Direct object keys for thumbnails and proxies (replaces media_binaries relationship)
     thumbnail_object_key = Column(String(255), nullable=True)
     proxy_object_key = Column(String(255), nullable=True)
+    
+    # Path depth for efficient folder filtering (number of '/' separators + 1)
+    path_depth = Column(Integer, nullable=False)
 
     def __repr__(self):
         return f"<OrmMediaObject(object_key={self.object_key}, status={self.ingestion_status})>"

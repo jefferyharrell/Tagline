@@ -47,7 +47,7 @@ def get_cache_key(path: Optional[str]) -> str:
     return f"dropbox_list:{path or 'root'}"
 
 
-def cache_directory_listing(redis_conn: redis.Redis, path: Optional[str], items: List, ttl: int = 300):
+def cache_directory_listing(redis_conn: redis.Redis, path: Optional[str], items: List, ttl: int = 86400 * 30):
     """Cache directory listing in Redis."""
     cache_key = get_cache_key(path)
     # Convert items to dict format for JSON serialization
@@ -92,7 +92,7 @@ def get_cached_directory_listing(redis_conn: redis.Redis, path: Optional[str]):
     return None
 
 
-async def prefetch_subfolders_async(storage_provider, redis_conn: redis.Redis, folders: List, ttl: int = 300):
+async def prefetch_subfolders_async(storage_provider, redis_conn: redis.Redis, folders: List, ttl: int = 86400 * 30):
     """Asynchronously prefetch and cache first-level subfolders."""
     import concurrent.futures
     
@@ -202,6 +202,7 @@ async def browse_library(
     path: Optional[str] = None,
     limit: int = 36,
     offset: int = 0,
+    refresh: bool = False,
     storage_provider: StorageProviderBase = Depends(get_storage_provider),
     db: Session = Depends(get_db),
     _: schemas.User = Depends(get_current_user),
@@ -215,6 +216,7 @@ async def browse_library(
         path: Directory path to browse (None for root)
         limit: Maximum number of media objects to return
         offset: Number of media objects to skip
+        refresh: If True, bypass cache and refresh from storage provider
         storage_provider: Storage provider instance
         db: Database session
         
@@ -233,63 +235,79 @@ async def browse_library(
         redis_conn = redis.from_url(redis_url)
         ingest_queue = Queue("ingest", connection=redis_conn)
         
-        # Try to get directory listing from cache first
-        cached_items = get_cached_directory_listing(redis_conn, path)
+        # Try to get directory listing from cache first (unless refresh is requested)
+        cached_items = None if refresh else get_cached_directory_listing(redis_conn, path)
         
         if cached_items:
             items = cached_items
             logger.info(f"Using cached directory listing for path: {path} ({len(items)} items)")
         else:
+            # Clear cache if refresh was requested
+            if refresh:
+                cache_key = get_cache_key(path)
+                redis_conn.delete(cache_key)
+                logger.info(f"Cleared cache for path: {path} due to refresh request")
+            
             # Get directory listing from storage provider and cache it
             items = storage_provider.list_directory(prefix=path)
-            cache_directory_listing(redis_conn, path, items, ttl=300)  # Cache for 5 minutes
+            # Use longer TTL for archived content (30 days)
+            cache_directory_listing(redis_conn, path, items, ttl=86400 * 30)
             logger.info(f"Fetched and cached directory listing for path: {path} ({len(items)} items)")
         
         # Separate folders and files
+        separation_start = time.time()
         folders = [item for item in items if item.is_folder]
         files = [item for item in items if not item.is_folder]
+        separation_time = time.time() - separation_start
+        logger.info(f"📊 Folder/file separation took {separation_time:.3f}s for {len(items)} items")
         
         # Process discovered files: create MediaObjects and queue ingest tasks
+        # Only process files if we got a fresh directory listing (not cached)
+        processing_start = time.time()
         newly_queued = 0
-        for file_item in files:
-            if not file_item.object_key:
-                continue
-                
-            # Check if it's a supported media file using dynamic processor registry
-            _, ext = os.path.splitext(file_item.object_key.lower())
-            if not is_extension_supported(ext):
-                continue
-                
-            # Parse file metadata
-            file_last_modified = None
-            if file_item.last_modified:
-                try:
-                    file_last_modified = datetime.fromisoformat(file_item.last_modified.replace('Z', '+00:00'))
-                except ValueError:
-                    logger.warning(f"Could not parse last_modified for {file_item.object_key}: {file_item.last_modified}")
-            
-            # Create sparse MediaObject record (with ON CONFLICT DO NOTHING behavior)
-            media_obj, was_created = media_repo.create_sparse(
-                object_key=file_item.object_key,
-                file_size=file_item.size,
-                file_mimetype=file_item.mimetype,
-                file_last_modified=file_last_modified
-            )
-            
-            # Only queue for ingestion if we actually created the object
-            if media_obj and was_created:
-                try:
-                    job = ingest_queue.enqueue(ingest, media_obj.object_key)
-                    logger.info(f"Queued ingest job {job.id} for newly discovered file: {file_item.object_key}")
-                    newly_queued += 1
+        if cached_items is None:  # Only process files when fetching fresh data
+            for file_item in files:
+                if not file_item.object_key:
+                    continue
                     
-                    # Publish queued event with MediaObject data
-                    media_obj_pydantic = media_obj.to_pydantic()
-                    publish_queued_event(media_obj_pydantic)
-                    logger.debug(f"Published queued event for {media_obj.object_key}")
+                # Check if it's a supported media file using dynamic processor registry
+                _, ext = os.path.splitext(file_item.object_key.lower())
+                if not is_extension_supported(ext):
+                    continue
                     
-                except Exception as e:
-                    logger.error(f"Failed to queue ingest job for {file_item.object_key}: {e}")
+                # Parse file metadata
+                file_last_modified = None
+                if file_item.last_modified:
+                    try:
+                        file_last_modified = datetime.fromisoformat(file_item.last_modified.replace('Z', '+00:00'))
+                    except ValueError:
+                        logger.warning(f"Could not parse last_modified for {file_item.object_key}: {file_item.last_modified}")
+                
+                # Create sparse MediaObject record (with ON CONFLICT DO NOTHING behavior)
+                media_obj, was_created = media_repo.create_sparse(
+                    object_key=file_item.object_key,
+                    file_size=file_item.size,
+                    file_mimetype=file_item.mimetype,
+                    file_last_modified=file_last_modified
+                )
+                
+                # Only queue for ingestion if we actually created the object
+                if media_obj and was_created:
+                    try:
+                        job = ingest_queue.enqueue(ingest, media_obj.object_key)
+                        logger.info(f"Queued ingest job {job.id} for newly discovered file: {file_item.object_key}")
+                        newly_queued += 1
+                        
+                        # Publish queued event with MediaObject data
+                        media_obj_pydantic = media_obj.to_pydantic()
+                        publish_queued_event(media_obj_pydantic)
+                        logger.debug(f"Published queued event for {media_obj.object_key}")
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to queue ingest job for {file_item.object_key}: {e}")
+        
+        processing_time = time.time() - processing_start
+        logger.info(f"📊 File processing took {processing_time:.3f}s for {len(files)} files")
         
         if newly_queued > 0:
             logger.info(f"Queued {newly_queued} new files for ingestion")
@@ -299,15 +317,51 @@ async def browse_library(
         # For root level, we pass None to get a special handling in the repository
         prefix_filter = f"{path}/" if path else None
         
+        # If refresh was requested, sync database with current Dropbox state
+        if refresh:
+            logger.info(f"🔄 REFRESH: Starting database sync for path: {path}")
+            
+            # Get current media objects in database for this path
+            existing_media_objects = media_repo.get_all(limit=10000, offset=0, prefix=prefix_filter)
+            existing_object_keys = {obj.object_key for obj in existing_media_objects}
+            logger.info(f"🔄 REFRESH: Found {len(existing_object_keys)} existing media objects in database")
+            logger.info(f"🔄 REFRESH: Existing keys: {list(existing_object_keys)}")
+            
+            # Get current files from Dropbox (already fetched above)
+            current_file_keys = {file_item.object_key for file_item in files if file_item.object_key}
+            logger.info(f"🔄 REFRESH: Found {len(current_file_keys)} files in Dropbox")
+            logger.info(f"🔄 REFRESH: Current Dropbox keys: {list(current_file_keys)}")
+            
+            # Find media objects that exist in database but not in Dropbox (deleted files)
+            deleted_keys = existing_object_keys - current_file_keys
+            logger.info(f"🔄 REFRESH: Keys to delete: {list(deleted_keys)}")
+            
+            if deleted_keys:
+                logger.info(f"🔄 REFRESH: Removing {len(deleted_keys)} deleted media objects from database")
+                for deleted_key in deleted_keys:
+                    try:
+                        success = media_repo.delete_by_object_key(deleted_key)
+                        logger.info(f"🔄 REFRESH: Delete result for {deleted_key}: {success}")
+                    except Exception as e:
+                        logger.error(f"🔄 REFRESH: Failed to delete media object {deleted_key}: {e}")
+            else:
+                logger.info(f"🔄 REFRESH: No media objects to delete")
+        
         # Get paginated MediaObjects
+        query_start = time.time()
         media_objects = media_repo.get_all(
             limit=limit,
             offset=offset,
             prefix=prefix_filter
         )
+        query_time = time.time() - query_start
+        logger.info(f"📊 Media objects query took {query_time:.3f}s, returned {len(media_objects)} objects")
         
         # Get total count for pagination
+        count_start = time.time()
         total_count = media_repo.count(prefix=prefix_filter)
+        count_time = time.time() - count_start
+        logger.info(f"📊 Count query took {count_time:.3f}s, total: {total_count}")
         
         # Convert to response models
         folder_responses = [
@@ -323,16 +377,22 @@ async def browse_library(
         ]
         
         # Convert MediaObjectRecords to Pydantic models
+        pydantic_start = time.time()
         media_object_responses = [obj.to_pydantic() for obj in media_objects]
+        pydantic_time = time.time() - pydantic_start
+        logger.info(f"📊 Pydantic conversion took {pydantic_time:.3f}s for {len(media_objects)} objects")
         
         end_time = time.time()
         logger.info(f"Browse complete: {len(folders)} folders, {len(media_object_responses)} media objects returned in {end_time - start_time:.2f}s")
         
         # Presumptive caching: If at root level (no path), prefetch first-level subfolders
+        prefetch_start = time.time()
         if not path and folders:
             logger.info(f"At root level, starting presumptive prefetch for {len(folders)} subfolders")
             # Start background task to prefetch subfolders (don't await)
-            asyncio.create_task(prefetch_subfolders_async(storage_provider, redis_conn, folders))
+            asyncio.create_task(prefetch_subfolders_async(storage_provider, redis_conn, folders, ttl=86400 * 30))
+        prefetch_time = time.time() - prefetch_start
+        logger.info(f"📊 Prefetch setup took {prefetch_time:.3f}s")
         
         return BrowseResponse(
             folders=folder_responses,

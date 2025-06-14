@@ -70,15 +70,18 @@ class MediaObjectRepository:
         try:
             logger.debug(f"Creating sparse MediaObject for key: {object_key}")
             
+            # Calculate path depth (number of '/' separators + 1)
+            path_depth = object_key.count('/') + 1
+            
             # Use raw SQL with ON CONFLICT DO NOTHING to avoid duplicate key errors
             result = self.db.execute(
                 text("""
                     INSERT INTO media_objects 
                     (object_key, ingestion_status, object_metadata, file_size, 
-                     file_mimetype, file_last_modified, created_at, updated_at)
+                     file_mimetype, file_last_modified, path_depth, created_at, updated_at)
                     VALUES 
                     (:object_key, :ingestion_status, CAST(:metadata AS jsonb), :file_size,
-                     :file_mimetype, :file_last_modified, :created_at, :updated_at)
+                     :file_mimetype, :file_last_modified, :path_depth, :created_at, :updated_at)
                     ON CONFLICT (object_key) DO NOTHING
                     RETURNING object_key
                 """),
@@ -89,6 +92,7 @@ class MediaObjectRepository:
                     "file_size": file_size,
                     "file_mimetype": file_mimetype,
                     "file_last_modified": file_last_modified,
+                    "path_depth": path_depth,
                     "created_at": dt.utcnow(),
                     "updated_at": dt.utcnow()
                 }
@@ -250,17 +254,20 @@ class MediaObjectRepository:
             
             # Apply prefix filter if provided
             if prefix is not None:
-                # For exact folder matching, we need to filter by prefix but exclude subfolders
-                # E.g., prefix="folder/" should match "folder/file.jpg" but not "folder/subfolder/file.jpg"
+                # Calculate expected path depth for this prefix
+                # prefix="folder/" should have path_depth = number of "/" in prefix + 1
+                expected_depth = prefix.count('/') + 1
+                
+                # Use optimized prefix matching with path depth filter
                 query = query.filter(
-                    ORMMediaObject.object_key.startswith(prefix)
+                    ORMMediaObject.object_key.like(f"{prefix}%")
                 ).filter(
-                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                    ORMMediaObject.path_depth == expected_depth
                 )
             else:
-                # For root level (prefix is None), only return files without any "/" in the path
+                # For root level (prefix is None), only return files with path_depth = 1
                 query = query.filter(
-                    ~ORMMediaObject.object_key.contains("/")
+                    ORMMediaObject.path_depth == 1
                 )
             
             # Natural sort using the indexed expression - should be fast now
@@ -393,17 +400,17 @@ class MediaObjectRepository:
             from sqlalchemy import func
             
             if prefix is not None:
-                # For exact folder matching, count files with prefix but exclude subfolders
-                # Use simple and fast operations
+                # Calculate expected path depth and use optimized counting
+                expected_depth = prefix.count('/') + 1
                 query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
                     ORMMediaObject.object_key.like(f"{prefix}%")
                 ).filter(
-                    ~ORMMediaObject.object_key.like(f"{prefix}%/%")
+                    ORMMediaObject.path_depth == expected_depth
                 )
             else:
-                # For root level (prefix is None), only count files without any "/" in the path
+                # For root level (prefix is None), only count files with path_depth = 1
                 query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
-                    ~ORMMediaObject.object_key.contains("/")
+                    ORMMediaObject.path_depth == 1
                 )
             
             total = query.scalar() or 0
@@ -684,3 +691,55 @@ class MediaObjectRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error getting subfolders with prefix {prefix}: {e}")
             return []
+
+    def delete_by_object_key(self, object_key: str) -> bool:
+        """Delete a MediaObject by its object_key, including S3 cleanup.
+        
+        Args:
+            object_key: The object key of the MediaObject to delete
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            logger.debug(f"Deleting MediaObject with object_key: {object_key}")
+            
+            # First, get the media object to check for S3 keys
+            orm_obj = self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+            
+            if not orm_obj:
+                logger.debug(f"No MediaObject found to delete with object_key: {object_key}")
+                return False
+            
+            # Clean up S3 objects if they exist
+            try:
+                from app.dependencies import get_s3_binary_storage
+                s3_storage = get_s3_binary_storage()
+                
+                # Delete thumbnail and proxy from S3
+                s3_storage.delete_binaries(object_key)
+                logger.info(f"Cleaned up S3 binaries for: {object_key}")
+                
+            except Exception as e:
+                # Log S3 cleanup failure but don't fail the whole operation
+                logger.warning(f"Failed to cleanup S3 binaries for {object_key}: {e}")
+            
+            # Delete the database record
+            deleted_count = (
+                self.db.query(ORMMediaObject)
+                .filter_by(object_key=object_key)
+                .delete()
+            )
+            
+            if deleted_count > 0:
+                self.db.commit()
+                logger.info(f"Successfully deleted MediaObject and S3 binaries: {object_key}")
+                return True
+            else:
+                logger.debug(f"No MediaObject found to delete with object_key: {object_key}")
+                return False
+                
+        except SQLAlchemyError as e:
+            logger.error(f"Database error deleting MediaObject {object_key}: {e}")
+            self.db.rollback()
+            return False
