@@ -182,19 +182,10 @@ async def stream_ingest_events(
         since: ISO timestamp - only send events after this time (for reconnection)
     """
     
-    def generate_events():
-        """Synchronous wrapper for the async generator."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            async_gen = get_ingest_events(since_timestamp=since)
-            while True:
-                try:
-                    yield loop.run_until_complete(async_gen.__anext__())
-                except StopAsyncIteration:
-                    break
-        finally:
-            loop.close()
+    async def generate_events():
+        """Async generator that properly reuses the existing event loop."""
+        async for event in get_ingest_events(since_timestamp=since):
+            yield f"{event}\n"
 
     return StreamingResponse(
         generate_events(),
