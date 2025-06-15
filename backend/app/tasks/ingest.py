@@ -5,7 +5,7 @@ from typing import Dict, Any
 # Import only lightweight dependencies at startup
 from app.config import get_settings
 from app.schemas import StoredMediaObject
-from app.json_logging import get_context_logger
+from app.structlog_config import get_context_logger
 
 # Heavy dependencies imported lazily:
 # - S3BinaryStorage/boto3 (AWS SDK ~100-200MB)  
@@ -31,20 +31,20 @@ async def ingest(object_key: str) -> bool:
     # Configure JSON logging for this worker process if not already done
     global logger
     if not hasattr(logging.getLogger(), '_json_configured'):
-        from app.json_logging import setup_json_logging
+        from app.structlog_config import setup_json_logging
         setup_json_logging(service_name="tagline-ingest-worker")
         logging.getLogger()._json_configured = True
     
     # Create a fresh logger instance for this job to avoid context pollution
-    from app.json_logging import get_context_logger
-    job_logger = get_context_logger(__name__)
+    from app.structlog_config import get_job_logger
     
     # Start timing the entire job
     job_start_time = time.time()
     job_id = f"ingest-{int(job_start_time)}-{object_key.replace('/', '-')}"
     
-    # Set persistent context for this job
-    job_logger.add_context(
+    # Create logger with job context
+    job_logger = get_job_logger(
+        __name__,
         job_id=job_id,
         file_path=object_key,
         operation="ingest"
@@ -68,11 +68,11 @@ async def ingest(object_key: str) -> bool:
         # Update status to processing
         db_start = time.time()
         if not repo.update_ingestion_status(object_key, IngestionStatus.PROCESSING.value):
-            job_job_logger.error("MediaObject not found", 
+            job_logger.error("MediaObject not found", 
                        operation="db_update_status",
                        status="not_found")
             return False
-        job_job_logger.info("Updated ingestion status to processing",
+        job_logger.info("Updated ingestion status to processing",
                    operation="db_update_status", 
                    duration_ms=(time.time() - db_start) * 1000)
 

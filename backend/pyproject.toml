@@ -29,6 +29,8 @@ dependencies = [
     "python-multipart>=0.0.5",
     "slowapi>=0.1.9",
     "psutil>=5.9.0",
+    "structlog>=25.4.0",
+    "orjson>=3.9.0",
 ]
 
 [tool.pytest.ini_options]

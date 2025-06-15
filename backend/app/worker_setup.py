@@ -1,45 +1,44 @@
 """
-Worker startup configuration for JSON logging.
+Worker startup configuration for structured logging.
 
 This module configures the logging system for RQ workers to use
-JSON structured logging when processing ingest tasks.
+structlog for high-performance structured logging when processing ingest tasks.
 """
 
 import logging
 import os
 import sys
 
-from app.json_logging import setup_json_logging
+from app.structlog_config import configure_structlog, get_logger
 
 
 def configure_worker_logging():
     """
-    Configure JSON logging for RQ workers.
+    Configure structlog for RQ workers.
     
     This should be called when the worker starts up to ensure
-    all log output uses structured JSON format.
+    all log output uses high-performance structured logging.
     """
     # Get log level from environment or default to INFO
     log_level_str = os.getenv("LOG_LEVEL", "INFO")
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
     
-    # Set up JSON logging with ingest-worker service name
-    setup_json_logging(
+    # Set up structlog with ingest-worker service name
+    configure_structlog(
         service_name="tagline-ingest-worker",
-        log_level=log_level
+        log_level=log_level,
+        development_mode=False  # Always use JSON output for workers
     )
     
     # Log startup message
-    logger = logging.getLogger(__name__)
-    logger.info("Ingest worker started with JSON logging configured",
-                extra={
-                    "operation": "worker_startup",
-                    "log_level": log_level_str,
-                    "pid": os.getpid()
-                })
+    logger = get_logger(__name__)
+    logger.info("Ingest worker started with structlog configured",
+                operation="worker_startup",
+                log_level=log_level_str,
+                pid=os.getpid())
     
     # Also print to stderr to verify it's being called
-    print(f"JSON logging configured at level {log_level_str}", file=sys.stderr)
+    print(f"Structlog configured at level {log_level_str}", file=sys.stderr)
 
 
 if __name__ == "__main__":
