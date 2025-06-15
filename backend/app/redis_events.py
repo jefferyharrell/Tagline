@@ -5,7 +5,6 @@ This module provides functionality to publish real-time ingest events
 to Redis pub/sub channels for consumption by SSE endpoints.
 """
 
-import logging
 import os
 from datetime import datetime, timezone
 from typing import Literal, Optional
@@ -14,8 +13,9 @@ import redis
 from pydantic import BaseModel
 
 from app.schemas import MediaObject
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Event types
 EventType = Literal["queued", "started", "complete"]
@@ -55,9 +55,18 @@ class RedisEventPublisher:
             self._redis_conn = redis.from_url(redis_url)
             # Test the connection
             self._redis_conn.ping()
-            logger.info(f"Redis event publisher connected to {redis_url}")
+            logger.info(
+                "Redis event publisher connected",
+                operation="redis_connect",
+                redis_url=redis_url
+            )
         except Exception as e:
-            logger.error(f"Failed to connect to Redis for event publishing: {e}")
+            logger.error(
+                "Failed to connect to Redis for event publishing",
+                operation="redis_connect",
+                error=str(e),
+                error_type=type(e).__name__
+            )
             self._redis_conn = None
 
     def _ensure_connected(self) -> bool:
@@ -70,7 +79,11 @@ class RedisEventPublisher:
             self._redis_conn.ping()
             return True
         except redis.ConnectionError:
-            logger.warning("Redis connection lost, attempting to reconnect...")
+            logger.warning(
+                "Redis connection lost, attempting to reconnect",
+                operation="redis_reconnect",
+                error_type="redis_connection_error"
+            )
             self._connect()
             return self._redis_conn is not None
 
@@ -92,7 +105,13 @@ class RedisEventPublisher:
             bool: True if event was published successfully, False otherwise
         """
         if not self._ensure_connected():
-            logger.error("Cannot publish event: Redis connection failed")
+            logger.error(
+                "Cannot publish event: Redis connection failed",
+                operation="publish_event",
+                event_type=event_type,
+                object_key=media_object.object_key,
+                error_type="redis_connection_failed"
+            )
             return False
 
         try:
@@ -113,15 +132,23 @@ class RedisEventPublisher:
             )
 
             logger.info(
-                f"Published {event_type} event for {media_object.object_key} "
-                f"to {subscriber_count} subscribers"
+                "Published event to subscribers",
+                operation="publish_event",
+                event_type=event_type,
+                object_key=media_object.object_key,
+                subscriber_count=subscriber_count
             )
 
             return True
 
         except Exception as e:
             logger.error(
-                f"Failed to publish {event_type} event for {media_object.object_key}: {e}"
+                "Failed to publish event",
+                operation="publish_event",
+                event_type=event_type,
+                object_key=media_object.object_key,
+                error=str(e),
+                error_type=type(e).__name__
             )
             return False
 

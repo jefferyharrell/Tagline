@@ -6,7 +6,6 @@ This module provides API endpoints for:
 - Echoing them to backend stdout for debugging
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import List, Literal
 
@@ -15,8 +14,9 @@ from pydantic import BaseModel
 
 from app import auth_schemas as schemas
 from app.auth_utils import get_current_user
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 

@@ -1,4 +1,3 @@
-import logging
 from io import BytesIO
 from typing import Any
 
@@ -7,8 +6,9 @@ from PIL import Image
 from app.media_processing.base import MediaProcessor
 from app.media_processing.factory import register_processor
 from app.schemas import StoredMediaObject
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Explicitly register pillow-heif plugin for HEIC/HEIF support
 try:
@@ -22,7 +22,12 @@ except ImportError:
         "pillow-heif is not installed; HEIC/HEIF images will not be supported."
     )
 except Exception as e:
-    logger.error(f"Failed to register pillow-heif HEIF opener: {e}")
+    logger.error(
+        "Failed to register pillow-heif HEIF opener",
+        operation="heif_register",
+        error=str(e),
+        error_type=type(e).__name__
+    )
 
 
 @register_processor
@@ -41,7 +46,11 @@ class HEICProcessor(MediaProcessor):
     ) -> tuple[bytes, str]:
         """Generate a thumbnail for HEIC images using the default logic, ensuring pillow-heif is registered."""
         logger.debug(
-            f"Generating thumbnail for HEIC image, size={size}, fmt={fmt}, quality={quality}"
+            "Generating thumbnail for HEIC image",
+            operation="generate_thumbnail",
+            size=size,
+            format=fmt,
+            quality=quality
         )
         # pillow-heif registration should already be handled at module load
         return await super().generate_thumbnail(
@@ -83,8 +92,10 @@ class HEICProcessor(MediaProcessor):
             # Log the stream details for debugging
             stream_content = stream.read()
             logger.debug(
-                f"HEIC stream details for {self.stored_media_object.object_key}: "
-                f"Length={len(stream_content)} bytes"
+                "Reading HEIC stream content",
+                operation="extract_metadata",
+                object_key=self.stored_media_object.object_key,
+                content_length=len(stream_content)
             )
 
             # Recreate stream after reading
@@ -96,12 +107,19 @@ class HEICProcessor(MediaProcessor):
                 metadata["mode"] = img.mode
                 metadata["format"] = img.format
                 logger.debug(
-                    f"Extracted HEIC metadata for {self.stored_media_object.object_key}: "
-                    f"W={metadata.get('width')}, H={metadata.get('height')}"
+                    "Extracted HEIC metadata",
+                    operation="extract_metadata",
+                    object_key=self.stored_media_object.object_key,
+                    width=metadata.get("width"),
+                    height=metadata.get("height")
                 )
         except Exception as e:
             logger.exception(
-                f"Pillow/HEIF failed to process {self.stored_media_object.object_key}: {e}"
+                "Pillow/HEIF failed to process image",
+                operation="extract_metadata",
+                object_key=self.stored_media_object.object_key,
+                error=str(e),
+                error_type=type(e).__name__
             )
             return {}
         return metadata

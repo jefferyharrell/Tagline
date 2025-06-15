@@ -101,7 +101,11 @@ def ensure_administrator_role(user, email: str, db: Session, settings: Settings)
         admin_role = role_repo.get_by_name("administrator")
         if admin_role and not any(role.name == "administrator" for role in user.roles):
             user.roles.append(admin_role)
-            logger.info(f"Assigned administrator role to {email}")
+            logger.info(
+                "Assigned administrator role",
+                operation="ensure_administrator_role",
+                email=email
+            )
             return True
     return False
 
@@ -177,7 +181,11 @@ async def authenticate_user(
 ):
     """Authenticate a user with a Stytch token"""
     # Log debugging info
-    logger.info(f"Authenticating with token: {auth_data.token[:10]}...")
+    logger.info(
+        "Authenticating with token",
+        operation="authenticate_user",
+        token_prefix=auth_data.token[:10]
+    )
 
     # Validate the Stytch token
     try:
@@ -186,16 +194,34 @@ async def authenticate_user(
             auth_response = stytch_client.magic_links.authenticate(
                 token=auth_data.token, session_token=auth_data.session_token
             )
-            logger.info("Magic link authentication successful")
+            logger.info(
+                "Magic link authentication successful",
+                operation="authenticate_user",
+                auth_method="magic_link"
+            )
         except Exception as e:
             # If magic link auth fails, try OAuth tokens
-            logger.info(f"Magic link auth failed, trying OAuth: {str(e)}")
+            logger.info(
+                "Magic link auth failed, trying OAuth",
+                operation="authenticate_user",
+                auth_method="oauth_fallback",
+                error=str(e)
+            )
             auth_response = stytch_client.oauth.authenticate(
                 token=auth_data.token, session_token=auth_data.session_token
             )
-            logger.info("OAuth authentication successful")
+            logger.info(
+                "OAuth authentication successful",
+                operation="authenticate_user",
+                auth_method="oauth"
+            )
     except Exception as e:
-        logger.error(f"Stytch authentication error: {e}")
+        logger.error(
+            "Stytch authentication error",
+            operation="authenticate_user",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token",
@@ -206,7 +232,12 @@ async def authenticate_user(
         user_data = stytch_client.users.get(user_id=auth_response.user_id)
         email = user_data.emails[0].email
     except Exception as e:
-        logger.error(f"Error retrieving user data from Stytch: {e}")
+        logger.error(
+            "Error retrieving user data from Stytch",
+            operation="authenticate_user",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error retrieving user data",
@@ -230,12 +261,20 @@ async def authenticate_user(
 
         if user:
             # Update existing user with new Stytch ID
-            logger.info(f"Updating existing user {email} with new Stytch ID")
+            logger.info(
+                "Updating existing user with new Stytch ID",
+                operation="authenticate_user",
+                email=email
+            )
             user.stytch_user_id = auth_response.user_id
             db.commit()
         else:
             # Create new user if doesn't exist by either method
-            logger.info(f"Creating new user with email {email}")
+            logger.info(
+                "Creating new user",
+                operation="authenticate_user",
+                email=email
+            )
             user = user_repo.create(email=email, stytch_user_id=auth_response.user_id)
 
             # Setup user with default roles
@@ -604,7 +643,11 @@ async def sync_users(
 
     if not admin_in_data:
         # Add warning but don't block
-        logger.warning(f"Current admin {admin_email} not found with admin role in data")
+        logger.warning(
+            "Current admin not found with admin role in data",
+            operation="sync_users",
+            admin_email=admin_email
+        )
 
     # Perform the sync
     user_repo = UserRepository(db)
@@ -626,13 +669,19 @@ async def sync_users(
                     # Rollback this specific transaction and continue
                     db.rollback()
                     logger.warning(
-                        f"Email {user['email']} already exists in eligible_emails"
+                        "Email already exists in eligible_emails",
+                        operation="sync_users",
+                        email=user["email"]
                     )
                 except Exception as e:
                     # Handle other potential errors
                     db.rollback()
                     logger.error(
-                        f"Error adding email {user['email']} to eligible_emails: {str(e)}"
+                        "Error adding email to eligible_emails",
+                        operation="sync_users",
+                        email=user["email"],
+                        error=str(e),
+                        error_type=type(e).__name__
                     )
 
         warnings = []
@@ -650,7 +699,12 @@ async def sync_users(
         )
 
     except Exception as e:
-        logger.error(f"Error during sync: {str(e)}")
+        logger.error(
+            "Error during sync",
+            operation="sync_users",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error during sync: {str(e)}",

@@ -14,7 +14,11 @@ _PROCESSOR_REGISTRY: set[Type[MediaProcessor]] = set()
 
 def register_processor(processor_cls: Type[MediaProcessor]):
     """Registers a media processor class. Can be used as a decorator."""
-    logger.debug(f"Registering processor: {processor_cls.__name__}")
+    logger.debug(
+        "Registering media processor",
+        operation="register_processor",
+        processor_class=processor_cls.__name__
+    )
     _PROCESSOR_REGISTRY.add(processor_cls)
     return processor_cls
 
@@ -24,13 +28,27 @@ def is_mimetype_supported(mimetype: str) -> bool:
     # Ensure processors are loaded before checking
     _ensure_processors_loaded()
 
-    logger.debug(f"Checking if mimetype '{mimetype}' is supported.")
-    logger.debug(f"Current registry: {_PROCESSOR_REGISTRY}")
+    logger.debug(
+        "Checking mimetype support",
+        operation="is_mimetype_supported",
+        mimetype=mimetype
+    )
+    logger.debug(
+        "Current processor registry",
+        operation="is_mimetype_supported",
+        registry_size=len(_PROCESSOR_REGISTRY),
+        processors=[cls.__name__ for cls in _PROCESSOR_REGISTRY]
+    )
     supported = any(
         processor_cls.handles_mimetype(mimetype)
         for processor_cls in _PROCESSOR_REGISTRY
     )
-    logger.debug(f"Mimetype '{mimetype}' supported: {supported}")
+    logger.debug(
+        "Mimetype support check result",
+        operation="is_mimetype_supported",
+        mimetype=mimetype,
+        supported=supported
+    )
     return supported
 
 
@@ -85,7 +103,10 @@ def get_supported_extensions() -> Set[str]:
                     supported_extensions.update(ext.lower() for ext in extensions)
 
     logger.debug(
-        f"Dynamically determined supported extensions: {sorted(supported_extensions)}"
+        "Dynamically determined supported extensions",
+        operation="get_supported_extensions",
+        extensions=sorted(supported_extensions),
+        extension_count=len(supported_extensions)
     )
     return supported_extensions
 
@@ -110,30 +131,67 @@ def is_extension_supported(file_extension: str) -> bool:
 def _ensure_processors_loaded():
     """Lazily load processor modules to avoid heavy imports at worker startup."""
     if len(_PROCESSOR_REGISTRY) == 0:
-        logger.debug("Lazy-loading media processors...")
+        logger.debug(
+            "Lazy-loading media processors",
+            operation="_ensure_processors_loaded"
+        )
         # Import processor modules here to trigger registration
         try:
             from app.media_processing import jpegprocessor  # noqa: F401
 
-            logger.debug("Loaded JPEG processor")
+            logger.debug(
+                "Loaded processor module",
+                operation="_ensure_processors_loaded",
+                processor_type="jpeg"
+            )
         except ImportError as e:
-            logger.warning(f"Failed to load JPEG processor: {e}")
+            logger.warning(
+                "Failed to load processor module",
+                operation="_ensure_processors_loaded",
+                processor_type="jpeg",
+                error=str(e),
+                error_type=type(e).__name__
+            )
 
         try:
             from app.media_processing import heicprocessor  # noqa: F401
 
-            logger.debug("Loaded HEIC processor")
+            logger.debug(
+                "Loaded processor module",
+                operation="_ensure_processors_loaded",
+                processor_type="heic"
+            )
         except ImportError as e:
-            logger.warning(f"Failed to load HEIC processor: {e}")
+            logger.warning(
+                "Failed to load processor module",
+                operation="_ensure_processors_loaded",
+                processor_type="heic",
+                error=str(e),
+                error_type=type(e).__name__
+            )
 
         try:
             from app.media_processing import pngprocessor  # noqa: F401
 
-            logger.debug("Loaded PNG processor")
+            logger.debug(
+                "Loaded processor module",
+                operation="_ensure_processors_loaded",
+                processor_type="png"
+            )
         except ImportError as e:
-            logger.warning(f"Failed to load PNG processor: {e}")
+            logger.warning(
+                "Failed to load processor module",
+                operation="_ensure_processors_loaded",
+                processor_type="png",
+                error=str(e),
+                error_type=type(e).__name__
+            )
 
-        logger.info(f"Lazy-loaded {len(_PROCESSOR_REGISTRY)} media processors")
+        logger.info(
+            "Lazy-loaded media processors",
+            operation="_ensure_processors_loaded",
+            loaded_count=len(_PROCESSOR_REGISTRY)
+        )
 
 
 def get_processor(stored_media_object: StoredMediaObject) -> MediaProcessor:
@@ -153,24 +211,41 @@ def get_processor(stored_media_object: StoredMediaObject) -> MediaProcessor:
     ]
 
     if not applicable_processors:
-        logger.warning(f"No registered processor found for mimetype: {mimetype}")
+        logger.warning(
+            "No registered processor found for mimetype",
+            operation="get_processor",
+            mimetype=mimetype,
+            available_processors=[cls.__name__ for cls in _PROCESSOR_REGISTRY]
+        )
         raise NotImplementedError(f"No processor registered for mimetype: {mimetype}")
 
     # For now, just take the first one. Add priority later if needed.
     processor_cls = applicable_processors[0]
     if len(applicable_processors) > 1:
         logger.warning(
-            f"Multiple processors found for {mimetype}: {applicable_processors}. Using {processor_cls.__name__}."
+            "Multiple processors found for mimetype, using first one",
+            operation="get_processor",
+            mimetype=mimetype,
+            applicable_processors=[cls.__name__ for cls in applicable_processors],
+            selected_processor=processor_cls.__name__
         )
 
-    logger.debug(f"Using processor {processor_cls.__name__} for mimetype {mimetype}")
+    logger.debug(
+        "Using processor for mimetype",
+        operation="get_processor",
+        processor_class=processor_cls.__name__,
+        mimetype=mimetype
+    )
     try:
         # Pass the media object to the constructor
         return processor_cls(stored_media_object)
     except Exception as e:
         logger.exception(
-            f"Failed to instantiate processor {processor_cls.__name__} "
-            f"for {stored_media_object.object_key}"
+            "Failed to instantiate processor",
+            operation="get_processor",
+            processor_class=processor_cls.__name__,
+            object_key=stored_media_object.object_key,
+            mimetype=mimetype
         )
         # Re-raise a more specific error?
         raise RuntimeError(f"Processor instantiation failed for {mimetype}") from e

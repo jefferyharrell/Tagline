@@ -1,4 +1,3 @@
-import logging
 from typing import List, cast
 from urllib.parse import unquote
 
@@ -11,8 +10,9 @@ from app.db.repositories.media_object import MediaObjectRepository
 from app.dependencies import get_media_object_repository, get_s3_binary_storage
 from app.schemas import MediaObject, MediaObjectPatch, PaginatedMediaResponse
 from app.storage_provider import get_storage_provider
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 

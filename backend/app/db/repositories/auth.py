@@ -1,6 +1,5 @@
 """Repository for managing authentication-related models."""
 
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
@@ -8,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.auth_models import EligibleEmail, Role, User
 from app.config import Settings
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RoleRepository:

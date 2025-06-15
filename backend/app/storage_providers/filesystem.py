@@ -201,7 +201,13 @@ class FilesystemStorageProvider(StorageProviderBase):
         """
         start_time = time.time()
         logger.debug(
-            f"Starting filesystem media objects listing: prefix={prefix}, limit={limit}, offset={offset}, regex={regex}"
+            "Starting filesystem media objects listing",
+            provider_type="filesystem",
+            operation="list_media_objects",
+            prefix=prefix,
+            limit=limit,
+            offset=offset,
+            regex=regex
         )
 
         try:
@@ -209,7 +215,12 @@ class FilesystemStorageProvider(StorageProviderBase):
             results = []
             regex_pattern = re.compile(regex) if regex else None
             if regex_pattern:
-                logger.debug(f"Compiled regex pattern: {regex}")
+                logger.debug(
+                    "Compiled regex pattern",
+                    provider_type="filesystem",
+                    operation="list_media_objects",
+                    regex=regex
+                )
 
             processed_files = 0
 
@@ -250,7 +261,12 @@ class FilesystemStorageProvider(StorageProviderBase):
                         )
                     except (OSError, PermissionError) as e:
                         logger.warning(
-                            f"Failed to get metadata for file '{full_path}': {e}"
+                            "Failed to get file metadata",
+                            provider_type="filesystem",
+                            operation="list_media_objects",
+                            error_type="metadata_error",
+                            file_path=str(full_path),
+                            error=str(e)
                         )
                         continue
 
@@ -259,14 +275,26 @@ class FilesystemStorageProvider(StorageProviderBase):
 
             duration = time.time() - start_time
             logger.info(
-                f"Filesystem media objects listing completed in {duration:.3f}s: {len(results)} total results, {len(paginated_results)} returned (processed {processed_files} files, prefix: {prefix})"
+                "Filesystem media objects listing completed",
+                provider_type="filesystem",
+                operation="list_media_objects",
+                duration_ms=duration * 1000,
+                total_results=len(results),
+                returned_results=len(paginated_results),
+                processed_files=processed_files,
+                prefix=prefix
             )
 
             return paginated_results
 
         except Exception as e:
             logger.error(
-                f"Unexpected error during filesystem media objects listing: {e}"
+                "Unexpected error during filesystem media objects listing",
+                provider_type="filesystem",
+                operation="list_media_objects",
+                error_type="unexpected",
+                error=str(e),
+                error_class=type(e).__name__
             )
             return []
 
@@ -281,13 +309,22 @@ class FilesystemStorageProvider(StorageProviderBase):
         """
         start_time = time.time()
         logger.debug(
-            f"Starting filesystem all media objects iteration: prefix={prefix}, regex={regex}"
+            "Starting filesystem all media objects iteration",
+            provider_type="filesystem",
+            operation="all_media_objects",
+            prefix=prefix,
+            regex=regex
         )
 
         try:
             regex_pattern = re.compile(regex) if regex else None
             if regex_pattern:
-                logger.debug(f"Compiled regex pattern: {regex}")
+                logger.debug(
+                    "Compiled regex pattern",
+                    provider_type="filesystem",
+                    operation="all_media_objects",
+                    regex=regex
+                )
 
             processed_files = 0
             yielded_count = 0
@@ -332,18 +369,34 @@ class FilesystemStorageProvider(StorageProviderBase):
                         )
                     except (OSError, PermissionError) as e:
                         logger.warning(
-                            f"Failed to get metadata for file '{full_path}' during iteration: {e}"
+                            "Failed to get file metadata during iteration",
+                            provider_type="filesystem",
+                            operation="all_media_objects",
+                            error_type="metadata_error",
+                            file_path=str(full_path),
+                            error=str(e)
                         )
                         continue
 
             duration = time.time() - start_time
             logger.info(
-                f"Filesystem all media objects iteration completed in {duration:.3f}s: {yielded_count} objects yielded (processed {processed_files} files, prefix: {prefix})"
+                "Filesystem all media objects iteration completed",
+                provider_type="filesystem",
+                operation="all_media_objects",
+                duration_ms=duration * 1000,
+                yielded_count=yielded_count,
+                processed_files=processed_files,
+                prefix=prefix
             )
 
         except Exception as e:
             logger.error(
-                f"Unexpected error during filesystem all media objects iteration: {e}"
+                "Unexpected error during filesystem all media objects iteration",
+                provider_type="filesystem",
+                operation="all_media_objects",
+                error_type="unexpected",
+                error=str(e),
+                error_class=type(e).__name__
             )
             return
 
@@ -429,17 +482,31 @@ class FilesystemStorageProvider(StorageProviderBase):
         """
         start_time = time.time()
         logger.debug(
-            f"Starting filesystem streaming file retrieval for object_key: {object_key}"
+            "Starting filesystem streaming file retrieval",
+            provider_type="filesystem",
+            operation="iter_object_bytes",
+            object_key=object_key
         )
 
         try:
             file_path = self.root_path / object_key.lstrip("/")
 
-            logger.debug(f"Resolved filesystem path for streaming: '{file_path}'")
+            logger.debug(
+                "Resolved filesystem path for streaming",
+                provider_type="filesystem",
+                operation="iter_object_bytes",
+                object_key=object_key,
+                file_path=str(file_path)
+            )
 
             if not file_path.is_file():
                 logger.warning(
-                    f"File not found during streaming retrieval: '{object_key}' (filesystem path: '{file_path}')"
+                    "File not found during streaming retrieval",
+                    provider_type="filesystem",
+                    operation="iter_object_bytes",
+                    error_type="not_found",
+                    object_key=object_key,
+                    file_path=str(file_path)
                 )
                 raise FileNotFoundError(
                     f"Object '{object_key}' not found in filesystem storage."
@@ -455,14 +522,26 @@ class FilesystemStorageProvider(StorageProviderBase):
 
             duration = time.time() - start_time
             logger.info(
-                f"Filesystem streaming retrieval completed in {duration:.3f}s: {file_size} bytes in {chunks_yielded} chunks for '{object_key}'"
+                "Filesystem streaming retrieval completed",
+                provider_type="filesystem",
+                operation="iter_object_bytes",
+                duration_ms=duration * 1000,
+                file_size=file_size,
+                chunks_yielded=chunks_yielded,
+                object_key=object_key
             )
 
         except FileNotFoundError:
             raise  # Re-raise FileNotFoundError as-is
         except Exception as e:
             logger.error(
-                f"Unexpected error during filesystem streaming retrieval for '{object_key}': {e}"
+                "Unexpected error during filesystem streaming retrieval",
+                provider_type="filesystem",
+                operation="iter_object_bytes",
+                error_type="unexpected",
+                object_key=object_key,
+                error=str(e),
+                error_class=type(e).__name__
             )
             raise
 
@@ -476,13 +555,22 @@ class FilesystemStorageProvider(StorageProviderBase):
         """
         start_time = time.time()
         logger.debug(
-            f"Starting filesystem count operation: prefix={prefix}, regex={regex}"
+            "Starting filesystem count operation",
+            provider_type="filesystem",
+            operation="count",
+            prefix=prefix,
+            regex=regex
         )
 
         try:
             regex_pattern = re.compile(regex) if regex else None
             if regex_pattern:
-                logger.debug(f"Compiled regex pattern: {regex}")
+                logger.debug(
+                    "Compiled regex pattern",
+                    provider_type="filesystem",
+                    operation="count",
+                    regex=regex
+                )
 
             count = 0
             processed_files = 0
@@ -502,11 +590,24 @@ class FilesystemStorageProvider(StorageProviderBase):
 
             duration = time.time() - start_time
             logger.info(
-                f"Filesystem count operation completed in {duration:.3f}s: {count} objects found (processed {processed_files} files, prefix: {prefix})"
+                "Filesystem count operation completed",
+                provider_type="filesystem",
+                operation="count",
+                duration_ms=duration * 1000,
+                objects_found=count,
+                processed_files=processed_files,
+                prefix=prefix
             )
 
             return count
 
         except Exception as e:
-            logger.error(f"Unexpected error during filesystem count operation: {e}")
+            logger.error(
+                "Unexpected error during filesystem count operation",
+                provider_type="filesystem",
+                operation="count",
+                error_type="unexpected",
+                error=str(e),
+                error_class=type(e).__name__
+            )
             return 0

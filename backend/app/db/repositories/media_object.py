@@ -27,24 +27,52 @@ class MediaObjectRepository:
     def __init__(self, db: Session):
         """Initializes the repository with a database session."""
         self.db = db
-        logger.debug("MediaObjectRepository initialized successfully.")
+        logger.debug(
+            "Repository initialized",
+            operation="db_repository_init",
+            repository="media_object"
+        )
 
     def get_by_object_key(self, object_key: str) -> Optional[MediaObjectRecord]:
         """Retrieves a MediaObjectRecord by its object_key (primary key)."""
         assert object_key is not None, "object_key must not be None"
         try:
-            logger.debug(f"Querying for MediaObject with object_key: {object_key}")
+            logger.debug(
+                "Querying MediaObject by key",
+                operation="db_query",
+                table="media_objects",
+                object_key=object_key
+            )
             orm_obj = (
                 self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if orm_obj:
-                logger.debug(f"Found MediaObject: {orm_obj.object_key}")
+                logger.debug(
+                    "MediaObject found",
+                    operation="db_query",
+                    table="media_objects",
+                    object_key=orm_obj.object_key,
+                    status="found"
+                )
                 return MediaObjectRecord.from_orm(orm_obj)
             else:
-                logger.debug("MediaObject not found for key: %s", object_key)
+                logger.debug(
+                    "MediaObject not found",
+                    operation="db_query",
+                    table="media_objects",
+                    object_key=object_key,
+                    status="not_found"
+                )
                 return None
         except SQLAlchemyError as e:
-            logger.error(f"Database error querying for object_key {object_key}: {e}")
+            logger.error(
+                "Database query failed",
+                operation="db_query",
+                table="media_objects",
+                object_key=object_key,
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return None
 
     def create_sparse(
@@ -74,7 +102,13 @@ class MediaObjectRepository:
         from app.models import IngestionStatus
 
         try:
-            logger.debug(f"Creating sparse MediaObject for key: {object_key}")
+            logger.debug(
+                "Creating sparse MediaObject",
+                operation="db_create_sparse",
+                table="media_objects",
+                object_key=object_key,
+                path_depth=object_key.count("/") + 1
+            )
 
             # Calculate path depth (number of '/' separators + 1)
             path_depth = object_key.count("/") + 1
@@ -112,10 +146,20 @@ class MediaObjectRepository:
             was_created = result.rowcount > 0
             if was_created:
                 logger.info(
-                    f"Successfully created sparse MediaObject for key: {object_key}"
+                    "Sparse MediaObject created",
+                    operation="db_create_sparse",
+                    table="media_objects",
+                    object_key=object_key,
+                    status="created"
                 )
             else:
-                logger.debug(f"MediaObject already exists for key: {object_key}")
+                logger.debug(
+                    "MediaObject already exists",
+                    operation="db_create_sparse",
+                    table="media_objects",
+                    object_key=object_key,
+                    status="exists"
+                )
 
             # Return the object (either newly created or existing) and creation status
             media_obj = self.get_by_object_key(object_key)
@@ -123,14 +167,23 @@ class MediaObjectRepository:
 
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error creating sparse MediaObject: {e}")
+            logger.error(
+                "Sparse MediaObject creation failed",
+                operation="db_create_sparse",
+                table="media_objects",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return None, False
 
     def create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
         """Creates a new MediaObjectRecord in the database or retrieves existing."""
         assert record.object_key is not None, "object_key must not be None"
         logger.debug(
-            f"Attempting to create/get MediaObject for key: {record.object_key}"
+            "Creating MediaObject record",
+            operation="db_create",
+            table="media_objects",
+            object_key=record.object_key
         )
         orm_obj = record.to_orm()
         try:
@@ -138,28 +191,51 @@ class MediaObjectRepository:
                 self.db.add(orm_obj)
             self.db.commit()
             logger.info(
-                f"Successfully created MediaObject for key: {orm_obj.object_key}"
+                "MediaObject created successfully",
+                operation="db_create",
+                table="media_objects",
+                object_key=orm_obj.object_key,
+                status="created"
             )
             return MediaObjectRecord.from_orm(orm_obj)
         except IntegrityError:
             self.db.rollback()
             logger.warning(
-                f"IntegrityError on create for key {record.object_key}, likely exists. Fetching."
+                "Integrity error on create, fetching existing",
+                operation="db_create",
+                table="media_objects",
+                object_key=record.object_key,
+                error_type="IntegrityError",
+                status="exists"
             )
             existing_obj = self.get_by_object_key(record.object_key)
             if existing_obj:
                 logger.info(
-                    f"Found existing MediaObject for key: {existing_obj.object_key}"
+                    "Found existing MediaObject",
+                    operation="db_create",
+                    table="media_objects",
+                    object_key=existing_obj.object_key,
+                    status="found"
                 )
             else:
                 logger.error(
-                    f"IntegrityError occurred but failed to fetch existing object for key {record.object_key}"
+                    "IntegrityError but failed to fetch existing object",
+                    operation="db_create",
+                    table="media_objects",
+                    object_key=record.object_key,
+                    error_type="IntegrityError",
+                    status="fetch_failed"
                 )
             return existing_obj
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(
-                f"Database error creating MediaObject for key {record.object_key}: {e}"
+                "MediaObject creation failed",
+                operation="db_create",
+                table="media_objects",
+                object_key=record.object_key,
+                error_type=type(e).__name__,
+                error_message=str(e)
             )
             return None
 
@@ -179,7 +255,11 @@ class MediaObjectRepository:
         """
         try:
             logger.debug(
-                f"Attempting to register thumbnail for object_key: {object_key}"
+                "Registering thumbnail",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="thumbnail_object_key"
             )
 
             # Update the media_object directly
@@ -187,7 +267,14 @@ class MediaObjectRepository:
                 self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if orm_obj is None:
-                logger.error(f"MediaObject with key {object_key} not found")
+                logger.error(
+                    "MediaObject not found for thumbnail registration",
+                    operation="db_update",
+                    table="media_objects",
+                    object_key=object_key,
+                    field="thumbnail_object_key",
+                    status="not_found"
+                )
                 return False
 
             orm_obj.thumbnail_object_key = s3_key  # type: ignore[assignment]
@@ -195,12 +282,25 @@ class MediaObjectRepository:
 
             self.db.commit()
             logger.info(
-                f"Successfully registered thumbnail for object_key: {object_key}"
+                "Thumbnail registered successfully",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="thumbnail_object_key",
+                status="updated"
             )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error registering thumbnail for {object_key}: {e}")
+            logger.error(
+                "Thumbnail registration failed",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="thumbnail_object_key",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return False
 
     def register_proxy(
@@ -218,25 +318,53 @@ class MediaObjectRepository:
             True if the registration was successful, False otherwise.
         """
         try:
-            logger.debug(f"Attempting to register proxy for object_key: {object_key}")
+            logger.debug(
+                "Registering proxy",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="proxy_object_key"
+            )
 
             # Update the media_object directly
             orm_obj = (
                 self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
             )
             if orm_obj is None:
-                logger.error(f"MediaObject with key {object_key} not found")
+                logger.error(
+                    "MediaObject not found for proxy registration",
+                    operation="db_update",
+                    table="media_objects",
+                    object_key=object_key,
+                    field="proxy_object_key",
+                    status="not_found"
+                )
                 return False
 
             orm_obj.proxy_object_key = s3_key  # type: ignore[assignment]
             orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
             self.db.commit()
-            logger.info(f"Successfully registered proxy for object_key: {object_key}")
+            logger.info(
+                "Proxy registered successfully",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="proxy_object_key",
+                status="updated"
+            )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error registering proxy for {object_key}: {e}")
+            logger.error(
+                "Proxy registration failed",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="proxy_object_key",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return False
 
     def get_or_create(self, record: MediaObjectRecord) -> Optional[MediaObjectRecord]:
@@ -258,7 +386,12 @@ class MediaObjectRepository:
         """Retrieves a paginated list of all MediaObjectRecords with natural sort order."""
         try:
             logger.debug(
-                f"Querying for all MediaObjects with limit={limit}, offset={offset}, prefix={prefix}"
+                "Querying all MediaObjects",
+                operation="db_query",
+                table="media_objects",
+                limit=limit,
+                offset=offset,
+                prefix=prefix
             )
             query = self.db.query(ORMMediaObject)
 
@@ -293,10 +426,21 @@ class MediaObjectRepository:
                 MediaObjectRecord.from_orm(obj, load_binary_fields=False)
                 for obj in orm_objs
             ]
-            logger.debug(f"Found {len(records)} MediaObjects.")
+            logger.debug(
+                "MediaObjects query completed",
+                operation="db_query",
+                table="media_objects",
+                records_found=len(records)
+            )
             return records
         except SQLAlchemyError as e:
-            logger.error(f"Database error querying for all MediaObjects: {e}")
+            logger.error(
+                "Query all MediaObjects failed",
+                operation="db_query",
+                table="media_objects",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return []
 
     def update_ingestion_status(self, object_key: str, status: str) -> bool:
@@ -315,7 +459,12 @@ class MediaObjectRepository:
             )
             if orm_obj is None:
                 logger.error(
-                    f"MediaObject with key {object_key} not found for status update"
+                    "MediaObject not found for status update",
+                    operation="db_update",
+                    table="media_objects",
+                    object_key=object_key,
+                    field="ingestion_status",
+                    status="not_found"
                 )
                 return False
 
@@ -323,11 +472,26 @@ class MediaObjectRepository:
             orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
             self.db.commit()
-            logger.info(f"Updated ingestion status for {object_key} to {status}")
+            logger.info(
+                "Ingestion status updated",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="ingestion_status",
+                new_status=status,
+                status="updated"
+            )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error updating ingestion status: {e}")
+            logger.error(
+                "Ingestion status update failed",
+                operation="db_update",
+                table="media_objects",
+                field="ingestion_status", 
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return False
 
     def update_metadata(self, object_key: str, metadata: dict) -> bool:
@@ -346,13 +510,39 @@ class MediaObjectRepository:
             )
             if orm_obj is None:
                 logger.error(
-                    f"MediaObject with key {object_key} not found for metadata update"
+                    "MediaObject not found for metadata update",
+                    operation="db_update",
+                    table="media_objects",
+                    object_key=object_key,
+                    field="object_metadata",
+                    status="not_found"
                 )
                 return False
 
-            logger.info(f"Before update - object_key: {object_key}")
-            logger.info(f"Before update - existing metadata: {orm_obj.object_metadata}")
-            logger.info(f"Before update - new metadata to set: {metadata}")
+            logger.info(
+                "Before metadata update",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="object_metadata",
+                phase="before"
+            )
+            logger.info(
+                "Existing metadata before update",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="object_metadata",
+                existing_metadata=orm_obj.object_metadata
+            )
+            logger.info(
+                "New metadata to set",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="object_metadata",
+                new_metadata=metadata
+            )
 
             # Set the metadata directly (not merge, since PATCH endpoint already merged)
             orm_obj.object_metadata = metadata  # type: ignore[assignment]
@@ -360,14 +550,35 @@ class MediaObjectRepository:
 
             # Flush to see the changes before commit
             self.db.flush()
-            logger.info(f"After update - metadata in ORM: {orm_obj.object_metadata}")
+            logger.info(
+                "Metadata updated in ORM",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="object_metadata",
+                updated_metadata=orm_obj.object_metadata
+            )
 
             self.db.commit()
-            logger.info(f"Successfully updated metadata for MediaObject {object_key}")
+            logger.info(
+                "Metadata update completed",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                field="object_metadata",
+                status="completed"
+            )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error updating metadata: {e}")
+            logger.error(
+                "Metadata update failed",
+                operation="db_update",
+                table="media_objects",
+                field="object_metadata",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return False
 
     def update_after_ingestion(self, object_key: str, metadata: dict) -> bool:
@@ -386,7 +597,12 @@ class MediaObjectRepository:
             )
             if orm_obj is None:
                 logger.error(
-                    f"MediaObject with key {object_key} not found for post-ingest update"
+                    "MediaObject not found for post-ingest update",
+                    operation="db_update",
+                    table="media_objects",
+                    object_key=object_key,
+                    phase="post_ingest",
+                    status="not_found"
                 )
                 return False
 
@@ -400,18 +616,36 @@ class MediaObjectRepository:
             orm_obj.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
             self.db.commit()
-            logger.info(f"Updated MediaObject {object_key} after ingestion")
+            logger.info(
+                "Post-ingest update completed",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                phase="post_ingest",
+                status="completed"
+            )
             return True
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Database error updating after ingestion: {e}")
+            logger.error(
+                "Post-ingest update failed",
+                operation="db_update",
+                table="media_objects",
+                phase="post_ingest",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return False
 
     def count(self, prefix: Optional[str] = None) -> int:
         """Returns the total count of MediaObjectRecords in the database."""
         try:
             logger.debug(
-                f"Querying for total count of MediaObjects with prefix={prefix}"
+                "Counting MediaObjects",
+                operation="db_query",
+                table="media_objects",
+                query_type="count",
+                prefix=prefix
             )
             from sqlalchemy import func
 
@@ -430,10 +664,23 @@ class MediaObjectRepository:
                 )
 
             total = query.scalar() or 0
-            logger.debug(f"Total count: {total}")
+            logger.debug(
+                "Count query completed",
+                operation="db_query",
+                table="media_objects",
+                query_type="count",
+                total_count=total
+            )
             return total
         except SQLAlchemyError as e:
-            logger.error(f"Database error counting MediaObjects: {e}")
+            logger.error(
+                "Count query failed",
+                operation="db_query",
+                table="media_objects",
+                query_type="count",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return 0
 
     def get_adjacent(
@@ -499,7 +746,13 @@ class MediaObjectRepository:
             return (previous, next)
         except SQLAlchemyError as e:
             logger.error(
-                f"Database error getting adjacent MediaObjects for key {object_key}: {e}"
+                "Adjacent MediaObjects query failed",
+                operation="db_query",
+                table="media_objects",
+                query_type="adjacent",
+                object_key=object_key,
+                error_type=type(e).__name__,
+                error_message=str(e)
             )
             return (None, None)
 
@@ -518,7 +771,15 @@ class MediaObjectRepository:
                 return (orm_obj.thumbnail_object_key, "image/jpeg")
             return None
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting thumbnail for {object_key}: {e}")
+            logger.error(
+                "Thumbnail lookup failed",
+                operation="db_query",
+                table="media_objects",
+                object_key=object_key,
+                field="thumbnail_object_key",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return None
 
     def get_proxy_s3_key(self, object_key: str) -> Optional[tuple[str, str]]:
@@ -536,7 +797,15 @@ class MediaObjectRepository:
                 return (orm_obj.proxy_object_key, "image/jpeg")
             return None
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting proxy for {object_key}: {e}")
+            logger.error(
+                "Proxy lookup failed",
+                operation="db_query",
+                table="media_objects",
+                object_key=object_key,
+                field="proxy_object_key",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return None
 
     def search(
@@ -564,7 +833,14 @@ class MediaObjectRepository:
             prefix_tokens = [f"{token}:*" for token in search_tokens]
             tsquery = " & ".join(prefix_tokens)
 
-            logger.debug(f"Searching for: {query} (tsquery: {tsquery})")
+            logger.debug(
+                "Executing search query",
+                operation="db_query",
+                table="media_objects",
+                query_type="search",
+                search_query=query,
+                tsquery=tsquery
+            )
 
             # First get the total count
             count_query = self.db.query(func.count(ORMMediaObject.object_key)).filter(
@@ -599,11 +875,25 @@ class MediaObjectRepository:
                 for result in results
             ]
 
-            logger.debug(f"Found {total_count} total results, returning {len(records)}")
+            logger.debug(
+                "Search query completed",
+                operation="db_query",
+                table="media_objects",
+                query_type="search",
+                total_results=total_count,
+                returned_results=len(records)
+            )
             return records, total_count
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error searching media objects: {e}")
+            logger.error(
+                "Search query failed",
+                operation="db_query",
+                table="media_objects",
+                query_type="search",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return [], 0
 
     def get_objects_with_prefix(self, prefix: str) -> List[MediaObjectRecord]:
@@ -620,7 +910,13 @@ class MediaObjectRepository:
             List of MediaObjectRecord objects directly under the prefix
         """
         try:
-            logger.debug(f"Getting objects with exact prefix: {prefix}")
+            logger.debug(
+                "Getting objects by prefix",
+                operation="db_query",
+                table="media_objects",
+                query_type="prefix",
+                prefix=prefix
+            )
 
             # Query for objects that start with prefix but don't have additional slashes
             query = self.db.query(ORMMediaObject).filter(
@@ -647,11 +943,26 @@ class MediaObjectRepository:
                 for obj in orm_objs
             ]
 
-            logger.debug(f"Found {len(records)} objects with prefix: {prefix}")
+            logger.debug(
+                "Prefix query completed",
+                operation="db_query",
+                table="media_objects",
+                query_type="prefix",
+                prefix=prefix,
+                objects_found=len(records)
+            )
             return records
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting objects with prefix {prefix}: {e}")
+            logger.error(
+                "Prefix query failed",
+                operation="db_query",
+                table="media_objects",
+                query_type="prefix",
+                prefix=prefix,
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return []
 
     def get_subfolders_with_prefix(self, prefix: str) -> List[str]:
@@ -667,7 +978,13 @@ class MediaObjectRepository:
             List of immediate subfolder names (not full paths)
         """
         try:
-            logger.debug(f"Getting subfolders with prefix: {prefix}")
+            logger.debug(
+                "Getting subfolders by prefix",
+                operation="db_query",
+                table="media_objects",
+                query_type="subfolders",
+                prefix=prefix
+            )
 
             # Build query to find all objects under the prefix
             query = self.db.query(ORMMediaObject.object_key)
@@ -697,11 +1014,26 @@ class MediaObjectRepository:
             # Convert to naturally sorted list
             result = natsorted(list(subfolders))
 
-            logger.debug(f"Found {len(result)} subfolders under prefix: {prefix}")
+            logger.debug(
+                "Subfolders query completed",
+                operation="db_query",
+                table="media_objects",
+                query_type="subfolders",
+                prefix=prefix,
+                subfolders_found=len(result)
+            )
             return result
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error getting subfolders with prefix {prefix}: {e}")
+            logger.error(
+                "Subfolders query failed",
+                operation="db_query",
+                table="media_objects",
+                query_type="subfolders",
+                prefix=prefix,
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             return []
 
     def delete_by_object_key(self, object_key: str) -> bool:
@@ -714,7 +1046,12 @@ class MediaObjectRepository:
             True if deleted successfully, False otherwise
         """
         try:
-            logger.debug(f"Deleting MediaObject with object_key: {object_key}")
+            logger.debug(
+                "Deleting MediaObject",
+                operation="db_delete",
+                table="media_objects",
+                object_key=object_key
+            )
 
             # First, get the media object to check for S3 keys
             orm_obj = (
@@ -723,7 +1060,11 @@ class MediaObjectRepository:
 
             if not orm_obj:
                 logger.debug(
-                    f"No MediaObject found to delete with object_key: {object_key}"
+                    "No MediaObject found to delete",
+                    operation="db_delete",
+                    table="media_objects",
+                    object_key=object_key,
+                    status="not_found"
                 )
                 return False
 
@@ -735,11 +1076,22 @@ class MediaObjectRepository:
 
                 # Delete thumbnail and proxy from S3
                 s3_storage.delete_binaries(object_key)
-                logger.info(f"Cleaned up S3 binaries for: {object_key}")
+                logger.info(
+                    "S3 binaries cleaned up",
+                    operation="s3_cleanup",
+                    object_key=object_key,
+                    status="completed"
+                )
 
             except Exception as e:
                 # Log S3 cleanup failure but don't fail the whole operation
-                logger.warning(f"Failed to cleanup S3 binaries for {object_key}: {e}")
+                logger.warning(
+                    "S3 cleanup failed",
+                    operation="s3_cleanup",
+                    object_key=object_key,
+                    error_type=type(e).__name__,
+                    error_message=str(e)
+                )
 
             # Delete the database record
             deleted_count = (
@@ -749,16 +1101,31 @@ class MediaObjectRepository:
             if deleted_count > 0:
                 self.db.commit()
                 logger.info(
-                    f"Successfully deleted MediaObject and S3 binaries: {object_key}"
+                    "MediaObject and S3 binaries deleted",
+                    operation="db_delete",
+                    table="media_objects",
+                    object_key=object_key,
+                    status="completed"
                 )
                 return True
             else:
                 logger.debug(
-                    f"No MediaObject found to delete with object_key: {object_key}"
+                    "No MediaObject found for deletion",
+                    operation="db_delete",
+                    table="media_objects",
+                    object_key=object_key,
+                    status="not_found"
                 )
                 return False
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error deleting MediaObject {object_key}: {e}")
+            logger.error(
+                "MediaObject deletion failed",
+                operation="db_delete",
+                table="media_objects",
+                object_key=object_key,
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             self.db.rollback()
             return False

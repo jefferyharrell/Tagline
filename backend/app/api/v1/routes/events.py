@@ -8,7 +8,6 @@ This module provides SSE endpoints for:
 
 import asyncio
 import json
-import logging
 import os
 from typing import AsyncGenerator, Optional
 
@@ -19,8 +18,9 @@ from fastapi.responses import StreamingResponse
 from app import auth_schemas as schemas
 from app.auth_utils import get_current_user
 from app.redis_events import INGEST_EVENTS_CHANNEL
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -53,7 +53,11 @@ async def get_ingest_events(
             None, pubsub.subscribe, INGEST_EVENTS_CHANNEL
         )
 
-        logger.info(f"SSE client subscribed to {INGEST_EVENTS_CHANNEL}")
+        logger.info(
+            "SSE client subscribed to channel",
+            operation="get_ingest_events",
+            channel=INGEST_EVENTS_CHANNEL
+        )
 
         # Send initial connection confirmation
         yield f"data: {json.dumps({'type': 'connected', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
@@ -65,9 +69,18 @@ async def get_ingest_events(
                 since_dt = datetime.fromisoformat(
                     since_timestamp.replace("Z", "+00:00")
                 )
-                logger.info(f"SSE client resuming from {since_dt}")
+                logger.info(
+                    "SSE client resuming from timestamp",
+                    operation="get_ingest_events",
+                    since_timestamp=since_dt.isoformat()
+                )
             except ValueError:
-                logger.warning(f"Invalid since_timestamp format: {since_timestamp}")
+                logger.warning(
+                    "Invalid since_timestamp format",
+                    operation="get_ingest_events",
+                    since_timestamp=since_timestamp,
+                    error_type="timestamp_parse_error"
+                )
 
         # Main event loop
         while True:
@@ -122,30 +135,57 @@ async def get_ingest_events(
                         )
 
                     logger.debug(
-                        f"Forwarding SSE event: {event_data['event_type']} for {sse_event.get('object_key')}"
+                        "Forwarding SSE event",
+                        operation="get_ingest_events",
+                        event_type=event_data.get("event_type"),
+                        object_key=sse_event.get("object_key")
                     )
 
                     # Send event to client
                     yield f"data: {json.dumps(sse_event)}\n\n"
 
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse Redis event data: {e}")
+                    logger.error(
+                        "Failed to parse Redis event data",
+                        operation="get_ingest_events",
+                        error=str(e),
+                        error_type="json_decode_error"
+                    )
                     continue
                 except Exception as e:
-                    logger.error(f"Error processing Redis event: {e}")
+                    logger.error(
+                        "Error processing Redis event",
+                        operation="get_ingest_events",
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
                     continue
 
             except redis.ConnectionError:
-                logger.error("Redis connection lost in SSE stream")
+                logger.error(
+                    "Redis connection lost in SSE stream",
+                    operation="get_ingest_events",
+                    error_type="redis_connection_error"
+                )
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Redis connection lost'})}\n\n"
                 break
             except Exception as e:
-                logger.error(f"Error in ingest events stream: {e}")
+                logger.error(
+                    "Error in ingest events stream",
+                    operation="get_ingest_events",
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
                 await asyncio.sleep(5)  # Wait before retrying
 
     except Exception as e:
-        logger.error(f"Failed to initialize ingest events stream: {e}")
+        logger.error(
+            "Failed to initialize ingest events stream",
+            operation="get_ingest_events",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to initialize stream'})}\n\n"
     finally:
         # Clean up Redis connections
@@ -156,15 +196,31 @@ async def get_ingest_events(
                 )
                 await asyncio.get_event_loop().run_in_executor(None, pubsub.close)
             except Exception as e:
-                logger.warning(f"Error closing pub/sub connection: {e}")
+                logger.warning(
+                    "Error closing pub/sub connection",
+                    operation="get_ingest_events",
+                    phase="cleanup",
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
 
         if redis_conn:
             try:
                 await asyncio.get_event_loop().run_in_executor(None, redis_conn.close)
             except Exception as e:
-                logger.warning(f"Error closing Redis connection: {e}")
+                logger.warning(
+                    "Error closing Redis connection",
+                    operation="get_ingest_events",
+                    phase="cleanup",
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
 
-        logger.info("SSE connection closed")
+        logger.info(
+            "SSE connection closed",
+            operation="get_ingest_events",
+            phase="cleanup"
+        )
 
 
 @router.get("/ingest", response_class=StreamingResponse)

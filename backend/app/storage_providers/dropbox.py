@@ -390,17 +390,33 @@ class DropboxStorageProvider(StorageProviderBase):
 
         except RateLimitError as e:
             logger.warning(
-                f"Dropbox rate limit exceeded during media objects listing (path: '{list_path}'): {e}"
+                "Dropbox rate limit exceeded",
+                provider_type="dropbox",
+                operation="list_media_objects",
+                error_type="rate_limit",
+                list_path=list_path,
+                error=str(e)
             )
             raise StorageProviderException("Dropbox rate limit exceeded") from e
         except ApiError as e:
             logger.error(
-                f"Dropbox API error during media objects listing (path: '{list_path}'): {e}"
+                "Dropbox API error during media objects listing",
+                provider_type="dropbox",
+                operation="list_media_objects",
+                error_type="api_error",
+                list_path=list_path,
+                error=str(e)
             )
             raise StorageProviderException(f"Dropbox API error: {e}") from e
         except Exception as e:
             logger.error(
-                f"Unexpected error during media objects listing (path: '{list_path}'): {e}"
+                "Unexpected error during media objects listing",
+                provider_type="dropbox",
+                operation="list_media_objects",
+                error_type="unexpected",
+                list_path=list_path,
+                error=str(e),
+                error_class=type(e).__name__
             )
             raise StorageProviderException(f"Dropbox error: {e}") from e
 
@@ -415,7 +431,11 @@ class DropboxStorageProvider(StorageProviderBase):
         """
         start_time = time.time()
         logger.debug(
-            f"Starting all media objects iteration: prefix={prefix}, regex={regex}"
+            "Starting all media objects iteration",
+            provider_type="dropbox",
+            operation="all_media_objects",
+            prefix=prefix,
+            regex=regex
         )
 
         try:
@@ -432,7 +452,10 @@ class DropboxStorageProvider(StorageProviderBase):
                 list_path = ""
 
             logger.debug(
-                f"Resolved Dropbox path for all media iteration: '{list_path}'"
+                "Resolved Dropbox path for all media iteration",
+                provider_type="dropbox",
+                operation="all_media_objects",
+                list_path=list_path
             )
 
             # Compile regex pattern if provided
@@ -457,14 +480,19 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 if cursor:
                     logger.debug(
-                        f"Making Dropbox API continuation call #{api_calls} for all media objects"
+                        "Making Dropbox API continuation call",
+                        provider_type="dropbox",
+                        operation="all_media_objects",
+                        api_call_number=api_calls
                     )
                     res = cast(
                         ListFolderResult, self.dbx.files_list_folder_continue(cursor)
                     )
                 else:
                     logger.debug(
-                        "Making initial Dropbox API call for all media objects recursive listing"
+                        "Making initial Dropbox API call for recursive listing",
+                        provider_type="dropbox",
+                        operation="all_media_objects"
                     )
                     res = cast(
                         ListFolderResult,
@@ -473,7 +501,12 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 api_duration = time.time() - api_start
                 logger.debug(
-                    f"API call #{api_calls} completed in {api_duration:.3f}s, processing {len(res.entries)} entries"
+                    "API call completed",
+                    provider_type="dropbox",
+                    operation="all_media_objects",
+                    api_call_number=api_calls,
+                    api_duration_ms=api_duration * 1000,
+                    entries_count=len(res.entries)
                 )
 
                 for entry in res.entries:
@@ -530,22 +563,44 @@ class DropboxStorageProvider(StorageProviderBase):
 
             duration = time.time() - start_time
             logger.info(
-                f"All media objects iteration completed in {duration:.3f}s: {yielded_count} objects yielded (API calls: {api_calls}, prefix: {prefix})"
+                "All media objects iteration completed",
+                provider_type="dropbox",
+                operation="all_media_objects",
+                duration_ms=duration * 1000,
+                yielded_count=yielded_count,
+                api_calls=api_calls,
+                prefix=prefix
             )
 
         except RateLimitError as e:
             logger.warning(
-                f"Dropbox rate limit exceeded during all media objects iteration (path: '{list_path}'): {e}"
+                "Dropbox rate limit exceeded",
+                provider_type="dropbox",
+                operation="all_media_objects",
+                error_type="rate_limit",
+                list_path=list_path,
+                error=str(e)
             )
             raise StorageProviderException("Dropbox rate limit exceeded") from e
         except ApiError as e:
             logger.error(
-                f"Dropbox API error during all media objects iteration (path: '{list_path}'): {e}"
+                "Dropbox API error during all media objects iteration",
+                provider_type="dropbox",
+                operation="all_media_objects",
+                error_type="api_error",
+                list_path=list_path,
+                error=str(e)
             )
             raise StorageProviderException(f"Dropbox API error: {e}") from e
         except Exception as e:
             logger.error(
-                f"Unexpected error during all media objects iteration (path: '{list_path}'): {e}"
+                "Unexpected error during all media objects iteration",
+                provider_type="dropbox",
+                operation="all_media_objects",
+                error_type="unexpected",
+                list_path=list_path,
+                error=str(e),
+                error_class=type(e).__name__
             )
             raise StorageProviderException(f"Dropbox error: {e}") from e
 
@@ -660,7 +715,12 @@ class DropboxStorageProvider(StorageProviderBase):
             StorageProviderException: For other errors
         """
         start_time = time.time()
-        logger.debug(f"Starting streaming file retrieval for object_key: {object_key}")
+        logger.debug(
+            "Starting streaming file retrieval",
+            provider_type="dropbox",
+            operation="iter_object_bytes",
+            object_key=object_key
+        )
 
         try:
             # Remove leading slash from object key and join with root
@@ -671,7 +731,13 @@ class DropboxStorageProvider(StorageProviderBase):
             if self.root_path == "/" and rel_path:
                 dropbox_path = "/" + rel_path
 
-            logger.debug(f"Resolved Dropbox path for streaming: '{dropbox_path}'")
+            logger.debug(
+                "Resolved Dropbox path for streaming",
+                provider_type="dropbox",
+                operation="iter_object_bytes",
+                object_key=object_key,
+                dropbox_path=dropbox_path
+            )
 
             from typing import Any, Tuple
 
@@ -687,7 +753,13 @@ class DropboxStorageProvider(StorageProviderBase):
             chunk_size = 4096  # 4KB chunks
             content = response.content
             if content is None:
-                logger.error(f"Dropbox returned empty response for '{object_key}'")
+                logger.error(
+                    "Dropbox returned empty response",
+                    provider_type="dropbox",
+                    operation="iter_object_bytes",
+                    object_key=object_key,
+                    error_type="empty_response"
+                )
                 raise StorageProviderException("Dropbox returned empty response")
 
             total_size = len(content)
@@ -699,24 +771,47 @@ class DropboxStorageProvider(StorageProviderBase):
 
             duration = time.time() - start_time
             logger.info(
-                f"Streaming retrieval completed in {duration:.3f}s (API: {api_duration:.3f}s): {total_size} bytes in {chunks_yielded} chunks for '{object_key}'"
+                "Streaming retrieval completed",
+                provider_type="dropbox",
+                operation="iter_object_bytes",
+                duration_ms=duration * 1000,
+                api_duration_ms=api_duration * 1000,
+                total_size=total_size,
+                chunks_yielded=chunks_yielded,
+                object_key=object_key
             )
 
         except ApiError as e:
             if e.error and e.error.is_path() and e.error.get_path().is_not_found():
                 logger.warning(
-                    f"File not found during streaming retrieval: '{object_key}' (Dropbox path: '{dropbox_path}')"
+                    "File not found during streaming retrieval",
+                    provider_type="dropbox",
+                    operation="iter_object_bytes",
+                    error_type="not_found",
+                    object_key=object_key,
+                    dropbox_path=dropbox_path
                 )
                 raise FileNotFoundError(
                     f"Object '{object_key}' not found in Dropbox storage."
                 ) from e
             logger.error(
-                f"Dropbox API error during streaming retrieval for '{object_key}': {e}"
+                "Dropbox API error during streaming retrieval",
+                provider_type="dropbox",
+                operation="iter_object_bytes",
+                error_type="api_error",
+                object_key=object_key,
+                error=str(e)
             )
             raise StorageProviderException(f"Dropbox API error: {e}") from e
         except Exception as e:
             logger.error(
-                f"Unexpected error during streaming retrieval for '{object_key}': {e}"
+                "Unexpected error during streaming retrieval",
+                provider_type="dropbox",
+                operation="iter_object_bytes",
+                error_type="unexpected",
+                object_key=object_key,
+                error=str(e),
+                error_class=type(e).__name__
             )
             raise StorageProviderException(f"Dropbox error: {e}") from e
 
@@ -731,7 +826,13 @@ class DropboxStorageProvider(StorageProviderBase):
         which might be slow for very large directories.
         """
         start_time = time.time()
-        logger.debug(f"Starting count operation: prefix={prefix}, regex={regex}")
+        logger.debug(
+            "Starting count operation",
+            provider_type="dropbox",
+            operation="count",
+            prefix=prefix,
+            regex=regex
+        )
 
         try:
             # Compose the path to list
@@ -746,7 +847,12 @@ class DropboxStorageProvider(StorageProviderBase):
             if list_path == "/":
                 list_path = ""
 
-            logger.debug(f"Resolved Dropbox path for count: '{list_path}'")
+            logger.debug(
+                "Resolved Dropbox path for count",
+                provider_type="dropbox",
+                operation="count",
+                list_path=list_path
+            )
 
             # Compile regex pattern if provided
             regex_pattern = re.compile(regex) if regex else None
@@ -769,13 +875,20 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 if cursor:
                     logger.debug(
-                        f"Making Dropbox API continuation call #{api_calls} for count operation"
+                        "Making Dropbox API continuation call",
+                        provider_type="dropbox",
+                        operation="count",
+                        api_call_number=api_calls
                     )
                     res = cast(
                         ListFolderResult, self.dbx.files_list_folder_continue(cursor)
                     )
                 else:
-                    logger.debug("Making initial Dropbox API call for count operation")
+                    logger.debug(
+                        "Making initial Dropbox API call for count",
+                        provider_type="dropbox",
+                        operation="count"
+                    )
                     # Use path=list_path, recursive=True only makes sense if prefix is a directory
                     # If prefix points to a file, list_folder might error or return empty.
                     # We count only FileMetadata instances returned.
@@ -786,7 +899,12 @@ class DropboxStorageProvider(StorageProviderBase):
 
                 api_duration = time.time() - api_start
                 logger.debug(
-                    f"API call #{api_calls} completed in {api_duration:.3f}s, processing {len(res.entries)} entries for count"
+                    "API call completed for count",
+                    provider_type="dropbox",
+                    operation="count",
+                    api_call_number=api_calls,
+                    api_duration_ms=api_duration * 1000,
+                    entries_count=len(res.entries)
                 )
 
                 for entry in res.entries:
@@ -823,29 +941,56 @@ class DropboxStorageProvider(StorageProviderBase):
 
             duration = time.time() - start_time
             logger.info(
-                f"Count operation completed in {duration:.3f}s: {count} objects found (API calls: {api_calls}, prefix: {prefix})"
+                "Count operation completed",
+                provider_type="dropbox",
+                operation="count",
+                duration_ms=duration * 1000,
+                objects_found=count,
+                api_calls=api_calls,
+                prefix=prefix
             )
 
             return count
 
         except RateLimitError as e:
             logger.warning(
-                f"Dropbox rate limit exceeded during count operation (path: '{list_path}'): {e}"
+                "Dropbox rate limit exceeded during count",
+                provider_type="dropbox",
+                operation="count",
+                error_type="rate_limit",
+                list_path=list_path,
+                error=str(e)
             )
             raise StorageProviderException("Dropbox rate limit exceeded") from e
         except ApiError as e:
             # If the path doesn't exist, count is 0
             if e.error and e.error.is_path() and e.error.get_path().is_not_found():
                 logger.debug(
-                    f"Path not found during count operation: '{list_path}', returning 0"
+                    "Path not found during count, returning 0",
+                    provider_type="dropbox",
+                    operation="count",
+                    error_type="not_found",
+                    list_path=list_path,
+                    count=0
                 )
                 return 0
             logger.error(
-                f"Dropbox API error during count operation (path: '{list_path}'): {e}"
+                "Dropbox API error during count",
+                provider_type="dropbox",
+                operation="count",
+                error_type="api_error",
+                list_path=list_path,
+                error=str(e)
             )
             raise StorageProviderException(f"Dropbox API error: {e}") from e
         except Exception as e:
             logger.error(
-                f"Unexpected error during count operation (path: '{list_path}'): {e}"
+                "Unexpected error during count",
+                provider_type="dropbox",
+                operation="count",
+                error_type="unexpected",
+                list_path=list_path,
+                error=str(e),
+                error_class=type(e).__name__
             )
             raise StorageProviderException(f"Dropbox error: {e}") from e

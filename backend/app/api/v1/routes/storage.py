@@ -6,7 +6,6 @@ This module provides API endpoints for:
 - Triggering background ingestion for discovered media files
 """
 
-import logging
 import os
 from datetime import datetime
 from typing import List, Optional
@@ -32,9 +31,10 @@ from app.redis_events import publish_queued_event
 from app.schemas import MediaObject
 from app.storage_provider import get_storage_provider
 from app.storage_providers.base import StorageProviderBase
+from app.structlog_config import get_logger
 from app.tasks.ingest import ingest
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -105,7 +105,12 @@ async def get_folders(
         if path == "" or path == "/":
             path = None
 
-        logger.info(f"Getting folders at path: {path}")
+        logger.info(
+            "Getting folders at path",
+            operation="api_request",
+            endpoint="get_folders",
+            path=path
+        )
 
         # Initialize repository
         media_repo = MediaObjectRepository(db)
@@ -161,7 +166,13 @@ async def get_folders(
         )
 
     except Exception as e:
-        logger.error(f"Error getting folders at path {path}: {e}")
+        logger.error(
+            "Error getting folders at path",
+            operation="get_folders",
+            path=path,
+            error=str(e),
+            error_type=type(e).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get folders: {str(e)}",
@@ -194,7 +205,12 @@ async def get_media_by_folder(
         if path == "" or path == "/":
             path = None
 
-        logger.info(f"Getting media objects in folder: {path}")
+        logger.info(
+            "Getting media objects in folder",
+            operation="api_request",
+            endpoint="get_media_by_folder",
+            path=path
+        )
 
         # Initialize repository
         media_repo = MediaObjectRepository(db)
@@ -209,7 +225,10 @@ async def get_media_by_folder(
         media_object_responses = [obj.to_pydantic() for obj in media_objects]
 
         logger.info(
-            f"Found {len(media_object_responses)} media objects in folder: {path}"
+            "Found media objects in folder",
+            operation="get_media_by_folder",
+            path=path,
+            media_objects_count=len(media_object_responses)
         )
 
         return MediaByFolderResponse(
@@ -219,7 +238,13 @@ async def get_media_by_folder(
         )
 
     except Exception as e:
-        logger.error(f"Error getting media objects in folder {path}: {e}")
+        logger.error(
+            "Error getting media objects in folder",
+            operation="get_media_by_folder",
+            path=path,
+            error=str(e),
+            error_type=type(e).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get media objects: {str(e)}",
@@ -250,7 +275,11 @@ async def trigger_ingest(
     """
     try:
         logger.info(
-            f"Manual ingest requested for path: {request.path}, preserve_metadata: {request.preserve_metadata}, force_regenerate: {request.force_regenerate}"
+            "Manual ingest requested",
+            operation="trigger_ingest",
+            path=request.path,
+            preserve_metadata=request.preserve_metadata,
+            force_regenerate=request.force_regenerate
         )
 
         # Initialize repository and Redis for queueing
@@ -289,7 +318,11 @@ async def trigger_ingest(
                     )
                 except ValueError:
                     logger.warning(
-                        f"Could not parse last_modified for {file_item.object_key}: {file_item.last_modified}"
+                        "Could not parse last_modified timestamp",
+                        operation="trigger_ingest",
+                        object_key=file_item.object_key,
+                        last_modified=file_item.last_modified,
+                        error_type="timestamp_parse_error"
                     )
 
             # Handle existing vs new objects based on preserve_metadata flag
@@ -302,7 +335,10 @@ async def trigger_ingest(
                         try:
                             job = ingest_queue.enqueue(ingest, file_item.object_key)
                             logger.info(
-                                f"Requeued existing object for regeneration: {file_item.object_key} (job {job.id})"
+                                "Requeued existing object for regeneration",
+                                operation="trigger_ingest",
+                                object_key=file_item.object_key,
+                                job_id=job.id
                             )
                             requeued_count += 1
 
@@ -312,7 +348,11 @@ async def trigger_ingest(
 
                         except Exception as e:
                             logger.error(
-                                f"Failed to requeue ingest job for {file_item.object_key}: {e}"
+                                "Failed to requeue ingest job",
+                                operation="trigger_ingest",
+                                object_key=file_item.object_key,
+                                error=str(e),
+                                error_type=type(e).__name__
                             )
                     continue
                 else:
@@ -341,25 +381,40 @@ async def trigger_ingest(
                 try:
                     job = ingest_queue.enqueue(ingest, file_item.object_key)
                     logger.info(
-                        f"Queued ingest job {job.id} for file: {file_item.object_key}"
+                        "Queued ingest job for file",
+                        operation="trigger_ingest",
+                        object_key=file_item.object_key,
+                        job_id=job.id
                     )
                     newly_queued += 1
 
                     # Publish queued event with MediaObject data
                     media_obj_pydantic = media_obj.to_pydantic()
                     publish_queued_event(media_obj_pydantic)
-                    logger.debug(f"Published queued event for {media_obj.object_key}")
+                    logger.debug(
+                        "Published queued event",
+                        operation="trigger_ingest",
+                        object_key=media_obj.object_key
+                    )
 
                 except Exception as e:
                     logger.error(
-                        f"Failed to queue ingest job for {file_item.object_key}: {e}"
+                        "Failed to queue ingest job",
+                        operation="trigger_ingest",
+                        object_key=file_item.object_key,
+                        error=str(e),
+                        error_type=type(e).__name__
                     )
 
         total_queued = newly_queued + requeued_count
 
         if total_queued > 0:
             logger.info(
-                f"Manual ingest completed: {newly_queued} new files, {requeued_count} requeued files"
+                "Manual ingest completed",
+                operation="trigger_ingest",
+                newly_queued=newly_queued,
+                requeued_count=requeued_count,
+                total_queued=total_queued
             )
             message = f"Queued {total_queued} files for processing"
             if request.preserve_metadata:
@@ -372,7 +427,13 @@ async def trigger_ingest(
         return IngestResponse(success=True, message=message, queued_count=total_queued)
 
     except Exception as e:
-        logger.error(f"Error during manual ingest for path {request.path}: {e}")
+        logger.error(
+            "Error during manual ingest",
+            operation="trigger_ingest",
+            path=request.path,
+            error=str(e),
+            error_type=type(e).__name__
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to trigger ingest: {str(e)}",
