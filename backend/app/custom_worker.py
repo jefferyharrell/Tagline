@@ -10,6 +10,7 @@ import sys
 from rq import Worker
 from rq.logutils import setup_loghandlers
 
+from app.config import get_settings
 from app.structlog_config import configure_structlog, get_logger
 
 
@@ -18,11 +19,14 @@ class StructlogWorker(Worker):
     
     def configure_logging(self):
         """Override RQ's logging configuration to use structlog."""
+        # Get settings
+        settings = get_settings()
+        
         # Configure structlog for this worker
         configure_structlog(
             service_name="tagline-ingest-worker",
             log_level=logging.INFO,
-            development_mode=False
+            log_format=settings.LOG_FORMAT
         )
         
         # Configure RQ logger to use pure JSON output
@@ -44,11 +48,14 @@ class StructlogWorker(Worker):
 
 def setup_custom_loghandlers(level=None, date_format=None, log_format=None):
     """Custom log handler setup that completely overrides RQ's logging with pure JSON output."""
+    # Get settings
+    settings = get_settings()
+    
     # Configure structlog first
     configure_structlog(
         service_name="tagline-ingest-worker",
         log_level=level or logging.INFO,
-        development_mode=False
+        log_format=settings.LOG_FORMAT
     )
     
     # Get the root logger and completely reset it for pure JSON output

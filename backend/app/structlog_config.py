@@ -82,18 +82,18 @@ def rename_event_to_message(logger: Any, method_name: str, event_dict: Dict[str,
 def configure_structlog(
     service_name: str = "tagline-backend",
     log_level: int = logging.INFO,
-    development_mode: bool = False
+    log_format: str = "json"
 ) -> None:
     """
-    Configure structlog with optimized settings for production or development.
+    Configure structlog with optimized settings for production or human-readable output.
     
     Args:
         service_name: Name of the service for log identification
         log_level: Logging level to set
-        development_mode: Whether to use development-friendly output
+        log_format: Output format - "json" for structured logs or "human" for readable output
     """
-    # Configure processors based on environment
-    if development_mode:
+    # Configure processors based on log format
+    if log_format.lower() == "human":
         # Development: human-readable output with colors
         processors = [
             structlog.stdlib.filter_by_level,
@@ -145,14 +145,9 @@ def configure_structlog(
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    # Create handler with pure message output (no timestamps/levels in production)
+    # Create handler with pure message output
     handler = logging.StreamHandler(sys.stdout)
-    if development_mode:
-        # Development: keep some formatting for readability
-        handler.setFormatter(logging.Formatter("%(message)s"))
-    else:
-        # Production: pure JSON output only
-        handler.setFormatter(logging.Formatter("%(message)s"))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     
     root_logger.addHandler(handler)
     
@@ -208,10 +203,11 @@ def setup_json_logging(
     Compatibility function for existing setup_json_logging calls.
     Configures structlog instead of custom JSON logging.
     """
+    # Always use JSON format for backward compatibility
     configure_structlog(
         service_name=service_name,
         log_level=log_level,
-        development_mode=False
+        log_format="json"
     )
 
 

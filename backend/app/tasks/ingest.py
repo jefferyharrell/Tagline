@@ -28,12 +28,17 @@ async def ingest(object_key: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    # Configure JSON logging for this worker process if not already done
+    # Configure structlog for this worker process if not already done
     global logger
-    if not hasattr(logging.getLogger(), '_json_configured'):
-        from app.structlog_config import setup_json_logging
-        setup_json_logging(service_name="tagline-ingest-worker")
-        logging.getLogger()._json_configured = True
+    if not hasattr(logging.getLogger(), '_structlog_configured'):
+        from app.config import get_settings
+        from app.structlog_config import configure_structlog
+        settings = get_settings()
+        configure_structlog(
+            service_name="tagline-ingest-worker",
+            log_format=settings.LOG_FORMAT
+        )
+        logging.getLogger()._structlog_configured = True
     
     # Create a fresh logger instance for this job to avoid context pollution
     from app.structlog_config import get_job_logger

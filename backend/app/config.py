@@ -24,6 +24,7 @@ class StorageProviderType(str, Enum):
 class Settings(BaseSettings):
     BACKEND_API_KEY: str
     LOG_LEVEL: int = logging.INFO
+    LOG_FORMAT: str = "json"  # "json" or "human"
     DATABASE_URL: str
     UNIT_TEST_DATABASE_URL: str | None = None  # Optional, for unit tests
 
@@ -141,6 +142,14 @@ class Settings(BaseSettings):
                 return level
             raise ValueError(f"Invalid log level: {v}")
         raise ValueError(f"LOG_LEVEL must be int or str, got {type(v)}")
+    
+    @field_validator("LOG_FORMAT", mode="before")
+    @classmethod
+    def normalize_log_format(cls, v: Any) -> str:
+        """Normalize LOG_FORMAT to lowercase."""
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="forbid"

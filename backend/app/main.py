@@ -12,6 +12,7 @@ from app.api.v1.routes import private_router, public_router
 from app.api.v1.routes.auth import limiter
 from app.auth_utils import get_current_user
 from app.config import StorageProviderType, get_settings
+from app.structlog_config import configure_structlog
 
 # Define required environment variables for each storage provider
 PROVIDER_REQUIRED_VARS = {
@@ -57,7 +58,12 @@ async def lifespan(app):
         raise RuntimeError(f"Configuration error: {e}")
     logging.info("Loading settings complete.")
 
-    logging.getLogger().setLevel(settings.LOG_LEVEL)
+    # Configure structlog for the main application
+    configure_structlog(
+        service_name="tagline-backend",
+        log_level=settings.LOG_LEVEL,
+        log_format=settings.LOG_FORMAT
+    )
     logging.info(f"Log level set to {logging.getLevelName(settings.LOG_LEVEL)}")
 
     logging.info("Validating configuration...")

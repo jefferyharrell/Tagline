@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 
+from app.config import get_settings
 from app.structlog_config import configure_structlog, get_logger
 
 
@@ -19,6 +20,9 @@ def configure_worker_logging():
     This should be called when the worker starts up to ensure
     all log output uses high-performance structured logging.
     """
+    # Get settings
+    settings = get_settings()
+    
     # Get log level from environment or default to INFO
     log_level_str = os.getenv("LOG_LEVEL", "INFO")
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
@@ -27,7 +31,7 @@ def configure_worker_logging():
     configure_structlog(
         service_name="tagline-ingest-worker",
         log_level=log_level,
-        development_mode=False  # Always use JSON output for workers
+        log_format=settings.LOG_FORMAT
     )
     
     # Log startup message
