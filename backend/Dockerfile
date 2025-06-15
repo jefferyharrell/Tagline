@@ -25,6 +25,7 @@ COPY alembic/ ./alembic/
 
 # Copy the rest of the application
 COPY app/ ./app/
+COPY start_worker.py ./start_worker.py
 
 # Install Python dependencies using uv at system level
 RUN uv pip install --system -r pyproject.toml
