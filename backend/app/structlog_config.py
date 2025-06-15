@@ -62,6 +62,23 @@ def add_module_info(logger: Any, method_name: str, event_dict: Dict[str, Any]) -
     return event_dict
 
 
+def rename_event_to_message(logger: Any, method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Rename 'event' field to 'message' for Railway log parsing compatibility.
+    
+    Args:
+        logger: The logger instance
+        method_name: The method name being called
+        event_dict: The event dictionary
+        
+    Returns:
+        Updated event dictionary with 'message' field instead of 'event'
+    """
+    if "event" in event_dict:
+        event_dict["message"] = event_dict.pop("event")
+    return event_dict
+
+
 def configure_structlog(
     service_name: str = "tagline-backend",
     log_level: int = logging.INFO,
@@ -85,6 +102,7 @@ def configure_structlog(
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="iso"),
             add_service_name,
+            rename_event_to_message,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
@@ -101,6 +119,7 @@ def configure_structlog(
             structlog.processors.TimeStamper(fmt="iso"),
             add_service_name,
             add_module_info,
+            rename_event_to_message,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
