@@ -41,20 +41,20 @@ from app.db.repositories.auth import (
 def analyze_sync_changes(json_users: List[dict], existing_users: dict) -> dict:
     """
     Analyze what changes would be made by syncing user data.
-    
+
     Args:
         json_users: Parsed user data from JSON
         existing_users: Dict of existing users keyed by email
-        
+
     Returns:
         Dictionary with keys: to_add, to_update, to_deactivate
     """
     json_emails = {user["email"] for user in json_users}
     existing_emails = set(existing_users.keys())
-    
+
     to_add = []
     to_update = []
-    
+
     # Users in JSON data
     for json_user in json_users:
         email = json_user["email"]
@@ -71,7 +71,7 @@ def analyze_sync_changes(json_users: List[dict], existing_users: dict) -> dict:
                 )
         else:
             to_add.append(json_user)
-    
+
     # Users not in JSON data (to be deactivated)
     to_deactivate = []
     for email in existing_emails - json_emails:
@@ -87,7 +87,7 @@ def analyze_sync_changes(json_users: List[dict], existing_users: dict) -> dict:
                     "roles": [r.name for r in user.roles],
                 }
             )
-    
+
     return {"to_add": to_add, "to_update": to_update, "to_deactivate": to_deactivate}
 
 
@@ -112,15 +112,15 @@ def setup_user_with_default_roles(user, email: str, db: Session, settings: Setti
     Handles the commit and refresh automatically.
     """
     role_repo = RoleRepository(db)
-    
+
     # Assign default member role if not already present
     member_role = role_repo.get_by_name("member")
     if member_role and not any(role.name == "member" for role in user.roles):
         user.roles.append(member_role)
-    
+
     # Check if this user should have administrator role
     ensure_administrator_role(user, email, db, settings)
-    
+
     # Commit changes
     db.commit()
     db.refresh(user)
@@ -135,6 +135,7 @@ def ensure_user_has_admin_role(user, email: str, db: Session, settings: Settings
     if role_changed:
         db.commit()
         db.refresh(user)
+
 
 logger = logging.getLogger(__name__)
 
@@ -536,12 +537,14 @@ async def export_users(
     # Convert to UserSync schema
     user_list = []
     for user in users:
-        user_list.append(schemas.UserSync(
-            email=user.email,
-            firstname=user.firstname,
-            lastname=user.lastname,
-            roles=[role.name for role in user.roles]
-        ))
+        user_list.append(
+            schemas.UserSync(
+                email=user.email,
+                firstname=user.firstname,
+                lastname=user.lastname,
+                roles=[role.name for role in user.roles],
+            )
+        )
 
     return user_list
 
@@ -568,12 +571,14 @@ async def sync_users(
     # Convert Pydantic models to dict format for existing logic
     json_users = []
     for user in user_data.users:
-        json_users.append({
-            "email": user.email,
-            "firstname": user.firstname or "",
-            "lastname": user.lastname or "",
-            "roles": user.roles
-        })
+        json_users.append(
+            {
+                "email": user.email,
+                "firstname": user.firstname or "",
+                "lastname": user.lastname or "",
+                "roles": user.roles,
+            }
+        )
 
     # Validate roles
     role_repo = RoleRepository(db)
@@ -604,7 +609,9 @@ async def sync_users(
     # Perform the sync
     user_repo = UserRepository(db)
     try:
-        counts = user_repo.sync_users_from_csv(json_users)  # Method works with dict format
+        counts = user_repo.sync_users_from_csv(
+            json_users
+        )  # Method works with dict format
 
         # Add eligible emails for new users
         email_repo = EligibleEmailRepository(db)
@@ -618,11 +625,15 @@ async def sync_users(
                 except IntegrityError:
                     # Rollback this specific transaction and continue
                     db.rollback()
-                    logger.warning(f"Email {user['email']} already exists in eligible_emails")
+                    logger.warning(
+                        f"Email {user['email']} already exists in eligible_emails"
+                    )
                 except Exception as e:
                     # Handle other potential errors
                     db.rollback()
-                    logger.error(f"Error adding email {user['email']} to eligible_emails: {str(e)}")
+                    logger.error(
+                        f"Error adding email {user['email']} to eligible_emails: {str(e)}"
+                    )
 
         warnings = []
         if not admin_in_data:
@@ -662,12 +673,14 @@ async def preview_sync(
     # Convert Pydantic models to dict format for existing logic
     json_users = []
     for user in user_data.users:
-        json_users.append({
-            "email": user.email,
-            "firstname": user.firstname or "",
-            "lastname": user.lastname or "",
-            "roles": user.roles
-        })
+        json_users.append(
+            {
+                "email": user.email,
+                "firstname": user.firstname or "",
+                "lastname": user.lastname or "",
+                "roles": user.roles,
+            }
+        )
 
     # Get existing users
     user_repo = UserRepository(db)

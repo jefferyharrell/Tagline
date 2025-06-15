@@ -25,46 +25,50 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def get_ingest_events(since_timestamp: Optional[str] = None) -> AsyncGenerator[str, None]:
+async def get_ingest_events(
+    since_timestamp: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
     """
     Generate Server-Sent Events for ingest progress updates using Redis pub/sub.
-    
+
     This subscribes to the Redis pub/sub channel for real-time ingest events
     and streams them to the client without polling.
-    
+
     Args:
         since_timestamp: ISO timestamp string - only send events after this time (for reconnection)
     """
     from datetime import datetime, timezone
-    
+
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     redis_conn = None
     pubsub = None
-    
+
     try:
         # Connect to Redis
         redis_conn = redis.from_url(redis_url)
         pubsub = redis_conn.pubsub()
-        
+
         # Subscribe to the ingest events channel
         await asyncio.get_event_loop().run_in_executor(
             None, pubsub.subscribe, INGEST_EVENTS_CHANNEL
         )
-        
+
         logger.info(f"SSE client subscribed to {INGEST_EVENTS_CHANNEL}")
-        
+
         # Send initial connection confirmation
         yield f"data: {json.dumps({'type': 'connected', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
-        
+
         # Parse since_timestamp if provided for filtering
         since_dt = None
         if since_timestamp:
             try:
-                since_dt = datetime.fromisoformat(since_timestamp.replace('Z', '+00:00'))
+                since_dt = datetime.fromisoformat(
+                    since_timestamp.replace("Z", "+00:00")
+                )
                 logger.info(f"SSE client resuming from {since_dt}")
             except ValueError:
                 logger.warning(f"Invalid since_timestamp format: {since_timestamp}")
-        
+
         # Main event loop
         while True:
             try:
@@ -72,59 +76,65 @@ async def get_ingest_events(since_timestamp: Optional[str] = None) -> AsyncGener
                 message = await asyncio.get_event_loop().run_in_executor(
                     None, lambda: pubsub.get_message(timeout=30.0)
                 )
-                
+
                 if message is None:
                     # Timeout reached, send heartbeat
                     yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
                     continue
-                
+
                 # Skip subscription confirmation messages
-                if message['type'] != 'message':
+                if message["type"] != "message":
                     continue
-                
+
                 try:
                     # Parse the event data
-                    event_data = json.loads(message['data'])
-                    
+                    event_data = json.loads(message["data"])
+
                     # Filter events based on since_timestamp if provided
                     if since_dt:
                         try:
-                            event_timestamp = datetime.fromisoformat(event_data['timestamp'].replace('Z', '+00:00'))
+                            event_timestamp = datetime.fromisoformat(
+                                event_data["timestamp"].replace("Z", "+00:00")
+                            )
                             if event_timestamp <= since_dt:
                                 continue  # Skip old events
                         except (KeyError, ValueError):
                             pass  # If timestamp parsing fails, send the event anyway
-                    
+
                     # Convert our internal event format to the format expected by frontend
                     sse_event = {
                         "type": "media_ingested",  # Keep this for backward compatibility
                         "event_type": event_data.get("event_type"),
                         "timestamp": event_data.get("timestamp"),
                         "media_object": event_data.get("media_object"),
-                        "error": event_data.get("error")
+                        "error": event_data.get("error"),
                     }
-                    
+
                     # For backward compatibility, also include top-level fields
                     if event_data.get("media_object"):
                         media_obj = event_data["media_object"]
-                        sse_event.update({
-                            "object_key": media_obj.get("object_key"),
-                            "has_thumbnail": media_obj.get("has_thumbnail"),
-                            "ingestion_status": media_obj.get("ingestion_status")
-                        })
-                    
-                    logger.debug(f"Forwarding SSE event: {event_data['event_type']} for {sse_event.get('object_key')}")
-                    
+                        sse_event.update(
+                            {
+                                "object_key": media_obj.get("object_key"),
+                                "has_thumbnail": media_obj.get("has_thumbnail"),
+                                "ingestion_status": media_obj.get("ingestion_status"),
+                            }
+                        )
+
+                    logger.debug(
+                        f"Forwarding SSE event: {event_data['event_type']} for {sse_event.get('object_key')}"
+                    )
+
                     # Send event to client
                     yield f"data: {json.dumps(sse_event)}\n\n"
-                    
+
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse Redis event data: {e}")
                     continue
                 except Exception as e:
                     logger.error(f"Error processing Redis event: {e}")
                     continue
-                    
+
             except redis.ConnectionError:
                 logger.error("Redis connection lost in SSE stream")
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Redis connection lost'})}\n\n"
@@ -133,7 +143,7 @@ async def get_ingest_events(since_timestamp: Optional[str] = None) -> AsyncGener
                 logger.error(f"Error in ingest events stream: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
                 await asyncio.sleep(5)  # Wait before retrying
-                
+
     except Exception as e:
         logger.error(f"Failed to initialize ingest events stream: {e}")
         yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to initialize stream'})}\n\n"
@@ -144,20 +154,16 @@ async def get_ingest_events(since_timestamp: Optional[str] = None) -> AsyncGener
                 await asyncio.get_event_loop().run_in_executor(
                     None, pubsub.unsubscribe, INGEST_EVENTS_CHANNEL
                 )
-                await asyncio.get_event_loop().run_in_executor(
-                    None, pubsub.close
-                )
+                await asyncio.get_event_loop().run_in_executor(None, pubsub.close)
             except Exception as e:
                 logger.warning(f"Error closing pub/sub connection: {e}")
-        
+
         if redis_conn:
             try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, redis_conn.close
-                )
+                await asyncio.get_event_loop().run_in_executor(None, redis_conn.close)
             except Exception as e:
                 logger.warning(f"Error closing Redis connection: {e}")
-        
+
         logger.info("SSE connection closed")
 
 
@@ -168,20 +174,20 @@ async def stream_ingest_events(
 ):
     """
     Stream real-time ingest progress events via Server-Sent Events.
-    
+
     This endpoint provides a persistent connection that streams updates
     when media objects are queued, started, or complete ingestion processing.
-    
+
     Events include:
     - media_ingested: When a media object status changes (queued/started/complete)
     - connected: Initial connection confirmation
     - heartbeat: Periodic keep-alive messages
     - error: When errors occur in the stream
-    
+
     Args:
         since: ISO timestamp - only send events after this time (for reconnection)
     """
-    
+
     async def generate_events():
         """Async generator that properly reuses the existing event loop."""
         async for event in get_ingest_events(since_timestamp=since):
@@ -197,5 +203,3 @@ async def stream_ingest_events(
             "Access-Control-Allow-Headers": "Cache-Control",
         },
     )
-
-

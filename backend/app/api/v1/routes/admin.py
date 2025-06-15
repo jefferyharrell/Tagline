@@ -6,8 +6,8 @@ This module provides administrative endpoints for:
 """
 
 import logging
-from fastapi import APIRouter
 
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 

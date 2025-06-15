@@ -111,6 +111,7 @@ class EligibleEmail(EligibleEmailBase):
 # User sync schemas for JSON-based operations
 class UserSync(BaseModel):
     """User data for JSON-based sync operations"""
+
     email: EmailStr
     firstname: Optional[str] = None
     lastname: Optional[str] = None
@@ -119,6 +120,7 @@ class UserSync(BaseModel):
 
 class UserSyncList(BaseModel):
     """List of users for bulk sync operations"""
+
     users: List[UserSync]
 
 

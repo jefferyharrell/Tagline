@@ -6,7 +6,7 @@ This model represents the business logic layer for media objects, decoupled from
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.models import ORMMediaObject, IngestionStatus
+from app.models import IngestionStatus, ORMMediaObject
 from app.schemas import MediaObject as PydanticMediaObject, StoredMediaObject
 
 
@@ -48,10 +48,12 @@ class MediaObjectRecord:
         # Check if has thumbnail/proxy by looking at direct columns
         has_thumbnail = getattr(orm_obj, "thumbnail_object_key", None) is not None
         has_proxy = getattr(orm_obj, "proxy_object_key", None) is not None
-        
+
         return cls(
             object_key=getattr(orm_obj, "object_key", ""),
-            ingestion_status=getattr(orm_obj, "ingestion_status", IngestionStatus.PENDING.value),
+            ingestion_status=getattr(
+                orm_obj, "ingestion_status", IngestionStatus.PENDING.value
+            ),
             metadata=getattr(orm_obj, "object_metadata", {}) or {},
             file_size=getattr(orm_obj, "file_size", None),
             file_mimetype=getattr(orm_obj, "file_mimetype", None),
@@ -95,16 +97,20 @@ class MediaObjectRecord:
         file_size = None
         file_mimetype = None
         if stored_obj.metadata:
-            file_size = stored_obj.metadata.get('size')
-            file_mimetype = stored_obj.metadata.get('mimetype')
-            
+            file_size = stored_obj.metadata.get("size")
+            file_mimetype = stored_obj.metadata.get("mimetype")
+
         return cls(
             object_key=stored_obj.object_key,
             ingestion_status=IngestionStatus.PENDING.value,
             metadata=stored_obj.metadata or {},
             file_size=file_size,
             file_mimetype=file_mimetype,
-            file_last_modified=datetime.fromisoformat(stored_obj.last_modified) if stored_obj.last_modified else None,
+            file_last_modified=(
+                datetime.fromisoformat(stored_obj.last_modified)
+                if stored_obj.last_modified
+                else None
+            ),
         )
 
     def to_pydantic(self) -> PydanticMediaObject:

@@ -9,18 +9,18 @@ import logging
 import sys
 from typing import Any, Dict
 
-import structlog
 import orjson
+import structlog
 
 
 def orjson_serializer(obj: Any, **kwargs) -> str:
     """
     High-performance JSON serializer using orjson.
-    
+
     Args:
         obj: Object to serialize
         **kwargs: Additional arguments (ignored for compatibility)
-        
+
     Returns:
         JSON string
     """
@@ -28,15 +28,17 @@ def orjson_serializer(obj: Any, **kwargs) -> str:
     return orjson.dumps(obj, option=orjson.OPT_UTC_Z).decode()
 
 
-def add_service_name(logger: Any, method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+def add_service_name(
+    logger: Any, method_name: str, event_dict: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Add service name to all log entries.
-    
+
     Args:
         logger: The logger instance
         method_name: The method name being called
         event_dict: The event dictionary
-        
+
     Returns:
         Updated event dictionary with service name
     """
@@ -44,15 +46,17 @@ def add_service_name(logger: Any, method_name: str, event_dict: Dict[str, Any]) 
     return event_dict
 
 
-def add_module_info(logger: Any, method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+def add_module_info(
+    logger: Any, method_name: str, event_dict: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Add module information to log entries.
-    
+
     Args:
-        logger: The logger instance  
+        logger: The logger instance
         method_name: The method name being called
         event_dict: The event dictionary
-        
+
     Returns:
         Updated event dictionary with module info
     """
@@ -62,15 +66,17 @@ def add_module_info(logger: Any, method_name: str, event_dict: Dict[str, Any]) -
     return event_dict
 
 
-def rename_event_to_message(logger: Any, method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+def rename_event_to_message(
+    logger: Any, method_name: str, event_dict: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Rename 'event' field to 'message' for Railway log parsing compatibility.
-    
+
     Args:
         logger: The logger instance
         method_name: The method name being called
         event_dict: The event dictionary
-        
+
     Returns:
         Updated event dictionary with 'message' field instead of 'event'
     """
@@ -82,11 +88,11 @@ def rename_event_to_message(logger: Any, method_name: str, event_dict: Dict[str,
 def configure_structlog(
     service_name: str = "tagline-backend",
     log_level: int = logging.INFO,
-    log_format: str = "json"
+    log_format: str = "json",
 ) -> None:
     """
     Configure structlog with optimized settings for production or human-readable output.
-    
+
     Args:
         service_name: Name of the service for log identification
         log_level: Logging level to set
@@ -106,7 +112,7 @@ def configure_structlog(
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.dev.ConsoleRenderer(colors=True)
+            structlog.dev.ConsoleRenderer(colors=True),
         ]
         factory = structlog.stdlib.LoggerFactory()
     else:
@@ -123,11 +129,11 @@ def configure_structlog(
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer(serializer=orjson_serializer)
+            structlog.processors.JSONRenderer(serializer=orjson_serializer),
         ]
         # Use standard LoggerFactory for compatibility
         factory = structlog.stdlib.LoggerFactory()
-    
+
     # Configure structlog
     structlog.configure(
         processors=processors,
@@ -136,24 +142,24 @@ def configure_structlog(
         context_class=dict,
         cache_logger_on_first_use=True,  # Performance optimization
     )
-    
+
     # Configure standard library logging
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    
+
     # Remove all existing handlers to prevent duplicates
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Create handler with pure message output
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter("%(message)s"))
-    
+
     root_logger.addHandler(handler)
-    
+
     # Prevent propagation to avoid duplicate logs
     root_logger.propagate = False
-    
+
     # Store service name for access in processors
     structlog.get_logger()._service_name = service_name
 
@@ -161,30 +167,30 @@ def configure_structlog(
 def get_logger(name: str = None) -> structlog.BoundLogger:
     """
     Get a structlog logger instance.
-    
+
     Args:
         name: Logger name (typically __name__)
-        
+
     Returns:
         Bound logger instance
     """
     logger = structlog.get_logger(name)
-    
+
     # Add logger name to context for module identification
     if name:
         logger = logger.bind(logger_name=name)
-    
+
     return logger
 
 
 def get_job_logger(name: str = None, **context) -> structlog.BoundLogger:
     """
     Get a logger with job-specific context pre-bound.
-    
+
     Args:
         name: Logger name (typically __name__)
         **context: Context to bind to the logger
-        
+
     Returns:
         Bound logger with context
     """
@@ -196,8 +202,7 @@ def get_job_logger(name: str = None, **context) -> structlog.BoundLogger:
 
 # Compatibility functions for gradual migration
 def setup_json_logging(
-    service_name: str = "tagline-backend",
-    log_level: int = logging.INFO
+    service_name: str = "tagline-backend", log_level: int = logging.INFO
 ) -> None:
     """
     Compatibility function for existing setup_json_logging calls.
@@ -205,9 +210,7 @@ def setup_json_logging(
     """
     # Always use JSON format for backward compatibility
     configure_structlog(
-        service_name=service_name,
-        log_level=log_level,
-        log_format="json"
+        service_name=service_name, log_level=log_level, log_format="json"
     )
 
 

@@ -74,11 +74,11 @@ class MediaProcessor(Protocol):
                     bottom = top + height
                     thumb = resized.crop((left, top, right, bottom))
                     resized.close()  # Explicitly close intermediate image
-                
+
                 out = BytesIO()
                 thumb.save(out, format=fmt.upper(), quality=quality)
                 thumb.close()  # Explicitly close thumbnail image
-                
+
                 fmt_lc = fmt.lower()
                 mimetype = {
                     "jpeg": "image/jpeg",
@@ -140,7 +140,7 @@ class MediaProcessor(Protocol):
                 out = BytesIO()
                 proxy.save(out, format=fmt.upper(), quality=quality)
                 proxy.close()  # Explicitly close proxy image
-                
+
                 fmt_lc = fmt.lower()
                 mimetype = {
                     "jpeg": "image/jpeg",
@@ -196,7 +196,9 @@ class MediaProcessor(Protocol):
     def clear_content_cache(self) -> None:
         """Clear the cached content to free memory."""
         if self._content is not None:
-            logger.debug(f"Clearing content cache for {self.stored_media_object.object_key}")
+            logger.debug(
+                f"Clearing content cache for {self.stored_media_object.object_key}"
+            )
             self._content = None
 
     # Changed to async method

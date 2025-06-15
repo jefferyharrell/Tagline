@@ -142,7 +142,7 @@ class Settings(BaseSettings):
                 return level
             raise ValueError(f"Invalid log level: {v}")
         raise ValueError(f"LOG_LEVEL must be int or str, got {type(v)}")
-    
+
     @field_validator("LOG_FORMAT", mode="before")
     @classmethod
     def normalize_log_format(cls, v: Any) -> str:

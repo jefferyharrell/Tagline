@@ -6,6 +6,7 @@ This module provides API endpoints for:
 """
 
 import logging
+
 from fastapi import APIRouter, Depends, Query
 
 from app.db.repositories.media_object import MediaObjectRepository
@@ -36,7 +37,11 @@ def search_media(
     media_records, total_count = repo.search(query=q, limit=limit, offset=offset)
 
     # Convert to Pydantic models (filter out any without object_key)
-    media_objects = [record.to_pydantic() for record in media_records if record.object_key is not None]
+    media_objects = [
+        record.to_pydantic()
+        for record in media_records
+        if record.object_key is not None
+    ]
 
     # Calculate total pages
     pages = (total_count + limit - 1) // limit if limit > 0 else 0

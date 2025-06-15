@@ -5,7 +5,7 @@ from app.schemas import StoredMediaObject
 
 class DirectoryItem:
     """Represents a file or folder in a directory listing."""
-    
+
     def __init__(
         self,
         name: str,
@@ -31,10 +31,10 @@ class StorageProviderBase(Protocol):
         prefix: Optional[str] = None,
     ) -> List[DirectoryItem]:
         """List files and folders at the given prefix path.
-        
+
         Args:
             prefix: Path prefix to list (None for root directory)
-            
+
         Returns:
             List of DirectoryItem objects representing files and folders
         """

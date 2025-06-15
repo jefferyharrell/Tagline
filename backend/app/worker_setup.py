@@ -16,31 +16,33 @@ from app.structlog_config import configure_structlog, get_logger
 def configure_worker_logging():
     """
     Configure structlog for RQ workers.
-    
+
     This should be called when the worker starts up to ensure
     all log output uses high-performance structured logging.
     """
     # Get settings
     settings = get_settings()
-    
+
     # Get log level from environment or default to INFO
     log_level_str = os.getenv("LOG_LEVEL", "INFO")
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
-    
+
     # Set up structlog with ingest-worker service name
     configure_structlog(
         service_name="tagline-ingest-worker",
         log_level=log_level,
-        log_format=settings.LOG_FORMAT
+        log_format=settings.LOG_FORMAT,
     )
-    
+
     # Log startup message
     logger = get_logger(__name__)
-    logger.info("Ingest worker started with structlog configured",
-                operation="worker_startup",
-                log_level=log_level_str,
-                pid=os.getpid())
-    
+    logger.info(
+        "Ingest worker started with structlog configured",
+        operation="worker_startup",
+        log_level=log_level_str,
+        pid=os.getpid(),
+    )
+
     # Also print to stderr to verify it's being called
     print(f"Structlog configured at level {log_level_str}", file=sys.stderr)
 

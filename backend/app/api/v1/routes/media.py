@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-
-@router.get("/media/{object_key:path}/data", response_class=StreamingResponse, tags=["media"])
+@router.get(
+    "/media/{object_key:path}/data", response_class=StreamingResponse, tags=["media"]
+)
 async def get_media_data(
     object_key: str,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
@@ -30,7 +31,7 @@ async def get_media_data(
     """
     # URL decode the object_key
     object_key = unquote(object_key)
-    
+
     # Get the media object record
     record = repo.get_by_object_key(object_key)
     if not record or not record.object_key:
@@ -133,7 +134,7 @@ def patch_media_object(
     """
     # URL decode the object_key
     object_key = unquote(object_key)
-    
+
     record = repo.get_by_object_key(object_key)
     if not record or not record.object_key:
         raise HTTPException(status_code=404, detail="Media object not found")
@@ -156,12 +157,14 @@ def patch_media_object(
         success = repo.update_metadata(object_key, merged_metadata)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update media object")
-            
+
         # Retrieve updated record
         updated = repo.get_by_object_key(object_key)
         if not updated:
-            raise HTTPException(status_code=404, detail="Media object not found after update")
-            
+            raise HTTPException(
+                status_code=404, detail="Media object not found after update"
+            )
+
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to update media object: {e}"
@@ -169,7 +172,11 @@ def patch_media_object(
     return updated.to_pydantic()
 
 
-@router.get("/media/{object_key:path}/thumbnail", response_class=StreamingResponse, tags=["media"])
+@router.get(
+    "/media/{object_key:path}/thumbnail",
+    response_class=StreamingResponse,
+    tags=["media"],
+)
 def get_media_thumbnail(
     object_key: str,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
@@ -182,16 +189,18 @@ def get_media_thumbnail(
     # URL decode the object_key
     original_object_key = object_key
     object_key = unquote(object_key)
-    logger.info(f"Getting thumbnail for original='{original_object_key}' decoded='{object_key}'")
-    
+    logger.info(
+        f"Getting thumbnail for original='{original_object_key}' decoded='{object_key}'"
+    )
+
     media_object = repo.get_by_object_key(object_key)
     if not media_object:
         # Debug: check what objects exist in the database
         all_objects = repo.get_all(limit=10, offset=0)
         object_keys = [obj.object_key for obj in all_objects if obj.object_key]
         raise HTTPException(
-            status_code=404, 
-            detail=f"Media object not found for key: '{object_key}'. Available keys: {object_keys}"
+            status_code=404,
+            detail=f"Media object not found for key: '{object_key}'. Available keys: {object_keys}",
         )
 
     logger.info(f"Found media object, checking thumbnail metadata for: {object_key}")
@@ -221,7 +230,9 @@ def get_media_thumbnail(
         raise HTTPException(status_code=500, detail="Error retrieving thumbnail")
 
 
-@router.get("/media/{object_key:path}/proxy", response_class=StreamingResponse, tags=["media"])
+@router.get(
+    "/media/{object_key:path}/proxy", response_class=StreamingResponse, tags=["media"]
+)
 def get_media_proxy(
     object_key: str,
     repo: MediaObjectRepository = Depends(get_media_object_repository),
@@ -233,7 +244,7 @@ def get_media_proxy(
     """
     # URL decode the object_key
     object_key = unquote(object_key)
-    
+
     media_object = repo.get_by_object_key(object_key)
     if not media_object:
         raise HTTPException(status_code=404, detail="Media object not found")
@@ -276,12 +287,13 @@ def debug_sparkle_specifically(
     all_objects = repo.get_all(limit=10, offset=0)
     object_keys = [obj.object_key for obj in all_objects if obj.object_key]
     sparkle_exists = repo.get_by_object_key("_Sparkle.heic")
-    
+
     return {
         "available_keys": object_keys,
         "sparkle_exists": sparkle_exists is not None,
-        "sparkle_object": sparkle_exists.to_pydantic() if sparkle_exists else None
+        "sparkle_object": sparkle_exists.to_pydantic() if sparkle_exists else None,
     }
+
 
 @router.get("/media/{object_key:path}/debug", tags=["media"])
 def debug_media_object(
@@ -290,21 +302,25 @@ def debug_media_object(
 ):
     """Debug endpoint to check object key processing."""
     from urllib.parse import unquote
+
     original_object_key = object_key
     object_key = unquote(object_key)
-    
+
     all_objects = repo.get_all(limit=10, offset=0)
     object_keys = [obj.object_key for obj in all_objects if obj.object_key]
-    
+
     return {
         "original_object_key": original_object_key,
         "decoded_object_key": object_key,
         "available_keys": object_keys,
-        "key_exists": any(key == object_key for key in object_keys)
+        "key_exists": any(key == object_key for key in object_keys),
     }
 
+
 @router.get(
-    "/media/{object_key:path}/adjacent", response_model=AdjacentMediaResponse, tags=["media"]
+    "/media/{object_key:path}/adjacent",
+    response_model=AdjacentMediaResponse,
+    tags=["media"],
 )
 def get_adjacent_media(
     object_key: str, repo: MediaObjectRepository = Depends(get_media_object_repository)
@@ -315,7 +331,7 @@ def get_adjacent_media(
     """
     # URL decode the object_key
     object_key = unquote(object_key)
-    
+
     # First, verify the current media object exists
     current = repo.get_by_object_key(object_key)
     if not current or not current.object_key:
@@ -342,7 +358,7 @@ def get_media_object(
     """
     # URL decode the object_key
     object_key = unquote(object_key)
-    
+
     record = repo.get_by_object_key(object_key)
     if not record or not record.object_key:
         raise HTTPException(status_code=404, detail="Media object not found")

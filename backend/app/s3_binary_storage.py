@@ -1,6 +1,5 @@
 """S3-compatible storage for derived media files (thumbnails, proxies)."""
 
-import logging
 from typing import Generator, Optional
 
 import boto3
@@ -8,7 +7,9 @@ from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
+from app.structlog_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class S3Config(BaseModel):
@@ -62,13 +63,32 @@ class S3BinaryStorage:
                 # Bucket doesn't exist, create it
                 try:
                     self.client.create_bucket(Bucket=self.config.bucket_name)
-                    logger.info(f"Created bucket: {self.config.bucket_name}")
+                    logger.info(
+                        "Created S3 bucket",
+                        provider_type="s3",
+                        operation="ensure_bucket",
+                        bucket_name=self.config.bucket_name,
+                    )
                     self._bucket_initialized = True
                 except ClientError as create_error:
-                    logger.error(f"Failed to create bucket: {create_error}")
+                    logger.error(
+                        "Failed to create S3 bucket",
+                        provider_type="s3",
+                        operation="ensure_bucket",
+                        error_type="create_failed",
+                        bucket_name=self.config.bucket_name,
+                        error=str(create_error),
+                    )
                     raise
             else:
-                logger.error(f"Error checking bucket: {e}")
+                logger.error(
+                    "Error checking S3 bucket",
+                    provider_type="s3",
+                    operation="ensure_bucket",
+                    error_type="check_failed",
+                    bucket_name=self.config.bucket_name,
+                    error=str(e),
+                )
                 raise
 
     def put_thumbnail(self, object_key: str, data: bytes, content_type: str) -> str:
@@ -90,10 +110,26 @@ class S3BinaryStorage:
                 Body=data,
                 ContentType=content_type,
             )
-            logger.info(f"Stored {key} ({len(data)} bytes)")
+            logger.info(
+                "Stored binary data in S3",
+                provider_type="s3",
+                operation="put_binary",
+                s3_key=key,
+                data_size=len(data),
+                content_type=content_type,
+                bucket_name=self.config.bucket_name,
+            )
             return key
         except (ClientError, NoCredentialsError) as e:
-            logger.error(f"Failed to store {key}: {e}")
+            logger.error(
+                "Failed to store binary data in S3",
+                provider_type="s3",
+                operation="put_binary",
+                error_type="store_failed",
+                s3_key=key,
+                bucket_name=self.config.bucket_name,
+                error=str(e),
+            )
             raise
 
     def stream_thumbnail(self, object_key: str) -> Generator[bytes, None, None]:
@@ -119,16 +155,37 @@ class S3BinaryStorage:
 
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
-                logger.warning(f"Object not found: {key}")
+                logger.warning(
+                    "S3 object not found for streaming",
+                    provider_type="s3",
+                    operation="stream_binary",
+                    error_type="not_found",
+                    s3_key=key,
+                    bucket_name=self.config.bucket_name,
+                )
                 raise FileNotFoundError(f"Object not found: {key}")
             else:
-                logger.error(f"Failed to stream {key}: {e}")
+                logger.error(
+                    "Failed to stream S3 object",
+                    provider_type="s3",
+                    operation="stream_binary",
+                    error_type="stream_failed",
+                    s3_key=key,
+                    bucket_name=self.config.bucket_name,
+                    error=str(e),
+                )
                 raise
 
     def get_thumbnail_metadata(self, object_key: str) -> Optional[dict]:
         """Get thumbnail metadata from S3."""
         s3_key = f"thumbnails/{object_key}.jpg"
-        logger.info(f"Getting thumbnail metadata for object_key='{object_key}' -> s3_key='{s3_key}'")
+        logger.info(
+            "Getting thumbnail metadata",
+            provider_type="s3",
+            operation="get_thumbnail_metadata",
+            object_key=object_key,
+            s3_key=s3_key,
+        )
         return self._get_metadata(s3_key)
 
     def get_proxy_metadata(self, object_key: str) -> Optional[dict]:
@@ -138,9 +195,21 @@ class S3BinaryStorage:
     def _get_metadata(self, key: str) -> Optional[dict]:
         """Get object metadata from S3."""
         try:
-            logger.info(f"Attempting to get S3 metadata for key: '{key}' in bucket: '{self.config.bucket_name}'")
+            logger.info(
+                "Attempting to get S3 metadata",
+                provider_type="s3",
+                operation="get_metadata",
+                s3_key=key,
+                bucket_name=self.config.bucket_name,
+            )
             response = self.client.head_object(Bucket=self.config.bucket_name, Key=key)
-            logger.info(f"Successfully got metadata for key: '{key}'")
+            logger.info(
+                "Successfully got S3 metadata",
+                provider_type="s3",
+                operation="get_metadata",
+                s3_key=key,
+                bucket_name=self.config.bucket_name,
+            )
             return {
                 "content_type": response.get("ContentType"),
                 "content_length": response.get("ContentLength"),
@@ -149,10 +218,25 @@ class S3BinaryStorage:
             }
         except ClientError as e:
             if e.response["Error"]["Code"] == "404":
-                logger.warning(f"S3 object not found: '{key}' in bucket: '{self.config.bucket_name}'")
+                logger.warning(
+                    "S3 object not found for metadata",
+                    provider_type="s3",
+                    operation="get_metadata",
+                    error_type="not_found",
+                    s3_key=key,
+                    bucket_name=self.config.bucket_name,
+                )
                 return None
             else:
-                logger.error(f"Failed to get metadata for {key}: {e}")
+                logger.error(
+                    "Failed to get S3 metadata",
+                    provider_type="s3",
+                    operation="get_metadata",
+                    error_type="metadata_failed",
+                    s3_key=key,
+                    bucket_name=self.config.bucket_name,
+                    error=str(e),
+                )
                 raise
 
     def delete_binaries(self, object_key: str) -> None:
@@ -174,10 +258,25 @@ class S3BinaryStorage:
 
             if "Errors" in response:
                 for error in response["Errors"]:
-                    logger.error(f"Failed to delete {error['Key']}: {error['Message']}")
+                    logger.error(
+                        "Failed to delete S3 object",
+                        provider_type="s3",
+                        operation="delete_binaries",
+                        error_type="delete_failed",
+                        s3_key=error["Key"],
+                        error_message=error["Message"],
+                    )
 
         except ClientError as e:
-            logger.error(f"Failed to delete binaries for {object_key}: {e}")
+            logger.error(
+                "Failed to delete binaries for object",
+                provider_type="s3",
+                operation="delete_binaries",
+                error_type="delete_batch_failed",
+                object_key=object_key,
+                bucket_name=self.config.bucket_name,
+                error=str(e),
+            )
             raise
 
     def exists(self, key: str) -> bool:
@@ -189,5 +288,13 @@ class S3BinaryStorage:
             if e.response["Error"]["Code"] == "404":
                 return False
             else:
-                logger.error(f"Error checking existence of {key}: {e}")
+                logger.error(
+                    "Error checking S3 object existence",
+                    provider_type="s3",
+                    operation="exists",
+                    error_type="existence_check_failed",
+                    s3_key=key,
+                    bucket_name=self.config.bucket_name,
+                    error=str(e),
+                )
                 raise

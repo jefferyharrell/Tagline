@@ -16,7 +16,7 @@ def get_storage_provider(
 ) -> "StorageProviderBase":
     """
     Factory function to get the configured storage provider instance.
-    
+
     This now uses a singleton pattern to prevent creating multiple instances
     which can lead to resource leaks over time in production.
     """

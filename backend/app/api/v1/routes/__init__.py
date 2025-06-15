@@ -20,7 +20,9 @@ public_router.include_router(auth_router, prefix="/auth", tags=["authentication"
 
 # All protected endpoints go on private_router
 private_router.include_router(admin_router, prefix="/admin", tags=["admin"])
-private_router.include_router(diagnostics_router, prefix="/diagnostics", tags=["diagnostics"])
+private_router.include_router(
+    diagnostics_router, prefix="/diagnostics", tags=["diagnostics"]
+)
 private_router.include_router(events_router, prefix="/events", tags=["events"])
 private_router.include_router(library_router, prefix="/library", tags=["library"])
 private_router.include_router(logs_router, prefix="/logs", tags=["logs"])

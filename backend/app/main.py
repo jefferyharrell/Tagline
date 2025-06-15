@@ -62,7 +62,7 @@ async def lifespan(app):
     configure_structlog(
         service_name="tagline-backend",
         log_level=settings.LOG_LEVEL,
-        log_format=settings.LOG_FORMAT
+        log_format=settings.LOG_FORMAT,
     )
     logging.info(f"Log level set to {logging.getLevelName(settings.LOG_LEVEL)}")
 

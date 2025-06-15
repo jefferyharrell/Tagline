@@ -36,7 +36,10 @@ def mock_user():
     user.roles = [admin_role, member_role]
 
     # Add role checking methods
-    user.has_role.side_effect = lambda role_name: role_name in ["administrator", "member"]
+    user.has_role.side_effect = lambda role_name: role_name in [
+        "administrator",
+        "member",
+    ]
     user.has_any_role.side_effect = lambda role_names: any(
         r in role_names for r in ["administrator", "member"]
     )
