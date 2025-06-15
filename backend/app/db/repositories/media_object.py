@@ -1,6 +1,5 @@
 """Repository for managing MediaObject persistence."""
 
-import logging
 from datetime import datetime
 from typing import List, Optional
 
@@ -11,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.domain_media_object import MediaObjectRecord
 from app.models import IngestionStatus, ORMMediaObject
+from app.structlog_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MediaObjectNotFound(Exception):
