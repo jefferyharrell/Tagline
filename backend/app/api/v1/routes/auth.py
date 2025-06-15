@@ -36,6 +36,7 @@ from app.db.repositories.auth import (
     RoleRepository,
     UserRepository,
 )
+from app.structlog_config import get_logger
 
 
 def analyze_sync_changes(json_users: List[dict], existing_users: dict) -> dict:
@@ -141,7 +142,7 @@ def ensure_user_has_admin_role(user, email: str, db: Session, settings: Settings
         db.refresh(user)
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -167,8 +168,22 @@ async def verify_email(
     settings: Settings = Depends(get_settings),
 ):
     """Check if an email is eligible for registration"""
+    logger.info(
+        "Email verification request received",
+        operation="verify_email",
+        email=email_data.email
+    )
+    
     email_repo = EligibleEmailRepository(db)
     is_eligible = email_repo.is_eligible(email_data.email, settings)
+    
+    logger.info(
+        "Email verification completed",
+        operation="verify_email",
+        email=email_data.email,
+        eligible=is_eligible
+    )
+    
     return {"eligible": is_eligible}
 
 

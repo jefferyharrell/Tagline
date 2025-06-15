@@ -236,16 +236,38 @@ class EligibleEmailRepository:
 
     def is_eligible(self, email: str, settings: Optional["Settings"] = None) -> bool:
         """Check if an email is eligible"""
+        logger.info(
+            "Checking email eligibility",
+            operation="is_eligible",
+            email=email,
+            has_settings=settings is not None,
+            admin_email=settings.ADMINISTRATOR_EMAIL if settings else None
+        )
+        
         # If settings provided and email matches administrator email, always grant access
         if settings and settings.ADMINISTRATOR_EMAIL:
             if email.lower() == settings.ADMINISTRATOR_EMAIL.lower():
+                logger.info(
+                    "Email matches administrator email - granting access",
+                    operation="is_eligible",
+                    email=email,
+                    result=True
+                )
                 return True
 
         # Check the database for eligible email
-        return (
-            self.db.query(EligibleEmail).filter(EligibleEmail.email == email).first()
-            is not None
+        eligible_record = self.db.query(EligibleEmail).filter(EligibleEmail.email == email).first()
+        is_eligible = eligible_record is not None
+        
+        logger.info(
+            "Database eligibility check completed",
+            operation="is_eligible",
+            email=email,
+            found_in_db=is_eligible,
+            result=is_eligible
         )
+        
+        return is_eligible
 
     def add(self, email: str, batch_id: Optional[str] = None) -> EligibleEmail:
         """Add an eligible email"""
