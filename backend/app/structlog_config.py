@@ -119,11 +119,26 @@ def configure_structlog(
     )
     
     # Configure standard library logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=log_level,
-    )
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    
+    # Remove all existing handlers to prevent duplicates
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Create handler with pure message output (no timestamps/levels in production)
+    handler = logging.StreamHandler(sys.stdout)
+    if development_mode:
+        # Development: keep some formatting for readability
+        handler.setFormatter(logging.Formatter("%(message)s"))
+    else:
+        # Production: pure JSON output only
+        handler.setFormatter(logging.Formatter("%(message)s"))
+    
+    root_logger.addHandler(handler)
+    
+    # Prevent propagation to avoid duplicate logs
+    root_logger.propagate = False
     
     # Store service name for access in processors
     structlog.get_logger()._service_name = service_name
