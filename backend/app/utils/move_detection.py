@@ -2,7 +2,7 @@
 
 import time
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from app.db.repositories.media_object import MediaObjectRepository
 from app.domain_media_object import MediaObjectRecord
@@ -291,7 +291,7 @@ class MoveDetectionService:
         try:
             # Check if original file still exists at old location
             old_items = self.storage_provider.list_directory(
-                prefix=existing_record.object_key.lstrip('/').rsplit('/', 1)[0] if '/' in existing_record.object_key else None
+                prefix=existing_record.object_key.rsplit('/', 1)[0] if '/' in existing_record.object_key else None
             )
             
             # Look for the original file in the directory listing

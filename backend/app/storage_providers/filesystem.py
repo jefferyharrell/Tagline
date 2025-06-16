@@ -9,6 +9,7 @@ from typing import Iterable, List, Optional
 from app.schemas import StoredMediaObject
 from app.storage_providers.base import DirectoryItem, StorageProviderBase
 from app.structlog_config import get_logger
+from app.utils.path_normalization import normalize_object_key
 
 logger = get_logger(__name__)
 
@@ -77,7 +78,7 @@ class FilesystemStorageProvider(StorageProviderBase):
             return True
         
         # Ensure path starts with / for consistent comparison
-        normalized_path = "/" + path.lstrip("/") if path else "/"
+        normalized_path = "/" + path if path else "/"
         
         # Check if path starts with any excluded prefix (exact case match)
         for prefix in self.excluded_prefixes:
@@ -159,8 +160,8 @@ class FilesystemStorageProvider(StorageProviderBase):
 
         # Determine the directory to list
         if prefix:
-            # Remove leading slash for filesystem path resolution
-            prefix_path = prefix.lstrip("/")
+            # Use prefix as-is (no leading slash expected)
+            prefix_path = prefix
             target_dir = self.root_path / prefix_path
         else:
             target_dir = self.root_path
@@ -202,7 +203,9 @@ class FilesystemStorageProvider(StorageProviderBase):
                     )
                 elif item_path.is_file():
                     # This is a file
-                    rel_path = "/" + str(item_path.relative_to(self.root_path))
+                    rel_path = str(item_path.relative_to(self.root_path))
+                    # Normalize object key to ensure no leading slash
+                    normalized_object_key = normalize_object_key(rel_path)
                     stat = item_path.stat()
                     last_modified = datetime.fromtimestamp(
                         stat.st_mtime, tz=timezone.utc
@@ -213,7 +216,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                         DirectoryItem(
                             name=item_path.name,
                             is_folder=False,
-                            object_key=rel_path,
+                            object_key=normalized_object_key,
                             size=stat.st_size,
                             last_modified=last_modified,
                             mimetype=mime_type,
@@ -312,18 +315,20 @@ class FilesystemStorageProvider(StorageProviderBase):
                 for filename in filenames:
                     processed_files += 1
                     full_path = Path(dirpath) / filename
-                    rel_path = "/" + str(full_path.relative_to(self.root_path))
+                    rel_path = str(full_path.relative_to(self.root_path))
+                    # Normalize object key to ensure no leading slash
+                    normalized_object_key = normalize_object_key(rel_path)
 
                     # Apply prefix filter
-                    if prefix is not None and not rel_path.startswith(prefix):
+                    if prefix is not None and not normalized_object_key.startswith(prefix):
                         continue
 
                     # Apply regex filter if provided
-                    if regex_pattern and not regex_pattern.search(rel_path):
+                    if regex_pattern and not regex_pattern.search(normalized_object_key):
                         continue
                     
                     # Apply prefix exclusion filter
-                    if not self._should_include_path(rel_path):
+                    if not self._should_include_path("/" + normalized_object_key):
                         continue
 
                     # Get file metadata
@@ -333,10 +338,10 @@ class FilesystemStorageProvider(StorageProviderBase):
                             stat.st_mtime, tz=timezone.utc
                         ).isoformat()
 
-                        mime_type, _ = mimetypes.guess_type(rel_path)
+                        mime_type, _ = mimetypes.guess_type(normalized_object_key)
                         results.append(
                             StoredMediaObject(
-                                object_key=rel_path,
+                                object_key=normalized_object_key,
                                 last_modified=last_modified,
                                 file_id=str(stat.st_ino),  # Use inode as file_id
                                 metadata={
@@ -426,18 +431,20 @@ class FilesystemStorageProvider(StorageProviderBase):
                     if not full_path.is_file():
                         continue
 
-                    rel_path = "/" + str(full_path.relative_to(self.root_path))
+                    rel_path = str(full_path.relative_to(self.root_path))
+                    # Normalize object key to ensure no leading slash
+                    normalized_object_key = normalize_object_key(rel_path)
 
                     # Apply prefix filter
-                    if prefix is not None and not rel_path.startswith(prefix):
+                    if prefix is not None and not normalized_object_key.startswith(prefix):
                         continue
 
                     # Apply regex filter if provided
-                    if regex_pattern and not regex_pattern.search(rel_path):
+                    if regex_pattern and not regex_pattern.search(normalized_object_key):
                         continue
                     
                     # Apply prefix exclusion filter
-                    if not self._should_include_path(rel_path):
+                    if not self._should_include_path("/" + normalized_object_key):
                         continue
 
                     # Get file metadata
@@ -447,10 +454,10 @@ class FilesystemStorageProvider(StorageProviderBase):
                             stat.st_mtime, tz=timezone.utc
                         ).isoformat()
 
-                        mime_type, _ = mimetypes.guess_type(rel_path)
+                        mime_type, _ = mimetypes.guess_type(normalized_object_key)
                         yielded_count += 1
                         yield StoredMediaObject(
-                            object_key=rel_path,
+                            object_key=normalized_object_key,
                             last_modified=last_modified,
                             file_id=str(stat.st_ino),  # Use inode as file_id
                             metadata={
@@ -507,7 +514,7 @@ class FilesystemStorageProvider(StorageProviderBase):
         )
         
         # Check if the file is excluded
-        if not self._should_include_path("/" + object_key.lstrip("/")):
+        if not self._should_include_path("/" + object_key):
             logger.info(
                 "File retrieval blocked by prefix filter",
                 provider_type="filesystem",
@@ -518,8 +525,8 @@ class FilesystemStorageProvider(StorageProviderBase):
             raise FileNotFoundError(f"File not found: {object_key}")
 
         try:
-            # Remove leading slash for filesystem path resolution
-            rel_path = object_key.lstrip("/")
+            # Use object key as-is (no leading slash expected)
+            rel_path = object_key
             file_path = self.root_path / rel_path
 
             logger.debug(
@@ -594,7 +601,7 @@ class FilesystemStorageProvider(StorageProviderBase):
         )
         
         # Check if the file is excluded
-        if not self._should_include_path("/" + object_key.lstrip("/")):
+        if not self._should_include_path("/" + object_key):
             logger.info(
                 "Streaming retrieval blocked by prefix filter",
                 provider_type="filesystem",
@@ -605,7 +612,7 @@ class FilesystemStorageProvider(StorageProviderBase):
             raise FileNotFoundError(f"File not found: {object_key}")
 
         try:
-            file_path = self.root_path / object_key.lstrip("/")
+            file_path = self.root_path / object_key
 
             logger.debug(
                 "Resolved filesystem path for streaming",
@@ -697,13 +704,15 @@ class FilesystemStorageProvider(StorageProviderBase):
                     full_path = Path(dirpath) / filename
                     if not full_path.is_file():
                         continue
-                    rel_path = "/" + str(full_path.relative_to(self.root_path))
-                    if prefix is not None and not rel_path.startswith(prefix):
+                    rel_path = str(full_path.relative_to(self.root_path))
+                    # Normalize object key to ensure no leading slash
+                    normalized_object_key = normalize_object_key(rel_path)
+                    if prefix is not None and not normalized_object_key.startswith(prefix):
                         continue
-                    if regex_pattern and not regex_pattern.search(rel_path):
+                    if regex_pattern and not regex_pattern.search(normalized_object_key):
                         continue
                     # Apply prefix exclusion filter
-                    if not self._should_include_path(rel_path):
+                    if not self._should_include_path("/" + rel_path):
                         continue
                     count += 1
 

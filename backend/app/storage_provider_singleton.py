@@ -75,7 +75,7 @@ def _parse_prefixes_to_ignore(settings: Settings) -> List[str]:
         normalized = []
         for prefix in prefixes:
             if isinstance(prefix, str):
-                normalized.append("/" + prefix.lstrip("/"))
+                normalized.append("/" + prefix)
             else:
                 logger.warning(
                     "Skipping non-string prefix in PREFIXES_TO_IGNORE",

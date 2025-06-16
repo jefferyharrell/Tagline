@@ -294,7 +294,6 @@ async def browse_library(
     Returns:
         BrowseResponse with folders and paginated MediaObjects
     """
-    import time
 
     start_time = time.time()
 

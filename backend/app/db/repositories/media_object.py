@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.domain_media_object import MediaObjectRecord
 from app.models import IngestionStatus, ORMMediaObject
 from app.structlog_config import get_logger
+from app.utils.path_normalization import normalize_object_key
 
 logger = get_logger(__name__)
 
@@ -37,15 +38,17 @@ class MediaObjectRepository:
     def get_by_object_key(self, object_key: str) -> Optional[MediaObjectRecord]:
         """Retrieves a MediaObjectRecord by its object_key (primary key)."""
         assert object_key is not None, "object_key must not be None"
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             logger.debug(
                 "Querying MediaObject by key",
                 operation="db_query",
                 table="media_objects",
-                object_key=object_key
+                object_key=normalized_object_key
             )
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj:
                 logger.debug(
@@ -61,7 +64,7 @@ class MediaObjectRepository:
                     "MediaObject not found",
                     operation="db_query",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="not_found"
                 )
                 return None
@@ -70,7 +73,7 @@ class MediaObjectRepository:
                 "Database query failed",
                 operation="db_query",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 error_type=type(e).__name__,
                 error_message=str(e)
             )
@@ -107,16 +110,18 @@ class MediaObjectRepository:
         from app.models import IngestionStatus
 
         try:
+            # Normalize object key and calculate path depth (number of '/' separators + 1)
+            normalized_object_key = normalize_object_key(object_key)
+            
+            path_depth = normalized_object_key.count("/") + 1
+            
             logger.debug(
                 "Creating sparse MediaObject",
                 operation="db_create_sparse",
                 table="media_objects",
-                object_key=object_key,
-                path_depth=object_key.count("/") + 1
+                object_key=normalized_object_key,
+                path_depth=path_depth
             )
-
-            # Calculate path depth (number of '/' separators + 1)
-            path_depth = object_key.count("/") + 1
 
             # Use raw SQL with ON CONFLICT DO NOTHING to avoid duplicate key errors
             result = self.db.execute(
@@ -135,7 +140,7 @@ class MediaObjectRepository:
                 """
                 ),
                 {
-                    "object_key": object_key,
+                    "object_key": normalized_object_key,
                     "ingestion_status": IngestionStatus.PENDING.value,
                     "metadata": "{}",
                     "file_size": file_size,
@@ -158,7 +163,7 @@ class MediaObjectRepository:
                     "Sparse MediaObject created",
                     operation="db_create_sparse",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="created"
                 )
             else:
@@ -166,12 +171,12 @@ class MediaObjectRepository:
                     "MediaObject already exists",
                     operation="db_create_sparse",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="exists"
                 )
 
             # Return the object (either newly created or existing) and creation status
-            media_obj = self.get_by_object_key(object_key)
+            media_obj = self.get_by_object_key(normalized_object_key)
             return media_obj, was_created
 
         except SQLAlchemyError as e:
@@ -262,25 +267,27 @@ class MediaObjectRepository:
         Returns:
             True if the registration was successful, False otherwise.
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             logger.debug(
                 "Registering thumbnail",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="thumbnail_object_key"
             )
 
             # Update the media_object directly
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj is None:
                 logger.error(
                     "MediaObject not found for thumbnail registration",
                     operation="db_update",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     field="thumbnail_object_key",
                     status="not_found"
                 )
@@ -294,7 +301,7 @@ class MediaObjectRepository:
                 "Thumbnail registered successfully",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="thumbnail_object_key",
                 status="updated"
             )
@@ -305,7 +312,7 @@ class MediaObjectRepository:
                 "Thumbnail registration failed",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="thumbnail_object_key",
                 error_type=type(e).__name__,
                 error_message=str(e)
@@ -326,25 +333,27 @@ class MediaObjectRepository:
         Returns:
             True if the registration was successful, False otherwise.
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             logger.debug(
                 "Registering proxy",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="proxy_object_key"
             )
 
             # Update the media_object directly
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj is None:
                 logger.error(
                     "MediaObject not found for proxy registration",
                     operation="db_update",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     field="proxy_object_key",
                     status="not_found"
                 )
@@ -358,7 +367,7 @@ class MediaObjectRepository:
                 "Proxy registered successfully",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="proxy_object_key",
                 status="updated"
             )
@@ -369,7 +378,7 @@ class MediaObjectRepository:
                 "Proxy registration failed",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="proxy_object_key",
                 error_type=type(e).__name__,
                 error_message=str(e)
@@ -407,13 +416,13 @@ class MediaObjectRepository:
             # Apply prefix filter if provided
             if prefix is not None:
                 # For non-root paths like "tagline/", we want direct children
-                # Object keys are stored with leading slash like "/tagline/file.png"
-                # So for prefix="tagline/", we want to match "/tagline/%" 
+                # Object keys are stored without leading slash like "tagline/file.png"
+                # So for prefix="tagline/", we want to match "tagline/%" 
                 # and filter for path_depth that represents direct children
                 
-                # Add leading slash to prefix for matching
-                search_prefix = f"/{prefix}"
-                expected_depth = search_prefix.count("/") + 1
+                # Use prefix as-is (no leading slash)
+                search_prefix = prefix  # prefix already includes trailing slash like "tagline/"
+                expected_depth = search_prefix.count("/") + 1  # +1 because: tagline/ = 1, file.ext = 1
                 
                 # Use optimized prefix matching with path depth filter
                 query = query.filter(
@@ -421,9 +430,9 @@ class MediaObjectRepository:
                 ).filter(ORMMediaObject.path_depth == expected_depth)
             else:
                 # For root level (prefix is None), return files that are direct children of root
-                # This means files like "/file.png" with path_depth = 2 (/ = 1, file.png = 2)
-                # Files in subfolders like "/tagline/file.png" should NOT appear at root
-                query = query.filter(ORMMediaObject.path_depth == 2)
+                # This means files like "file.png" with path_depth = 1 (file.ext = 1)
+                # Files in subfolders like "tagline/file.png" should NOT appear at root
+                query = query.filter(ORMMediaObject.path_depth == 1)
 
             # Natural sort using the indexed expression - should be fast now
             orm_objs = (
@@ -469,16 +478,18 @@ class MediaObjectRepository:
         Returns:
             True if successful, False otherwise
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj is None:
                 logger.error(
                     "MediaObject not found for status update",
                     operation="db_update",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     field="ingestion_status",
                     status="not_found"
                 )
@@ -492,7 +503,7 @@ class MediaObjectRepository:
                 "Ingestion status updated",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="ingestion_status",
                 new_status=status,
                 status="updated"
@@ -520,16 +531,18 @@ class MediaObjectRepository:
         Returns:
             True if successful, False otherwise
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj is None:
                 logger.error(
                     "MediaObject not found for metadata update",
                     operation="db_update",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     field="object_metadata",
                     status="not_found"
                 )
@@ -539,7 +552,7 @@ class MediaObjectRepository:
                 "Before metadata update",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="object_metadata",
                 phase="before"
             )
@@ -547,7 +560,7 @@ class MediaObjectRepository:
                 "Existing metadata before update",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="object_metadata",
                 existing_metadata=orm_obj.object_metadata
             )
@@ -555,7 +568,7 @@ class MediaObjectRepository:
                 "New metadata to set",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="object_metadata",
                 new_metadata=metadata
             )
@@ -570,7 +583,7 @@ class MediaObjectRepository:
                 "Metadata updated in ORM",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="object_metadata",
                 updated_metadata=orm_obj.object_metadata
             )
@@ -580,7 +593,7 @@ class MediaObjectRepository:
                 "Metadata update completed",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="object_metadata",
                 status="completed"
             )
@@ -607,16 +620,18 @@ class MediaObjectRepository:
         Returns:
             True if successful, False otherwise
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj is None:
                 logger.error(
                     "MediaObject not found for post-ingest update",
                     operation="db_update",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     phase="post_ingest",
                     status="not_found"
                 )
@@ -636,7 +651,7 @@ class MediaObjectRepository:
                 "Post-ingest update completed",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 phase="post_ingest",
                 status="completed"
             )
@@ -707,10 +722,12 @@ class MediaObjectRepository:
         Returns a tuple of (previous, next) MediaObjectRecords based on natural sort order.
         Either or both may be None if at the beginning/end of the collection.
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             # Get the current media object to find its position
             current = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if not current:
                 return (None, None)
@@ -734,7 +751,7 @@ class MediaObjectRepository:
             # Find current position
             current_idx = None
             for idx, item in enumerate(all_items):
-                if item.object_key == object_key:
+                if item.object_key == normalized_object_key:
                     current_idx = idx
                     break
 
@@ -766,7 +783,7 @@ class MediaObjectRepository:
                 operation="db_query",
                 table="media_objects",
                 query_type="adjacent",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 error_type=type(e).__name__,
                 error_message=str(e)
             )
@@ -778,9 +795,11 @@ class MediaObjectRepository:
         Returns:
             Tuple of (s3_key, mimetype) if found, None otherwise.
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj and orm_obj.thumbnail_object_key:
                 # Return mimetype as 'image/jpeg' since we don't store it separately anymore
@@ -791,7 +810,7 @@ class MediaObjectRepository:
                 "Thumbnail lookup failed",
                 operation="db_query",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="thumbnail_object_key",
                 error_type=type(e).__name__,
                 error_message=str(e)
@@ -804,9 +823,11 @@ class MediaObjectRepository:
         Returns:
             Tuple of (s3_key, mimetype) if found, None otherwise.
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
             if orm_obj and orm_obj.proxy_object_key:
                 # Return mimetype as 'image/jpeg' since we don't store it separately anymore
@@ -817,7 +838,7 @@ class MediaObjectRepository:
                 "Proxy lookup failed",
                 operation="db_query",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 field="proxy_object_key",
                 error_type=type(e).__name__,
                 error_message=str(e)
@@ -1061,17 +1082,19 @@ class MediaObjectRepository:
         Returns:
             True if deleted successfully, False otherwise
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             logger.debug(
                 "Deleting MediaObject",
                 operation="db_delete",
                 table="media_objects",
-                object_key=object_key
+                object_key=normalized_object_key
             )
 
             # First, get the media object to check for S3 keys
             orm_obj = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).first()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).first()
             )
 
             if not orm_obj:
@@ -1079,7 +1102,7 @@ class MediaObjectRepository:
                     "No MediaObject found to delete",
                     operation="db_delete",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="not_found"
                 )
                 return False
@@ -1091,11 +1114,11 @@ class MediaObjectRepository:
                 s3_storage = get_s3_binary_storage()
 
                 # Delete thumbnail and proxy from S3
-                s3_storage.delete_binaries(object_key)
+                s3_storage.delete_binaries(normalized_object_key)
                 logger.info(
                     "S3 binaries cleaned up",
                     operation="s3_cleanup",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="completed"
                 )
 
@@ -1104,14 +1127,14 @@ class MediaObjectRepository:
                 logger.warning(
                     "S3 cleanup failed",
                     operation="s3_cleanup",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     error_type=type(e).__name__,
                     error_message=str(e)
                 )
 
             # Delete the database record
             deleted_count = (
-                self.db.query(ORMMediaObject).filter_by(object_key=object_key).delete()
+                self.db.query(ORMMediaObject).filter_by(object_key=normalized_object_key).delete()
             )
 
             if deleted_count > 0:
@@ -1120,7 +1143,7 @@ class MediaObjectRepository:
                     "MediaObject and S3 binaries deleted",
                     operation="db_delete",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="completed"
                 )
                 return True
@@ -1129,7 +1152,7 @@ class MediaObjectRepository:
                     "No MediaObject found for deletion",
                     operation="db_delete",
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     status="not_found"
                 )
                 return False
@@ -1139,7 +1162,7 @@ class MediaObjectRepository:
                 "MediaObject deletion failed",
                 operation="db_delete",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 error_type=type(e).__name__,
                 error_message=str(e)
             )
@@ -1364,18 +1387,20 @@ class MediaObjectRepository:
         Returns:
             True if update was successful, False if object not found
         """
+        # Normalize object key for consistent lookup
+        normalized_object_key = normalize_object_key(object_key)
         try:
             logger.debug(
                 "Updating content hash for MediaObject",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 content_hash=content_hash
             )
             
             result = (
                 self.db.query(ORMMediaObject)
-                .filter(ORMMediaObject.object_key == object_key)
+                .filter(ORMMediaObject.object_key == normalized_object_key)
                 .update({"content_hash": content_hash})
             )
             
@@ -1385,7 +1410,7 @@ class MediaObjectRepository:
                     "Content hash updated successfully",
                     operation="db_update", 
                     table="media_objects",
-                    object_key=object_key,
+                    object_key=normalized_object_key,
                     content_hash=content_hash
                 )
                 return True
@@ -1394,7 +1419,7 @@ class MediaObjectRepository:
                     "MediaObject not found for content hash update",
                     operation="db_update",
                     table="media_objects", 
-                    object_key=object_key
+                    object_key=normalized_object_key
                 )
                 return False
                 
@@ -1403,7 +1428,7 @@ class MediaObjectRepository:
                 "Failed to update content hash",
                 operation="db_update",
                 table="media_objects",
-                object_key=object_key,
+                object_key=normalized_object_key,
                 error=str(e)
             )
             self.db.rollback()

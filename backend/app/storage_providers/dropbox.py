@@ -12,6 +12,7 @@ from app.schemas import StoredMediaObject
 from app.storage_exceptions import StorageProviderException
 from app.storage_providers.base import DirectoryItem, StorageProviderBase
 from app.structlog_config import get_logger
+from app.utils.path_normalization import normalize_object_key
 
 logger = get_logger(__name__)
 
@@ -80,7 +81,7 @@ class DropboxStorageProvider(StorageProviderBase):
             return True
         
         # Ensure path starts with / for consistent comparison
-        normalized_path = "/" + path.lstrip("/") if path else "/"
+        normalized_path = "/" + path if path else "/"
         
         # Check if path starts with any excluded prefix (exact case match)
         for prefix in self.excluded_prefixes:
@@ -163,8 +164,8 @@ class DropboxStorageProvider(StorageProviderBase):
         try:
             # Compose the path to list
             if prefix:
-                # Remove leading slash from prefix to avoid double-slash
-                prefix_path = prefix.lstrip("/")
+                # Use prefix as-is (no leading slash expected)
+                prefix_path = prefix
                 list_path = os.path.join(self.root_path, prefix_path)
             else:
                 # No prefix, use root path
@@ -219,9 +220,11 @@ class DropboxStorageProvider(StorageProviderBase):
                     else:
                         # Root is subfolder, calculate relative path
                         rel_path = os.path.relpath(entry.path_display, self.root_path)
-                        rel_path = rel_path.lstrip("/")
+                    
+                    # Normalize object key to ensure no leading slash
+                    normalized_object_key = normalize_object_key(rel_path)
 
-                    mime_type, _ = mimetypes.guess_type(rel_path)
+                    mime_type, _ = mimetypes.guess_type(normalized_object_key)
                     last_modified = (
                         entry.server_modified.isoformat()
                         if entry.server_modified
@@ -232,7 +235,7 @@ class DropboxStorageProvider(StorageProviderBase):
                         DirectoryItem(
                             name=entry.name,
                             is_folder=False,
-                            object_key="/" + rel_path,
+                            object_key=normalized_object_key,
                             size=entry.size,
                             last_modified=last_modified,
                             mimetype=mime_type,
@@ -337,8 +340,8 @@ class DropboxStorageProvider(StorageProviderBase):
             # Compose the path to list
             list_path = self.root_path
             if prefix:
-                # Remove leading slash to avoid double-slash in Dropbox path
-                prefix_path = prefix.lstrip("/")
+                # Use prefix as-is (no leading slash expected)
+                prefix_path = prefix
                 list_path = os.path.join(self.root_path, prefix_path)
 
             logger.debug(
@@ -411,17 +414,19 @@ class DropboxStorageProvider(StorageProviderBase):
                             rel_path = os.path.relpath(
                                 entry.path_display, self.root_path
                             )
-                            rel_path = rel_path.lstrip("/")
+
+                        # Normalize object key to ensure no leading slash
+                        normalized_object_key = normalize_object_key(rel_path)
 
                         # Apply regex filter if provided
-                        if regex_pattern and not regex_pattern.search(rel_path):
+                        if regex_pattern and not regex_pattern.search(normalized_object_key):
                             continue
                         
                         # Apply prefix exclusion filter
-                        if not self._should_include_path("/" + rel_path):
+                        if not self._should_include_path("/" + normalized_object_key):
                             continue
 
-                        mime_type, _ = mimetypes.guess_type(rel_path)
+                        mime_type, _ = mimetypes.guess_type(normalized_object_key)
                         last_modified = (
                             entry.server_modified.isoformat()
                             if entry.server_modified
@@ -431,7 +436,7 @@ class DropboxStorageProvider(StorageProviderBase):
                         # Create StoredMediaObject with Dropbox metadata
                         results.append(
                             StoredMediaObject(
-                                object_key="/" + rel_path,
+                                object_key=normalized_object_key,
                                 last_modified=last_modified,
                                 file_id=getattr(entry, "id", None),  # Dropbox file ID for move detection
                                 metadata={
@@ -531,8 +536,8 @@ class DropboxStorageProvider(StorageProviderBase):
         try:
             # Compose the path to list
             if prefix:
-                # Remove leading slash from prefix to avoid double-slash
-                prefix_path = prefix.lstrip("/")
+                # Use prefix as-is (no leading slash expected)
+                prefix_path = prefix
                 list_path = os.path.join(self.root_path, prefix_path)
             else:
                 list_path = self.root_path
@@ -610,17 +615,19 @@ class DropboxStorageProvider(StorageProviderBase):
                             rel_path = os.path.relpath(
                                 entry.path_display, self.root_path
                             )
-                            rel_path = rel_path.lstrip("/")
+                        
+                        # Normalize object key to ensure no leading slash
+                        normalized_object_key = normalize_object_key(rel_path)
 
                         # Apply regex filter if provided
-                        if regex_pattern and not regex_pattern.search(rel_path):
+                        if regex_pattern and not regex_pattern.search(normalized_object_key):
                             continue
                         
                         # Apply prefix exclusion filter
-                        if not self._should_include_path("/" + rel_path):
+                        if not self._should_include_path("/" + normalized_object_key):
                             continue
 
-                        mime_type, _ = mimetypes.guess_type(rel_path)
+                        mime_type, _ = mimetypes.guess_type(normalized_object_key)
                         last_modified = (
                             entry.server_modified.isoformat()
                             if entry.server_modified
@@ -630,7 +637,7 @@ class DropboxStorageProvider(StorageProviderBase):
                         # Yield StoredMediaObject with Dropbox metadata
                         yielded_count += 1
                         yield StoredMediaObject(
-                            object_key="/" + rel_path,
+                            object_key=normalized_object_key,
                             last_modified=last_modified,
                             metadata={
                                 "size": entry.size,
@@ -711,7 +718,7 @@ class DropboxStorageProvider(StorageProviderBase):
         )
         
         # Check if the file is excluded
-        if not self._should_include_path("/" + object_key.lstrip("/")):
+        if not self._should_include_path("/" + object_key):
             logger.info(
                 "File retrieval blocked by prefix filter",
                 provider_type="dropbox",
@@ -722,8 +729,8 @@ class DropboxStorageProvider(StorageProviderBase):
             raise FileNotFoundError(f"File not found: {object_key}")
 
         try:
-            # Remove leading slash from object key and join with root
-            rel_path = object_key.lstrip("/")
+            # Use object key as-is (no leading slash expected)
+            rel_path = object_key
             dropbox_path = os.path.join(self.root_path, rel_path)
 
             # Special case: if we're at Dropbox root, don't use empty string for file paths
@@ -828,7 +835,7 @@ class DropboxStorageProvider(StorageProviderBase):
         )
         
         # Check if the file is excluded
-        if not self._should_include_path("/" + object_key.lstrip("/")):
+        if not self._should_include_path("/" + object_key):
             logger.info(
                 "Streaming retrieval blocked by prefix filter",
                 provider_type="dropbox",
@@ -839,8 +846,8 @@ class DropboxStorageProvider(StorageProviderBase):
             raise FileNotFoundError(f"File not found: {object_key}")
 
         try:
-            # Remove leading slash from object key and join with root
-            rel_path = object_key.lstrip("/")
+            # Use object key as-is (no leading slash expected)
+            rel_path = object_key
             dropbox_path = os.path.join(self.root_path, rel_path)
 
             # Special case: if we're at Dropbox root, don't use empty string for file paths
@@ -953,8 +960,8 @@ class DropboxStorageProvider(StorageProviderBase):
         try:
             # Compose the path to list
             if prefix:
-                # Remove leading slash from prefix to avoid double-slash
-                prefix_path = prefix.lstrip("/")
+                # Use prefix as-is (no leading slash expected)
+                prefix_path = prefix
                 list_path = os.path.join(self.root_path, prefix_path)
             else:
                 list_path = self.root_path
@@ -1035,15 +1042,16 @@ class DropboxStorageProvider(StorageProviderBase):
                                 rel_path = os.path.relpath(
                                     entry.path_display, self.root_path
                                 )
-                                rel_path = rel_path.lstrip("/")
                             except ValueError:
                                 # Handle cases where entry is not under root_path
                                 continue
 
+                        # Normalize object key to ensure no leading slash
+                        normalized_object_key = normalize_object_key(rel_path)
+
                         # Apply prefix filter strictly (covers cases where list_path was broad)
-                        # Convert to object key format with leading slash for comparison
-                        obj_key = "/" + rel_path if rel_path else "/"
-                        if prefix is not None and not obj_key.startswith(prefix):
+                        # Object key is normalized (no leading slash)
+                        if prefix is not None and not normalized_object_key.startswith(prefix):
                             continue
 
                         # Apply regex filter if provided

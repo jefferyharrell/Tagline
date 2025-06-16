@@ -10,7 +10,6 @@ This module provides API endpoints for:
 - User CSV import/export
 """
 
-import logging
 from datetime import datetime
 from typing import List
 
