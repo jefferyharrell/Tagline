@@ -216,12 +216,18 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
     const unsubscribe = subscribe((event: IngestEvent) => {
       // Filter events to only process those relevant to current path
       const decodedPath = currentPath.map(segment => decodeURIComponent(segment));
+      
+      // Normalize object_key by removing leading slash for consistent comparison
+      const normalizedObjectKey = event.object_key.startsWith('/') 
+        ? event.object_key.slice(1) 
+        : event.object_key;
+      
       const pathPrefix = decodedPath.length > 0 ? decodedPath.join('/') + '/' : '';
       
       // Include event if it's relevant to the current path
       const isRelevant = decodedPath.length === 0 || 
-                        event.object_key.startsWith(pathPrefix) ||
-                        event.object_key === decodedPath.join('/');
+                        normalizedObjectKey.startsWith(pathPrefix) ||
+                        normalizedObjectKey === decodedPath.join('/');
       
       if (isRelevant) {
         handleMediaIngested(event);
