@@ -1,4 +1,3 @@
-import uuid
 from datetime import UTC, datetime
 from typing import Any, Dict
 
@@ -51,9 +50,9 @@ def db_session():
 @pytest.fixture
 def media_object(fake_metadata: Dict[str, Any], db_session: Session) -> ORMMediaObject:
     obj = ORMMediaObject(
-        id=uuid.uuid4(),
         object_key="test_key",
         object_metadata=fake_metadata,
+        path_depth=1,  # Required field for test_key (no slashes)
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
@@ -89,6 +88,6 @@ def test_model_table_and_columns() -> None:
     assert ORMMediaObject.__tablename__ == "media_objects"
     # Get column names from table definition
     columns = {col.name for col in ORMMediaObject.__table__.columns}
-    assert {"id", "object_key", "object_metadata", "created_at", "updated_at"}.issubset(
+    assert {"object_key", "object_metadata", "created_at", "updated_at"}.issubset(
         columns
     )

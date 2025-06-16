@@ -232,7 +232,7 @@ class DropboxStorageProvider(StorageProviderBase):
                         DirectoryItem(
                             name=entry.name,
                             is_folder=False,
-                            object_key=rel_path,
+                            object_key="/" + rel_path,
                             size=entry.size,
                             last_modified=last_modified,
                             mimetype=mime_type,
@@ -430,7 +430,7 @@ class DropboxStorageProvider(StorageProviderBase):
                         # Create StoredMediaObject with Dropbox metadata
                         results.append(
                             StoredMediaObject(
-                                object_key=rel_path,
+                                object_key="/" + rel_path,
                                 last_modified=last_modified,
                                 metadata={
                                     "size": entry.size,
@@ -628,7 +628,7 @@ class DropboxStorageProvider(StorageProviderBase):
                         # Yield StoredMediaObject with Dropbox metadata
                         yielded_count += 1
                         yield StoredMediaObject(
-                            object_key=rel_path,
+                            object_key="/" + rel_path,
                             last_modified=last_modified,
                             metadata={
                                 "size": entry.size,
