@@ -2,12 +2,13 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -55,6 +56,39 @@ class ORMMediaObject(Base):
 
     # Path depth for efficient folder filtering (number of '/' separators + 1)
     path_depth = Column(Integer, nullable=False)
+    
+    # Move detection fields
+    content_hash = Column(String(64), nullable=True, index=True)
+    provider_file_id = Column(String(255), nullable=True, index=True)
+    provider_metadata = Column(JSONB, nullable=True)
+    previous_object_keys = Column(ARRAY(String), nullable=True)
+    moved_from = Column(String(255), nullable=True)
+    move_detected_at = Column(DateTime, nullable=True)
+    is_copy = Column(Boolean, nullable=True, default=False)
+
+    def to_pydantic(self):
+        """Convert this ORM object to its Pydantic representation."""
+        from app.schemas import MediaObject
+        
+        return MediaObject(
+            object_key=self.object_key,
+            ingestion_status=self.ingestion_status,
+            file_size=self.file_size,
+            file_mimetype=self.file_mimetype,
+            file_last_modified=self.file_last_modified,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            metadata=self.object_metadata or {},
+            has_thumbnail=bool(self.thumbnail_object_key),
+            has_proxy=bool(self.proxy_object_key),
+            content_hash=self.content_hash,
+            provider_file_id=self.provider_file_id,
+            provider_metadata=self.provider_metadata,
+            previous_object_keys=self.previous_object_keys,
+            moved_from=self.moved_from,
+            move_detected_at=self.move_detected_at,
+            is_copy=self.is_copy,
+        )
 
     def __repr__(self):
         return f"<OrmMediaObject(object_key={self.object_key}, status={self.ingestion_status})>"

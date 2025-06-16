@@ -24,6 +24,7 @@ from app import auth_schemas as schemas
 from app.auth_utils import get_current_user
 from app.db.database import get_db
 from app.db.repositories.media_object import MediaObjectRepository
+from app.schemas import StoredMediaObject
 
 # Import processor modules to trigger registration via decorators
 # The noqa comment prevents linters from flagging unused import, which is needed here.
@@ -206,6 +207,7 @@ class DirectoryItem:
         size: Optional[int] = None,
         last_modified: Optional[str] = None,
         mimetype: Optional[str] = None,
+        file_id: Optional[str] = None,
     ):
         self.name = name
         self.is_folder = is_folder
@@ -213,6 +215,7 @@ class DirectoryItem:
         self.size = size
         self.last_modified = last_modified
         self.mimetype = mimetype
+        self.file_id = file_id
 
 
 class DirectoryItemResponse(BaseModel):
@@ -224,6 +227,7 @@ class DirectoryItemResponse(BaseModel):
     size: Optional[int] = None
     last_modified: Optional[str] = None
     mimetype: Optional[str] = None
+    file_id: Optional[str] = None
 
 
 class BrowseResponse(BaseModel):
@@ -367,7 +371,13 @@ async def browse_library(
         # Only process files if we got a fresh directory listing (not cached)
         processing_start = time.time()
         newly_queued = 0
+        moved_files = 0
+        
         if cached_items is None:  # Only process files when fetching fresh data
+            # Initialize move detection service
+            from app.utils.move_detection import MoveDetectionService
+            move_detector = MoveDetectionService(storage_provider, media_repo)
+            
             for file_item in files:
                 if not file_item.object_key:
                     continue
@@ -394,46 +404,125 @@ async def browse_library(
                             error_type="datetime_parse_error"
                         )
 
-                # Create sparse MediaObject record (with ON CONFLICT DO NOTHING behavior)
-                media_obj, was_created = media_repo.create_sparse(
+                # Create StoredMediaObject for move detection
+                stored_obj = StoredMediaObject(
                     object_key=file_item.object_key,
-                    file_size=file_item.size,
-                    file_mimetype=file_item.mimetype,
-                    file_last_modified=file_last_modified,
+                    last_modified=file_item.last_modified,
+                    file_id=getattr(file_item, 'file_id', None),
+                    metadata={
+                        "size": file_item.size,
+                        "mimetype": file_item.mimetype,
+                    } if file_item.size or file_item.mimetype else {}
                 )
 
-                # Only queue for ingestion if we actually created the object
-                if media_obj and was_created:
-                    try:
-                        job = ingest_queue.enqueue(ingest, media_obj.object_key)
-                        logger.info(
-                            "Ingest job queued for newly discovered file",
-                            operation="browse_library",
-                            phase="file_processing",
-                            job_id=job.id,
-                            object_key=file_item.object_key
+                # Run move detection analysis
+                try:
+                    detection_result = await move_detector.analyze_file(stored_obj)
+                    
+                    if detection_result.action == "move":
+                        # Handle move: update existing record
+                        success = media_repo.handle_move(
+                            old_object_key=detection_result.existing_record.object_key,
+                            new_object_key=file_item.object_key,
+                            provider_file_id=getattr(file_item, 'file_id', None),
+                            provider_metadata=stored_obj.metadata
                         )
-                        newly_queued += 1
+                        
+                        if success:
+                            moved_files += 1
+                            logger.info(
+                                "File move detected and handled",
+                                operation="browse_library",
+                                phase="move_detection",
+                                old_object_key=detection_result.existing_record.object_key,
+                                new_object_key=file_item.object_key,
+                                reason=detection_result.reason,
+                                confidence=detection_result.confidence
+                            )
+                            continue  # Skip normal processing for moved files
+                    
+                    # For "create_new" action (includes copies), create new MediaObject
+                    media_obj, was_created = media_repo.create_sparse(
+                        object_key=file_item.object_key,
+                        file_size=file_item.size,
+                        file_mimetype=file_item.mimetype,
+                        file_last_modified=file_last_modified,
+                        provider_file_id=getattr(file_item, 'file_id', None),
+                        provider_metadata=stored_obj.metadata
+                    )
 
-                        # Publish queued event with MediaObject data
-                        media_obj_pydantic = media_obj.to_pydantic()
-                        publish_queued_event(media_obj_pydantic)
-                        logger.debug(
-                            "Published queued event",
-                            operation="browse_library",
-                            phase="file_processing",
-                            object_key=media_obj.object_key
-                        )
+                    # Only queue for ingestion if we actually created the object
+                    if media_obj and was_created:
+                        try:
+                            job = ingest_queue.enqueue(ingest, media_obj.object_key)
+                            logger.info(
+                                "Ingest job queued for discovered file",
+                                operation="browse_library",
+                                phase="file_processing",
+                                job_id=job.id,
+                                object_key=file_item.object_key,
+                                detection_action=detection_result.action,
+                                detection_reason=detection_result.reason
+                            )
+                            newly_queued += 1
 
-                    except Exception as e:
-                        logger.error(
-                            "Failed to queue ingest job",
-                            operation="browse_library",
-                            phase="file_processing",
-                            object_key=file_item.object_key,
-                            error=str(e),
-                            error_type=type(e).__name__
-                        )
+                            # Publish queued event with MediaObject data
+                            media_obj_pydantic = media_obj.to_pydantic()
+                            publish_queued_event(media_obj_pydantic)
+                            logger.debug(
+                                "Published queued event",
+                                operation="browse_library",
+                                phase="file_processing",
+                                object_key=media_obj.object_key
+                            )
+
+                        except Exception as e:
+                            logger.error(
+                                "Failed to queue ingest job",
+                                operation="browse_library",
+                                phase="file_processing",
+                                object_key=file_item.object_key,
+                                error=str(e),
+                                error_type=type(e).__name__
+                            )
+                            
+                except Exception as e:
+                    logger.error(
+                        "Move detection failed, falling back to normal processing",
+                        operation="browse_library",
+                        phase="move_detection",
+                        object_key=file_item.object_key,
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
+                    
+                    # Fallback: create MediaObject normally without move detection
+                    media_obj, was_created = media_repo.create_sparse(
+                        object_key=file_item.object_key,
+                        file_size=file_item.size,
+                        file_mimetype=file_item.mimetype,
+                        file_last_modified=file_last_modified,
+                        provider_file_id=getattr(file_item, 'file_id', None),
+                        provider_metadata=stored_obj.metadata if 'stored_obj' in locals() else {}
+                    )
+
+                    if media_obj and was_created:
+                        try:
+                            job = ingest_queue.enqueue(ingest, media_obj.object_key)
+                            newly_queued += 1
+                            
+                            media_obj_pydantic = media_obj.to_pydantic()
+                            publish_queued_event(media_obj_pydantic)
+                            
+                        except Exception as queue_error:
+                            logger.error(
+                                "Failed to queue fallback ingest job",
+                                operation="browse_library",
+                                phase="file_processing_fallback",
+                                object_key=file_item.object_key,
+                                error=str(queue_error),
+                                error_type=type(queue_error).__name__
+                            )
 
         processing_time = time.time() - processing_start
         logger.info(
@@ -442,15 +531,18 @@ async def browse_library(
             phase="file_processing",
             duration_ms=processing_time * 1000,
             files_count=len(files),
-            newly_queued=newly_queued
+            newly_queued=newly_queued,
+            moved_files=moved_files
         )
 
-        if newly_queued > 0:
+        if newly_queued > 0 or moved_files > 0:
             logger.info(
-                "New files queued for ingestion",
+                "File processing summary",
                 operation="browse_library",
                 phase="file_processing",
-                newly_queued=newly_queued
+                newly_queued=newly_queued,
+                moved_files=moved_files,
+                total_processed=newly_queued + moved_files
             )
 
         # Now get all MediaObjects for this path with pagination
@@ -580,6 +672,7 @@ async def browse_library(
                 size=folder.size,
                 last_modified=folder.last_modified,
                 mimetype=folder.mimetype,
+                file_id=getattr(folder, 'file_id', None),
             )
             for folder in folders
         ]

@@ -217,6 +217,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                             size=stat.st_size,
                             last_modified=last_modified,
                             mimetype=mime_type,
+                            file_id=str(stat.st_ino),  # Use inode as file_id for filesystem
                         )
                     )
 
@@ -337,6 +338,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                             StoredMediaObject(
                                 object_key=rel_path,
                                 last_modified=last_modified,
+                                file_id=str(stat.st_ino),  # Use inode as file_id
                                 metadata={
                                     "size": stat.st_size,
                                     "created": datetime.fromtimestamp(
@@ -450,6 +452,7 @@ class FilesystemStorageProvider(StorageProviderBase):
                         yield StoredMediaObject(
                             object_key=rel_path,
                             last_modified=last_modified,
+                            file_id=str(stat.st_ino),  # Use inode as file_id
                             metadata={
                                 "size": stat.st_size,
                                 "created": datetime.fromtimestamp(

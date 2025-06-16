@@ -27,6 +27,7 @@ class StoredMediaObject(BaseModel):
     object_key: str
     last_modified: Optional[str] = None  # or datetime
     metadata: Optional[dict] = None
+    file_id: Optional[str] = None  # Provider-specific unique file identifier
 
 
 class MediaObject(BaseModel):
@@ -42,6 +43,15 @@ class MediaObject(BaseModel):
     metadata: Optional[dict] = None
     has_thumbnail: bool = False  # Computed field for frontend
     has_proxy: bool = False  # Computed field for frontend
+    
+    # Move detection fields
+    content_hash: Optional[str] = None
+    provider_file_id: Optional[str] = None
+    provider_metadata: Optional[dict] = None
+    previous_object_keys: Optional[List[str]] = None
+    moved_from: Optional[str] = None
+    move_detected_at: Optional[datetime] = None
+    is_copy: Optional[bool] = None
 
 
 class MediaObjectPatch(BaseModel):

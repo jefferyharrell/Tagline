@@ -14,6 +14,7 @@ class DirectoryItem:
         size: Optional[int] = None,
         last_modified: Optional[str] = None,
         mimetype: Optional[str] = None,
+        file_id: Optional[str] = None,
     ):
         self.name = name
         self.is_folder = is_folder
@@ -21,6 +22,7 @@ class DirectoryItem:
         self.size = size
         self.last_modified = last_modified
         self.mimetype = mimetype
+        self.file_id = file_id  # Provider-specific unique file identifier
 
 
 class StorageProviderBase(Protocol):

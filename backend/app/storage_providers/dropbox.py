@@ -236,6 +236,7 @@ class DropboxStorageProvider(StorageProviderBase):
                             size=entry.size,
                             last_modified=last_modified,
                             mimetype=mime_type,
+                            file_id=getattr(entry, "id", None),  # Dropbox file ID
                         )
                     )
 
@@ -432,6 +433,7 @@ class DropboxStorageProvider(StorageProviderBase):
                             StoredMediaObject(
                                 object_key="/" + rel_path,
                                 last_modified=last_modified,
+                                file_id=getattr(entry, "id", None),  # Dropbox file ID for move detection
                                 metadata={
                                     "size": entry.size,
                                     "content_hash": getattr(

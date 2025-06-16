@@ -1,5 +1,6 @@
 """Repository for managing MediaObject persistence."""
 
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -81,6 +82,8 @@ class MediaObjectRepository:
         file_size: Optional[int] = None,
         file_mimetype: Optional[str] = None,
         file_last_modified: Optional[datetime] = None,
+        provider_file_id: Optional[str] = None,
+        provider_metadata: Optional[dict] = None,
     ) -> tuple[Optional[MediaObjectRecord], bool]:
         """Creates a sparse MediaObject record during discovery.
 
@@ -91,6 +94,8 @@ class MediaObjectRepository:
             file_size: File size in bytes
             file_mimetype: MIME type of the file
             file_last_modified: Last modified timestamp
+            provider_file_id: Provider-specific unique file identifier
+            provider_metadata: Provider-specific metadata
 
         Returns:
             Tuple of (MediaObjectRecord, was_created) where was_created is True if the object was newly created.
@@ -119,10 +124,12 @@ class MediaObjectRepository:
                     """
                     INSERT INTO media_objects 
                     (object_key, ingestion_status, object_metadata, file_size, 
-                     file_mimetype, file_last_modified, path_depth, created_at, updated_at)
+                     file_mimetype, file_last_modified, path_depth, created_at, updated_at,
+                     provider_file_id, provider_metadata)
                     VALUES 
                     (:object_key, :ingestion_status, CAST(:metadata AS jsonb), :file_size,
-                     :file_mimetype, :file_last_modified, :path_depth, :created_at, :updated_at)
+                     :file_mimetype, :file_last_modified, :path_depth, :created_at, :updated_at,
+                     :provider_file_id, CAST(:provider_metadata AS jsonb))
                     ON CONFLICT (object_key) DO NOTHING
                     RETURNING object_key
                 """
@@ -137,6 +144,8 @@ class MediaObjectRepository:
                     "path_depth": path_depth,
                     "created_at": dt.utcnow(),
                     "updated_at": dt.utcnow(),
+                    "provider_file_id": provider_file_id,
+                    "provider_metadata": json.dumps(provider_metadata) if provider_metadata else "{}"
                 },
             )
 
@@ -1129,3 +1138,266 @@ class MediaObjectRepository:
             )
             self.db.rollback()
             return False
+    
+    def find_by_content_hash(self, content_hash: str) -> List[MediaObjectRecord]:
+        """Find media objects by content hash."""
+        if not content_hash:
+            return []
+        
+        try:
+            logger.debug(
+                "Querying MediaObjects by content hash",
+                operation="db_query",
+                table="media_objects",
+                content_hash=content_hash
+            )
+            orm_objs = (
+                self.db.query(ORMMediaObject)
+                .filter(ORMMediaObject.content_hash == content_hash)
+                .all()
+            )
+            
+            result = [MediaObjectRecord.from_orm(obj) for obj in orm_objs]
+            logger.debug(
+                "Found MediaObjects by content hash",
+                operation="db_query",
+                table="media_objects",
+                content_hash=content_hash,
+                count=len(result)
+            )
+            return result
+            
+        except SQLAlchemyError as e:
+            logger.error(
+                "Database error finding MediaObjects by content hash",
+                operation="db_query",
+                table="media_objects",
+                content_hash=content_hash,
+                error=str(e)
+            )
+            raise
+    
+    def find_by_provider_file_id(self, provider_file_id: str) -> Optional[MediaObjectRecord]:
+        """Find media object by provider file ID."""
+        if not provider_file_id:
+            return None
+        
+        try:
+            logger.debug(
+                "Querying MediaObject by provider file ID",
+                operation="db_query", 
+                table="media_objects",
+                provider_file_id=provider_file_id
+            )
+            orm_obj = (
+                self.db.query(ORMMediaObject)
+                .filter(ORMMediaObject.provider_file_id == provider_file_id)
+                .first()
+            )
+            
+            if orm_obj:
+                result = MediaObjectRecord.from_orm(orm_obj)
+                logger.debug(
+                    "Found MediaObject by provider file ID",
+                    operation="db_query",
+                    table="media_objects", 
+                    provider_file_id=provider_file_id,
+                    object_key=result.object_key
+                )
+                return result
+            else:
+                logger.debug(
+                    "No MediaObject found for provider file ID",
+                    operation="db_query",
+                    table="media_objects",
+                    provider_file_id=provider_file_id
+                )
+                return None
+                
+        except SQLAlchemyError as e:
+            logger.error(
+                "Database error finding MediaObject by provider file ID",
+                operation="db_query",
+                table="media_objects",
+                provider_file_id=provider_file_id,
+                error=str(e)
+            )
+            raise
+    
+    def find_by_fingerprint(self, file_size: int, file_last_modified: Optional[datetime]) -> List[MediaObjectRecord]:
+        """Find media objects by file size and modification time fingerprint."""
+        try:
+            logger.debug(
+                "Querying MediaObjects by fingerprint",
+                operation="db_query",
+                table="media_objects",
+                file_size=file_size,
+                file_last_modified=file_last_modified.isoformat() if file_last_modified else None
+            )
+            
+            query = self.db.query(ORMMediaObject).filter(ORMMediaObject.file_size == file_size)
+            
+            if file_last_modified:
+                query = query.filter(ORMMediaObject.file_last_modified == file_last_modified)
+            
+            orm_objs = query.all()
+            
+            result = [MediaObjectRecord.from_orm(obj) for obj in orm_objs]
+            logger.debug(
+                "Found MediaObjects by fingerprint",
+                operation="db_query",
+                table="media_objects",
+                file_size=file_size,
+                count=len(result)
+            )
+            return result
+            
+        except SQLAlchemyError as e:
+            logger.error(
+                "Database error finding MediaObjects by fingerprint",
+                operation="db_query",
+                table="media_objects",
+                file_size=file_size,
+                error=str(e)
+            )
+            raise
+    
+    def handle_move(
+        self, 
+        old_object_key: str, 
+        new_object_key: str,
+        provider_file_id: Optional[str] = None,
+        provider_metadata: Optional[dict] = None
+    ) -> bool:
+        """Handle moving a media object from old path to new path.
+        
+        Args:
+            old_object_key: Current object_key of the media object
+            new_object_key: New object_key to move to
+            provider_file_id: Updated provider file ID if available
+            provider_metadata: Updated provider metadata if available
+            
+        Returns:
+            True if move was successful, False if object not found
+        """
+        try:
+            logger.info(
+                "Moving MediaObject",
+                operation="db_update",
+                table="media_objects",
+                old_object_key=old_object_key,
+                new_object_key=new_object_key
+            )
+            
+            # Get the existing media object
+            orm_obj = (
+                self.db.query(ORMMediaObject)
+                .filter(ORMMediaObject.object_key == old_object_key)
+                .first()
+            )
+            
+            if not orm_obj:
+                logger.warning(
+                    "MediaObject not found for move",
+                    operation="db_update",
+                    table="media_objects",
+                    old_object_key=old_object_key,
+                    status="not_found"
+                )
+                return False
+            
+            # Update previous_object_keys array
+            previous_keys = orm_obj.previous_object_keys or []
+            if old_object_key not in previous_keys:
+                previous_keys.append(old_object_key)
+            
+            # Update the object
+            orm_obj.object_key = new_object_key
+            orm_obj.moved_from = old_object_key
+            orm_obj.move_detected_at = datetime.utcnow()
+            orm_obj.previous_object_keys = previous_keys
+            orm_obj.path_depth = new_object_key.count('/') + 1 if new_object_key.startswith('/') else new_object_key.count('/') + 1
+            
+            if provider_file_id is not None:
+                orm_obj.provider_file_id = provider_file_id
+            if provider_metadata is not None:
+                orm_obj.provider_metadata = provider_metadata
+            
+            self.db.commit()
+            
+            logger.info(
+                "MediaObject moved successfully",
+                operation="db_update",
+                table="media_objects",
+                old_object_key=old_object_key,
+                new_object_key=new_object_key,
+                status="completed"
+            )
+            return True
+            
+        except SQLAlchemyError as e:
+            logger.error(
+                "Failed to move MediaObject",
+                operation="db_update",
+                table="media_objects",
+                old_object_key=old_object_key,
+                new_object_key=new_object_key,
+                error=str(e)
+            )
+            self.db.rollback()
+            raise
+    
+    def update_content_hash(self, object_key: str, content_hash: str) -> bool:
+        """Update the content hash for a media object.
+        
+        Args:
+            object_key: The object key to update
+            content_hash: SHA-256 hash of the content
+            
+        Returns:
+            True if update was successful, False if object not found
+        """
+        try:
+            logger.debug(
+                "Updating content hash for MediaObject",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                content_hash=content_hash
+            )
+            
+            result = (
+                self.db.query(ORMMediaObject)
+                .filter(ORMMediaObject.object_key == object_key)
+                .update({"content_hash": content_hash})
+            )
+            
+            if result > 0:
+                self.db.commit()
+                logger.debug(
+                    "Content hash updated successfully",
+                    operation="db_update", 
+                    table="media_objects",
+                    object_key=object_key,
+                    content_hash=content_hash
+                )
+                return True
+            else:
+                logger.warning(
+                    "MediaObject not found for content hash update",
+                    operation="db_update",
+                    table="media_objects", 
+                    object_key=object_key
+                )
+                return False
+                
+        except SQLAlchemyError as e:
+            logger.error(
+                "Failed to update content hash",
+                operation="db_update",
+                table="media_objects",
+                object_key=object_key,
+                error=str(e)
+            )
+            self.db.rollback()
+            raise

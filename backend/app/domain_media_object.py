@@ -23,6 +23,13 @@ class MediaObjectRecord:
         updated_at: Optional[datetime] = None,
         has_thumbnail: bool = False,
         has_proxy: bool = False,
+        content_hash: Optional[str] = None,
+        provider_file_id: Optional[str] = None,
+        provider_metadata: Optional[Dict[str, Any]] = None,
+        previous_object_keys: Optional[list] = None,
+        moved_from: Optional[str] = None,
+        move_detected_at: Optional[datetime] = None,
+        is_copy: Optional[bool] = None,
     ):
         self.object_key = object_key
         self.ingestion_status = ingestion_status
@@ -34,6 +41,13 @@ class MediaObjectRecord:
         self.updated_at = updated_at
         self.has_thumbnail = has_thumbnail
         self.has_proxy = has_proxy
+        self.content_hash = content_hash
+        self.provider_file_id = provider_file_id
+        self.provider_metadata = provider_metadata or {}
+        self.previous_object_keys = previous_object_keys or []
+        self.moved_from = moved_from
+        self.move_detected_at = move_detected_at
+        self.is_copy = is_copy
 
     @classmethod
     def from_orm(
@@ -62,6 +76,13 @@ class MediaObjectRecord:
             updated_at=getattr(orm_obj, "updated_at", None),
             has_thumbnail=has_thumbnail,
             has_proxy=has_proxy,
+            content_hash=getattr(orm_obj, "content_hash", None),
+            provider_file_id=getattr(orm_obj, "provider_file_id", None),
+            provider_metadata=getattr(orm_obj, "provider_metadata", None),
+            previous_object_keys=getattr(orm_obj, "previous_object_keys", None),
+            moved_from=getattr(orm_obj, "moved_from", None),
+            move_detected_at=getattr(orm_obj, "move_detected_at", None),
+            is_copy=getattr(orm_obj, "is_copy", None),
         )
 
     def to_orm(self) -> ORMMediaObject:
@@ -74,6 +95,13 @@ class MediaObjectRecord:
             file_last_modified=self.file_last_modified,
             created_at=self.created_at,
             updated_at=self.updated_at,
+            content_hash=self.content_hash,
+            provider_file_id=self.provider_file_id,
+            provider_metadata=self.provider_metadata,
+            previous_object_keys=self.previous_object_keys,
+            moved_from=self.moved_from,
+            move_detected_at=self.move_detected_at,
+            is_copy=self.is_copy,
         )
 
     @classmethod
@@ -130,4 +158,11 @@ class MediaObjectRecord:
             updated_at=self.updated_at,
             has_thumbnail=self.has_thumbnail,
             has_proxy=self.has_proxy,
+            content_hash=self.content_hash,
+            provider_file_id=self.provider_file_id,
+            provider_metadata=self.provider_metadata,
+            previous_object_keys=self.previous_object_keys,
+            moved_from=self.moved_from,
+            move_detected_at=self.move_detected_at,
+            is_copy=self.is_copy,
         )

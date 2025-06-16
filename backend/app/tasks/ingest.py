@@ -179,6 +179,7 @@ async def ingest(object_key: str) -> bool:
         content = None
         thumbnail_bytes = None
         proxy_bytes = None
+        content_hash = None
 
         try:
             # Lazy import media processor factory
@@ -215,6 +216,35 @@ async def ingest(object_key: str) -> bool:
                     operation="get_content",
                     duration_ms=(time.time() - content_start) * 1000,
                 )
+
+                # Compute content hash for move detection
+                if content:
+                    hash_start = time.time()
+                    try:
+                        from app.utils.hashing import compute_content_hash_sync
+                        content_hash = compute_content_hash_sync(content)
+                        if content_hash:
+                            job_logger.info(
+                                "Computed content hash",
+                                operation="compute_hash",
+                                duration_ms=(time.time() - hash_start) * 1000,
+                                content_hash=content_hash,
+                                content_size=len(content)
+                            )
+                        else:
+                            job_logger.warning(
+                                "Failed to compute content hash",
+                                operation="compute_hash",
+                                duration_ms=(time.time() - hash_start) * 1000,
+                            )
+                    except Exception as hash_exc:
+                        job_logger.error(
+                            "Error computing content hash",
+                            operation="compute_hash",
+                            duration_ms=(time.time() - hash_start) * 1000,
+                            error=str(hash_exc),
+                            error_type=type(hash_exc).__name__,
+                        )
 
                 thumb_start = time.time()
                 thumbnail_result = await processor.generate_thumbnail(content)
@@ -372,6 +402,26 @@ async def ingest(object_key: str) -> bool:
                 repo.update_ingestion_status(
                     object_key, IngestionStatus.COMPLETED.value
                 )
+            
+            # 7. Update content hash if computed successfully
+            if content_hash:
+                try:
+                    hash_update_start = time.time()
+                    repo.update_content_hash(object_key, content_hash)
+                    job_logger.info(
+                        "Content hash stored in database",
+                        operation="update_content_hash",
+                        duration_ms=(time.time() - hash_update_start) * 1000,
+                        content_hash=content_hash
+                    )
+                except Exception as e:
+                    job_logger.error(
+                        "Failed to update content hash in database",
+                        operation="update_content_hash",
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        content_hash=content_hash
+                    )
 
             # Calculate total job duration
             total_duration = (time.time() - job_start_time) * 1000
