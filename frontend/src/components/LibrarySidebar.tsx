@@ -71,6 +71,7 @@ export default function LibrarySidebar() {
             priority={true}
             className="object-contain p-2"
           />
+          <div className="text-center font-bold text-lg">Media Library</div>
         </Link>
       </SidebarHeader>
       <SidebarContent>
