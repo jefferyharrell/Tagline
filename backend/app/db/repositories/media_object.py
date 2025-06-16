@@ -406,17 +406,24 @@ class MediaObjectRepository:
 
             # Apply prefix filter if provided
             if prefix is not None:
-                # Calculate expected path depth for this prefix
-                # prefix="folder/" should have path_depth = number of "/" in prefix + 1
-                expected_depth = prefix.count("/") + 1
-
+                # For non-root paths like "tagline/", we want direct children
+                # Object keys are stored with leading slash like "/tagline/file.png"
+                # So for prefix="tagline/", we want to match "/tagline/%" 
+                # and filter for path_depth that represents direct children
+                
+                # Add leading slash to prefix for matching
+                search_prefix = f"/{prefix}"
+                expected_depth = search_prefix.count("/") + 1
+                
                 # Use optimized prefix matching with path depth filter
                 query = query.filter(
-                    ORMMediaObject.object_key.like(f"{prefix}%")
+                    ORMMediaObject.object_key.like(f"{search_prefix}%")
                 ).filter(ORMMediaObject.path_depth == expected_depth)
             else:
-                # For root level (prefix is None), only return files with path_depth = 1
-                query = query.filter(ORMMediaObject.path_depth == 1)
+                # For root level (prefix is None), return files that are direct children of root
+                # This means files like "/file.png" with path_depth = 2 (/ = 1, file.png = 2)
+                # Files in subfolders like "/tagline/file.png" should NOT appear at root
+                query = query.filter(ORMMediaObject.path_depth == 2)
 
             # Natural sort using the indexed expression - should be fast now
             orm_objs = (
