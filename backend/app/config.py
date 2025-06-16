@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str | None = None
     S3_REGION: str = "us-east-1"
 
+    # Storage Path Filtering
+    PREFIXES_TO_IGNORE: str | None = None  # JSON array of prefixes to exclude
+
     @field_validator("STORAGE_PROVIDER", mode="before")
     @classmethod
     def parse_storage_provider(

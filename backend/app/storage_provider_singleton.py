@@ -5,7 +5,8 @@ This module provides a singleton pattern for storage providers to ensure
 we don't create multiple instances that could leak connections over time.
 """
 
-from typing import Optional
+import json
+from typing import List, Optional
 
 from app.config import Settings, StorageProviderType
 from app.storage_providers.base import StorageProviderBase
@@ -49,8 +50,50 @@ def _get_settings_hash(settings: Settings) -> int:
             if settings.STORAGE_PROVIDER == StorageProviderType.DROPBOX
             else None
         ),
+        settings.PREFIXES_TO_IGNORE,  # Include prefix filtering in hash
     ]
     return hash(tuple(attr for attr in relevant_attrs if attr is not None))
+
+
+def _parse_prefixes_to_ignore(settings: Settings) -> List[str]:
+    """Parse the PREFIXES_TO_IGNORE JSON array from settings."""
+    if not settings.PREFIXES_TO_IGNORE:
+        return []
+    
+    try:
+        prefixes = json.loads(settings.PREFIXES_TO_IGNORE)
+        if not isinstance(prefixes, list):
+            logger.error(
+                "PREFIXES_TO_IGNORE must be a JSON array",
+                operation="parse_prefixes",
+                value=settings.PREFIXES_TO_IGNORE,
+                error_type="invalid_type"
+            )
+            return []
+        
+        # Normalize paths to always start with /
+        normalized = []
+        for prefix in prefixes:
+            if isinstance(prefix, str):
+                normalized.append("/" + prefix.lstrip("/"))
+            else:
+                logger.warning(
+                    "Skipping non-string prefix in PREFIXES_TO_IGNORE",
+                    operation="parse_prefixes",
+                    prefix=prefix,
+                    prefix_type=type(prefix).__name__
+                )
+        
+        return normalized
+    except json.JSONDecodeError as e:
+        logger.error(
+            "Failed to parse PREFIXES_TO_IGNORE as JSON",
+            operation="parse_prefixes",
+            value=settings.PREFIXES_TO_IGNORE,
+            error=str(e),
+            error_type="json_decode_error"
+        )
+        return []
 
 
 def get_storage_provider_singleton(settings: Settings) -> StorageProviderBase:
@@ -85,6 +128,16 @@ def get_storage_provider_singleton(settings: Settings) -> StorageProviderBase:
             )
 
         provider_type = settings.STORAGE_PROVIDER
+        
+        # Parse excluded prefixes
+        excluded_prefixes = _parse_prefixes_to_ignore(settings)
+        if excluded_prefixes:
+            logger.info(
+                "Storage provider will exclude prefixes",
+                operation="singleton_create",
+                excluded_prefixes=excluded_prefixes,
+                count=len(excluded_prefixes)
+            )
 
         try:
             if provider_type == StorageProviderType.FILESYSTEM:
@@ -96,9 +149,11 @@ def get_storage_provider_singleton(settings: Settings) -> StorageProviderBase:
                     operation="singleton_create",
                     provider_type="filesystem",
                     root_path=settings.FILESYSTEM_ROOT_PATH,
+                    excluded_prefixes_count=len(excluded_prefixes),
                 )
                 _storage_provider = FilesystemStorageProvider(
-                    root_path=settings.FILESYSTEM_ROOT_PATH
+                    root_path=settings.FILESYSTEM_ROOT_PATH,
+                    excluded_prefixes=excluded_prefixes
                 )
 
             elif provider_type == StorageProviderType.DROPBOX:
@@ -117,12 +172,14 @@ def get_storage_provider_singleton(settings: Settings) -> StorageProviderBase:
                     operation="singleton_create",
                     provider_type="dropbox",
                     root_path=settings.DROPBOX_ROOT_PATH,
+                    excluded_prefixes_count=len(excluded_prefixes),
                 )
                 _storage_provider = DropboxStorageProvider(
                     root_path=settings.DROPBOX_ROOT_PATH,
                     app_key=settings.DROPBOX_APP_KEY,
                     app_secret=settings.DROPBOX_APP_SECRET,
                     refresh_token=settings.DROPBOX_REFRESH_TOKEN,
+                    excluded_prefixes=excluded_prefixes
                 )
             else:
                 logger.error(

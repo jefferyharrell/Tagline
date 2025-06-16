@@ -31,14 +31,17 @@ class DropboxStorageProvider(StorageProviderBase):
         app_key: str,
         app_secret: str,
         refresh_token: str,
+        excluded_prefixes: Optional[List[str]] = None,
     ):
         """Initialize Dropbox provider with necessary credentials and root path."""
         self.root_path = root_path
+        self.excluded_prefixes = excluded_prefixes or []
         logger.info(
             "Initializing Dropbox storage provider",
             provider_type="dropbox",
             operation="init",
             root_path=root_path,
+            excluded_prefixes_count=len(self.excluded_prefixes),
         )
 
         try:
@@ -63,6 +66,79 @@ class DropboxStorageProvider(StorageProviderBase):
                 error_type=type(e).__name__,
             )
             raise
+
+    def _should_include_path(self, path: str) -> bool:
+        """Check if a path should be included based on excluded prefixes.
+        
+        Args:
+            path: The path to check (should already be normalized with leading /)
+            
+        Returns:
+            True if the path should be included, False if it should be filtered out
+        """
+        if not self.excluded_prefixes:
+            return True
+        
+        # Ensure path starts with / for consistent comparison
+        normalized_path = "/" + path.lstrip("/") if path else "/"
+        
+        # Check if path starts with any excluded prefix (exact case match)
+        for prefix in self.excluded_prefixes:
+            if normalized_path.startswith(prefix):
+                return False
+                
+        return True
+    
+    def _filter_items(self, items: List[DirectoryItem], current_prefix: Optional[str]) -> List[DirectoryItem]:
+        """Filter items based on excluded prefixes.
+        
+        Args:
+            items: List of items to filter
+            current_prefix: The current directory prefix being listed
+            
+        Returns:
+            Filtered list of items
+        """
+        if not self.excluded_prefixes:
+            return items
+            
+        filtered_items = []
+        for item in items:
+            if item.is_folder:
+                # For folders, construct the full path
+                if current_prefix:
+                    folder_path = f"/{current_prefix.strip('/')}/{item.name}"
+                else:
+                    folder_path = f"/{item.name}"
+                folder_path = "/" + folder_path.strip("/")
+                
+                # Check if folder path should be included
+                # Also check if any non-excluded path might exist under this folder
+                should_include = False
+                
+                # First check if the folder itself is excluded
+                if self._should_include_path(folder_path):
+                    should_include = True
+                else:
+                    # Even if folder is excluded, check if it might contain non-excluded content
+                    # This is important for navigation - we show parent folders of included content
+                    for prefix in self.excluded_prefixes:
+                        # If this folder is a parent of an excluded prefix, we need to check further
+                        if prefix.startswith(folder_path + "/"):
+                            # This folder contains excluded content, but might also contain non-excluded
+                            # For now, include it to allow navigation
+                            should_include = True
+                            break
+                
+                if should_include:
+                    filtered_items.append(item)
+                    
+            elif item.object_key:
+                # For files, check the object key
+                if self._should_include_path(item.object_key):
+                    filtered_items.append(item)
+        
+        return filtered_items
 
     def list_directory(
         self,
@@ -165,10 +241,16 @@ class DropboxStorageProvider(StorageProviderBase):
 
             # Sort items: folders first, then files, both alphabetically
             items.sort(key=lambda x: (not x.is_folder, x.name.lower()))
-
+            
+            # Apply prefix filtering
+            filtered_items = self._filter_items(items, prefix)
+            
             duration = time.time() - start_time
-            folders_count = sum(1 for item in items if item.is_folder)
-            files_count = len(items) - folders_count
+            folders_count = sum(1 for item in filtered_items if item.is_folder)
+            files_count = len(filtered_items) - folders_count
+            original_count = len(items)
+            filtered_count = original_count - len(filtered_items)
+            
             logger.info(
                 "Directory listing completed",
                 provider_type="dropbox",
@@ -177,12 +259,14 @@ class DropboxStorageProvider(StorageProviderBase):
                 api_duration_ms=api_duration * 1000,
                 folders_count=folders_count,
                 files_count=files_count,
-                total_items=len(items),
+                total_items=len(filtered_items),
+                original_items=original_count,
+                filtered_out=filtered_count,
                 prefix=prefix,
                 list_path=list_path,
             )
 
-            return items
+            return filtered_items
 
         except RateLimitError as e:
             logger.warning(
@@ -330,6 +414,10 @@ class DropboxStorageProvider(StorageProviderBase):
 
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):
+                            continue
+                        
+                        # Apply prefix exclusion filter
+                        if not self._should_include_path("/" + rel_path):
                             continue
 
                         mime_type, _ = mimetypes.guess_type(rel_path)
@@ -525,6 +613,10 @@ class DropboxStorageProvider(StorageProviderBase):
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):
                             continue
+                        
+                        # Apply prefix exclusion filter
+                        if not self._should_include_path("/" + rel_path):
+                            continue
 
                         mime_type, _ = mimetypes.guess_type(rel_path)
                         last_modified = (
@@ -615,6 +707,17 @@ class DropboxStorageProvider(StorageProviderBase):
             operation="retrieve",
             object_key=object_key,
         )
+        
+        # Check if the file is excluded
+        if not self._should_include_path("/" + object_key.lstrip("/")):
+            logger.info(
+                "File retrieval blocked by prefix filter",
+                provider_type="dropbox",
+                operation="retrieve",
+                object_key=object_key,
+                reason="excluded_prefix"
+            )
+            raise FileNotFoundError(f"File not found: {object_key}")
 
         try:
             # Remove leading slash from object key and join with root
@@ -721,6 +824,17 @@ class DropboxStorageProvider(StorageProviderBase):
             operation="iter_object_bytes",
             object_key=object_key
         )
+        
+        # Check if the file is excluded
+        if not self._should_include_path("/" + object_key.lstrip("/")):
+            logger.info(
+                "Streaming retrieval blocked by prefix filter",
+                provider_type="dropbox",
+                operation="iter_object_bytes",
+                object_key=object_key,
+                reason="excluded_prefix"
+            )
+            raise FileNotFoundError(f"File not found: {object_key}")
 
         try:
             # Remove leading slash from object key and join with root
@@ -932,6 +1046,10 @@ class DropboxStorageProvider(StorageProviderBase):
 
                         # Apply regex filter if provided
                         if regex_pattern and not regex_pattern.search(rel_path):
+                            continue
+                        
+                        # Apply prefix exclusion filter
+                        if not self._should_include_path("/" + rel_path):
                             continue
 
                         count += 1
