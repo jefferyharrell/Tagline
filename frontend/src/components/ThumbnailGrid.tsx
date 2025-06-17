@@ -15,7 +15,8 @@ export default function ThumbnailGrid({
   children,
   className = "",
   emptyMessage = "No items to display",
-  emptyIcon = <Image className="w-12 h-12 text-gray-400" />,
+  // eslint-disable-next-line jsx-a11y/alt-text
+  emptyIcon = <Image className="w-12 h-12 text-gray-400" aria-hidden="true" />,
 }: ThumbnailGridProps) {
   // Convert children to array to check if it's empty
   const childrenArray = React.Children.toArray(children);

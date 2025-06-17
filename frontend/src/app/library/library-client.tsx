@@ -542,7 +542,8 @@ export default function LibraryClient({ initialPath }: LibraryClientProps) {
                   className="bg-white overflow-hidden shadow-sm rounded-lg"
                 >
                   <div className="relative aspect-square bg-gray-100 flex items-center justify-center rounded-lg">
-                    <Image className="w-8 h-8 text-gray-300" />
+                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                    <Image className="w-8 h-8 text-gray-300" aria-hidden="true" />
                   </div>
                 </div>
               ))}

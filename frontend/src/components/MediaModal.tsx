@@ -142,7 +142,7 @@ export default function MediaModal({
       document.removeEventListener("wheel", handleWheel);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose, api, isDescriptionLocked]);
+  }, [isOpen, onClose, api, isDescriptionLocked, lastScrollTime]);
 
   // Sync description state when currentMedia changes
   useEffect(() => {

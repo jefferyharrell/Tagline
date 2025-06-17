@@ -4,7 +4,6 @@ import React, { useEffect, useCallback, useState, useRef } from "react";
 import { X, ChevronRight, Lock, Unlock, ArrowLeft, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
