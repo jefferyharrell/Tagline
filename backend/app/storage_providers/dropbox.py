@@ -81,7 +81,12 @@ class DropboxStorageProvider(StorageProviderBase):
             return True
         
         # Ensure path starts with / for consistent comparison
-        normalized_path = "/" + path if path else "/"
+        if not path:
+            normalized_path = "/"
+        elif path.startswith("/"):
+            normalized_path = path
+        else:
+            normalized_path = "/" + path
         
         # Check if path starts with any excluded prefix (exact case match)
         for prefix in self.excluded_prefixes:
@@ -118,14 +123,26 @@ class DropboxStorageProvider(StorageProviderBase):
                 should_include = False
                 
                 # First check if the folder itself is excluded
-                if self._should_include_path(folder_path):
+                # For folders, also check with trailing slash to match prefix patterns
+                folder_with_slash = folder_path + "/"
+                path_check = self._should_include_path(folder_path)
+                slash_check = self._should_include_path(folder_with_slash)
+                
+                
+                if path_check and slash_check:
                     should_include = True
                 else:
                     # Even if folder is excluded, check if it might contain non-excluded content
                     # This is important for navigation - we show parent folders of included content
                     for prefix in self.excluded_prefixes:
                         # If this folder is a parent of an excluded prefix, we need to check further
-                        if prefix.startswith(folder_path + "/"):
+                        # But don't include the folder if it exactly matches the prefix
+                        folder_with_trailing_slash = folder_path + "/"
+                        prefix_starts_check = prefix.startswith(folder_with_trailing_slash)
+                        prefix_not_equal_check = prefix != folder_with_trailing_slash
+                        
+                        
+                        if prefix_starts_check and prefix_not_equal_check:
                             # This folder contains excluded content, but might also contain non-excluded
                             # For now, include it to allow navigation
                             should_include = True
