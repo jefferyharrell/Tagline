@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import MobilePageHeader from '@/components/MobilePageHeader';
 import ThumbnailGrid from '@/components/ThumbnailGrid';
 import PhotoThumbnail from '@/components/PhotoThumbnail';
-import MediaModal from '@/components/MediaModal';
+import MediaModalSwiper from '@/components/MediaModalSwiper';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 
@@ -282,7 +282,7 @@ export default function SearchClient() {
       </div>
 
       {/* Photo modal */}
-      <MediaModal
+      <MediaModalSwiper
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         photos={results}

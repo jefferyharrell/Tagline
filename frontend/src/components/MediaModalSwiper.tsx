@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useCallback, useState } from "react";
-import { X, ChevronRight, Lock, Unlock } from "lucide-react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
+import { X, ChevronRight, Lock, Unlock, ArrowLeft, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -11,16 +12,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  type CarouselApi,
-} from "@/components/ui/carousel";
 import { toast } from "sonner";
 import type { MediaObject } from "@/types/media";
+
+// Import Swiper React components
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Keyboard, Mousewheel } from "swiper/modules";
+import type { Swiper as SwiperType } from "swiper";
+
+// Import Swiper styles
+import "swiper/css";
+import "swiper/css/navigation";
 
 interface MediaModalProps {
   isOpen: boolean;
@@ -31,7 +33,7 @@ interface MediaModalProps {
   onMediaUpdate?: (updatedMedia: MediaObject) => void;
 }
 
-export default function MediaModal({
+export default function MediaModalSwiper({
   isOpen,
   onClose,
   photos,
@@ -40,12 +42,7 @@ export default function MediaModal({
   onMediaUpdate,
 }: MediaModalProps) {
   const router = useRouter();
-
-  // Carousel API state
-  const [api, setApi] = useState<CarouselApi>();
-  
-  // Scroll navigation state for debouncing
-  const [lastScrollTime, setLastScrollTime] = useState(0);
+  const swiperRef = useRef<SwiperType | null>(null);
 
   // Get current media from photos array
   const currentMedia = photos[currentIndex];
@@ -62,87 +59,32 @@ export default function MediaModal({
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
-  // Handle carousel API events
-  useEffect(() => {
-    if (!api) return;
-
-    // Sync carousel selection with our index state
-    if (api.selectedScrollSnap() !== currentIndex) {
-      api.scrollTo(currentIndex);
-    }
-
-    const handleSelect = () => {
-      const newIndex = api.selectedScrollSnap();
-      if (newIndex !== currentIndex) {
-        onIndexChange(newIndex);
-      }
-    };
-
-    api.on("select", handleSelect);
-    return () => {
-      api.off("select", handleSelect);
-    };
-  }, [api, currentIndex, onIndexChange]);
-
-  // Handle ESC key to close modal, arrow keys, and horizontal scroll for navigation
+  // Handle ESC key to close modal
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
         onClose();
-      } else if (isOpen && isDescriptionLocked && api) {
-        // Let carousel handle arrow keys when not editing description
-        if (event.key === "ArrowLeft") {
-          api.scrollPrev();
-        } else if (event.key === "ArrowRight") {
-          api.scrollNext();
-        }
-      }
-    };
-
-    const handleWheel = (event: WheelEvent) => {
-      if (!isOpen || !isDescriptionLocked || !api) return;
-
-      // Check if this is horizontal scrolling (shift+wheel or trackpad horizontal)
-      const isHorizontalScroll = Math.abs(event.deltaX) > Math.abs(event.deltaY);
-      
-      if (isHorizontalScroll) {
-        // Prevent default scrolling behavior
-        event.preventDefault();
-        
-        // Debounce: require minimum time between navigations and minimum scroll distance
-        const now = Date.now();
-        const timeSinceLastScroll = now - lastScrollTime;
-        const minScrollDelay = 300; // 300ms minimum between navigations
-        const minScrollThreshold = 30; // Minimum deltaX to trigger navigation
-        
-        if (timeSinceLastScroll > minScrollDelay && Math.abs(event.deltaX) > minScrollThreshold) {
-          setLastScrollTime(now);
-          
-          // Navigate based on scroll direction
-          if (event.deltaX > 0) {
-            // Scrolling right, go to next photo
-            api.scrollNext();
-          } else if (event.deltaX < 0) {
-            // Scrolling left, go to previous photo
-            api.scrollPrev();
-          }
-        }
       }
     };
 
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
-      document.addEventListener("wheel", handleWheel, { passive: false });
       // Prevent background scrolling when modal is open
       document.body.style.overflow = "hidden";
     }
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("wheel", handleWheel);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose, api, isDescriptionLocked]);
+  }, [isOpen, onClose]);
+
+  // Sync swiper with external index changes
+  useEffect(() => {
+    if (swiperRef.current && swiperRef.current.activeIndex !== currentIndex) {
+      swiperRef.current.slideTo(currentIndex);
+    }
+  }, [currentIndex]);
 
   // Sync description state when currentMedia changes
   useEffect(() => {
@@ -317,121 +259,157 @@ export default function MediaModal({
               </div>
             </div>
 
-            {/* Media Display with Navigation */}
-            <div className="relative">
-              <Carousel
-                className="w-full max-w-5xl relative"
-                setApi={setApi}
-                opts={{
-                  align: "center",
-                  loop: false,
-                  startIndex: currentIndex,
+            {/* Swiper Media Display */}
+            <div className="relative w-full max-w-5xl">
+              <Swiper
+                modules={[Navigation, Keyboard, Mousewheel]}
+                navigation={{
+                  nextEl: ".swiper-button-next",
+                  prevEl: ".swiper-button-prev",
                 }}
+                keyboard={{
+                  enabled: isDescriptionLocked, // Disable keyboard nav when editing
+                }}
+                mousewheel={{
+                  forceToAxis: true, // Force horizontal scrolling only
+                  sensitivity: 1,
+                  thresholdDelta: 20, // Minimum delta to trigger slide change
+                  thresholdTime: 500, // Maximum time between scrolls
+                }}
+                spaceBetween={50}
+                slidesPerView={1}
+                initialSlide={currentIndex}
+                onSwiper={(swiper) => {
+                  swiperRef.current = swiper;
+                }}
+                onSlideChange={(swiper) => {
+                  onIndexChange(swiper.activeIndex);
+                }}
+                className="w-full"
+                touchRatio={1}
+                threshold={10}
+                resistance={true}
+                resistanceRatio={0.85}
+                grabCursor={true}
+                simulateTouch={true}
               >
-                <CarouselContent>
-                  {photos.map((photo) => (
-                    <CarouselItem key={photo.object_key}>
-                      <div className="flex justify-center relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
-                          alt={photo.metadata?.description || "Photo"}
-                          className="max-w-full w-auto h-auto select-none"
-                          style={{ maxHeight: "calc(100vh - 8rem)" }}
-                          onContextMenu={(e) => e.preventDefault()}
-                        />
+                {photos.map((photo, index) => (
+                  <SwiperSlide key={photo.object_key}>
+                    <div className="flex justify-center relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
+                        alt={photo.metadata?.description || "Photo"}
+                        className="max-w-full w-auto h-auto select-none"
+                        style={{ maxHeight: "calc(100vh - 8rem)" }}
+                        onContextMenu={(e) => e.preventDefault()}
+                        draggable={false}
+                      />
 
-                        {/* Description Section - Only show for current photo */}
-                        {photo.object_key === currentMedia.object_key && (
-                          <div className="absolute bottom-0 left-0 right-0 p-4">
-                            <div className="relative max-w-3xl mx-auto">
-                              {/* Helper text and status - positioned above textarea */}
-                              <div className="flex justify-end mb-2 h-6">
-                                {/* Helper text when editing */}
-                                {!isDescriptionLocked &&
-                                  !isOptimisticUpdate && (
-                                    <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
-                                      Click the lock icon to save changes, or
-                                      press Escape to cancel
-                                    </p>
-                                  )}
+                      {/* Description Section - Only show for current photo */}
+                      {index === currentIndex && (
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <div className="relative max-w-3xl mx-auto">
+                            {/* Helper text and status - positioned above textarea */}
+                            <div className="flex justify-end mb-2 h-6">
+                              {/* Helper text when editing */}
+                              {!isDescriptionLocked && !isOptimisticUpdate && (
+                                <p className="text-xs text-gray-500 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
+                                  Click the lock icon to save changes, or press
+                                  Escape to cancel
+                                </p>
+                              )}
 
-                                {/* Subtle loading indicator for optimistic updates */}
-                                {isOptimisticUpdate && (
-                                  <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
-                                    <svg
-                                      className="animate-pulse h-3 w-3 mr-1.5 text-jl-red"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                    Saving...
-                                  </div>
-                                )}
-                              </div>
-
-                              <Textarea
-                                value={description || ""}
-                                onChange={(e) => setDescription(e.target.value)}
-                                readOnly={isDescriptionLocked}
-                                rows={3}
-                                className={`!text-lg font-medium w-full resize-none bg-white/50 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 transition-opacity duration-200 ${
-                                  isDescriptionLocked
-                                    ? "text-gray-900 cursor-default"
-                                    : "text-gray-900"
-                                } ${isOptimisticUpdate ? "opacity-70" : ""}`}
-                                placeholder={
-                                  isDescriptionLocked
-                                    ? ""
-                                    : "Enter a description for this media..."
-                                }
-                                onClick={() => {
-                                  if (isDescriptionLocked && !description) {
-                                    toggleDescriptionLock();
-                                  }
-                                }}
-                              />
-
-                              {/* Padlock Icon */}
-                              <button
-                                onClick={toggleDescriptionLock}
-                                disabled={isLoading}
-                                className={`absolute top-10 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
-                                  isLoading
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                                }`}
-                                title={
-                                  isLoading
-                                    ? "Saving..."
-                                    : isDescriptionLocked
-                                      ? "Click to edit description"
-                                      : "Click to save and lock description"
-                                }
-                              >
-                                {isLoading ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
-                                ) : isDescriptionLocked ? (
-                                  <Lock className="h-4 w-4 text-gray-600" />
-                                ) : (
-                                  <Unlock className="h-4 w-4 text-jl-red" />
-                                )}
-                              </button>
+                              {/* Subtle loading indicator for optimistic updates */}
+                              {isOptimisticUpdate && (
+                                <div className="flex items-center text-xs text-gray-600 bg-white/80 backdrop-blur-sm rounded px-2 py-1">
+                                  <svg
+                                    className="animate-pulse h-3 w-3 mr-1.5 text-jl-red"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                  Saving...
+                                </div>
+                              )}
                             </div>
+
+                            <Textarea
+                              value={description || ""}
+                              onChange={(e) => setDescription(e.target.value)}
+                              readOnly={isDescriptionLocked}
+                              rows={3}
+                              className={`!text-lg font-medium w-full resize-none bg-white/50 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pr-12 transition-opacity duration-200 ${
+                                isDescriptionLocked
+                                  ? "text-gray-900 cursor-default"
+                                  : "text-gray-900"
+                              } ${isOptimisticUpdate ? "opacity-70" : ""}`}
+                              placeholder={
+                                isDescriptionLocked
+                                  ? ""
+                                  : "Enter a description for this media..."
+                              }
+                              onClick={() => {
+                                if (isDescriptionLocked && !description) {
+                                  toggleDescriptionLock();
+                                }
+                              }}
+                            />
+
+                            {/* Padlock Icon */}
+                            <button
+                              onClick={toggleDescriptionLock}
+                              disabled={isLoading}
+                              className={`absolute top-10 right-2 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-jl-red transition-all duration-200 ${
+                                isLoading
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
+                              }`}
+                              title={
+                                isLoading
+                                  ? "Saving..."
+                                  : isDescriptionLocked
+                                    ? "Click to edit description"
+                                    : "Click to save and lock description"
+                              }
+                            >
+                              {isLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-jl-red"></div>
+                              ) : isDescriptionLocked ? (
+                                <Lock className="h-4 w-4 text-gray-600" />
+                              ) : (
+                                <Unlock className="h-4 w-4 text-jl-red" />
+                              )}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
-                <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
-              </Carousel>
+                        </div>
+                      )}
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+
+              {/* Custom Navigation Buttons - Match textarea glass appearance and close button sizing */}
+              <button
+                className="swiper-button-prev absolute p-2 rounded-full top-1/2 left-4 -translate-y-1/2 bg-white/50 backdrop-blur-sm border border-gray-200 shadow-sm hover:bg-white transition-all duration-200 hover:scale-110 flex items-center justify-center"
+                title="Previous photo (←)"
+              >
+                <ArrowLeft className="h-6 w-6 sm:h-7 sm:w-7 text-gray-700" />
+                <span className="sr-only">Previous slide</span>
+              </button>
+
+              <button
+                className="swiper-button-next absolute p-2 rounded-full top-1/2 right-4 -translate-y-1/2 bg-white/50 backdrop-blur-sm border border-gray-200 shadow-sm hover:bg-white transition-all duration-200 hover:scale-110 flex items-center justify-center"
+                title="Next photo (→)"
+              >
+                <ArrowRight className="h-6 w-6 sm:h-7 sm:w-7 text-gray-700" />
+                <span className="sr-only">Next slide</span>
+              </button>
             </div>
 
             {/* Raw Metadata Card - Below the photo */}
@@ -496,8 +474,8 @@ export default function MediaModal({
                   Save Changes?
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Are you sure you want to save the changes to this description?
-                  This action cannot be undone.
+                  Are you sure you want to save the changes to this
+                  description? This action cannot be undone.
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button

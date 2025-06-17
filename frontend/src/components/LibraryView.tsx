@@ -9,7 +9,7 @@ import MobilePageHeader from './MobilePageHeader';
 import FolderList from './FolderList';
 import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
-import MediaModal from './MediaModal';
+import MediaModalSwiper from './MediaModalSwiper';
 import { useSSE, type IngestEvent } from '@/contexts/sse-context';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
@@ -499,7 +499,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       </div>
       
       {/* Media Modal */}
-      <MediaModal 
+      <MediaModalSwiper 
         isOpen={isModalOpen} 
         onClose={handleModalClose}
         photos={photos}

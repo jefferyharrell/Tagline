@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "swiper/css";
+@import "swiper/css/navigation";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -131,6 +133,21 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Hide default Swiper navigation buttons since we use custom ones */
+.swiper-button-next::after,
+.swiper-button-prev::after {
+  display: none;
+}
+
+/* Force our custom navigation buttons to be perfectly circular and match close button size */
+.swiper-button-next,
+.swiper-button-prev {
+  /* Force perfect circles and equal dimensions */
+  border-radius: 50% !important;
+  width: auto !important;
+  height: auto !important;
 }
 
 @layer base {
