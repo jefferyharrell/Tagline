@@ -9,3 +9,16 @@ export function clearAuthCookieClient() {
   // Clear the cookie by setting it to expire in the past
   document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 }
+
+/**
+ * Handle authentication failure by clearing state and redirecting to login
+ */
+export function handleAuthFailure() {
+  // Clear the cookie
+  clearAuthCookieClient();
+  
+  // Add a small delay to ensure cookie is cleared before redirect
+  setTimeout(() => {
+    window.location.href = '/';
+  }, 100);
+}

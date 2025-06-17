@@ -11,8 +11,7 @@ import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
 import MediaModalSwiper from './MediaModalSwiper';
 import { useSSE, type IngestEvent } from '@/contexts/sse-context';
-import { useUser } from '@/contexts/user-context';
-import { clearAuthCookieClient } from '@/lib/auth-client';
+import { handleAuthFailure } from '@/lib/auth-client';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 
@@ -37,7 +36,6 @@ interface BrowseResponse {
 
 export default function LibraryView({ initialPath, className = '' }: LibraryViewProps) {
   const router = useRouter();
-  const { clearUser } = useUser();
   
   // Parse initial path into array
   const parsedInitialPath = initialPath ? initialPath.split('/').filter(Boolean) : [];
@@ -90,14 +88,12 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user, cookie, and redirect to login
+          // JWT token is invalid/expired - handle auth failure
           logger.warn('Authentication failed, redirecting to login', 'LibraryView', {
             status: response.status,
             statusText: response.statusText
           });
-          clearUser();
-          clearAuthCookieClient();
-          window.location.href = '/';
+          handleAuthFailure();
           return;
         }
         throw new Error(`Failed to load library: ${response.statusText}`);
@@ -151,7 +147,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         setShowLoadingSpinner(false);
       }
     }
-  }, [clearUser]);
+  }, []);
   
   // Update URL when path changes
   useEffect(() => {

@@ -19,8 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useUser } from "@/contexts/user-context";
-import { clearAuthCookieClient } from "@/lib/auth-client";
+import { handleAuthFailure } from "@/lib/auth-client";
 import { MediaObject } from "@/types/media";
 
 interface MediaDetailClientProps {
@@ -35,7 +34,6 @@ export default function MediaDetailClient({
   onClose,
 }: MediaDetailClientProps) {
   const router = useRouter();
-  const { clearUser } = useUser();
   const [mediaObject, setMediaObject] =
     useState<MediaObject>(initialMediaObject);
   const [description, setDescription] = useState(
@@ -88,10 +86,8 @@ export default function MediaDetailClient({
       );
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user, cookie, and redirect to login
-          clearUser();
-          clearAuthCookieClient();
-          window.location.href = '/';
+          // JWT token is invalid/expired - handle auth failure
+          handleAuthFailure();
           return null;
         }
         throw new Error("Failed to fetch media");
@@ -108,7 +104,7 @@ export default function MediaDetailClient({
       toast.error("Failed to load media");
       return null;
     }
-  }, [clearUser]);
+  }, []);
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -143,10 +139,8 @@ export default function MediaDetailClient({
           `/api/library/${encodeURIComponent(mediaObject.object_key)}/adjacent`,
         );
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user, cookie, and redirect to login
-          clearUser();
-          clearAuthCookieClient();
-          window.location.href = '/';
+          // JWT token is invalid/expired - handle auth failure
+          handleAuthFailure();
           return;
         }
         if (response.ok) {
@@ -190,7 +184,7 @@ export default function MediaDetailClient({
     };
 
     fetchAdjacentMedia();
-  }, [mediaObject.object_key, mediaCache, clearUser]);
+  }, [mediaObject.object_key, mediaCache]);
 
   // Navigation functions
   const navigateToMedia = useCallback(
@@ -291,10 +285,8 @@ export default function MediaDetailClient({
 
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user, cookie, and redirect to login
-          clearUser();
-          clearAuthCookieClient();
-          window.location.href = '/';
+          // JWT token is invalid/expired - handle auth failure
+          handleAuthFailure();
           return;
         }
         const errorData = await response.json();
