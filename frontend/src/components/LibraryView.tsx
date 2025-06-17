@@ -12,6 +12,7 @@ import PhotoThumbnail from './PhotoThumbnail';
 import MediaModalSwiper from './MediaModalSwiper';
 import { useSSE, type IngestEvent } from '@/contexts/sse-context';
 import { useUser } from '@/contexts/user-context';
+import { clearAuthCookieClient } from '@/lib/jwt-utils';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 
@@ -89,13 +90,14 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user and redirect to login
+          // JWT token is invalid/expired - clear user, cookie, and redirect to login
           logger.warn('Authentication failed, redirecting to login', 'LibraryView', {
             status: response.status,
             statusText: response.statusText
           });
           clearUser();
-          router.push('/');
+          clearAuthCookieClient();
+          window.location.href = '/';
           return;
         }
         throw new Error(`Failed to load library: ${response.statusText}`);
@@ -149,7 +151,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         setShowLoadingSpinner(false);
       }
     }
-  }, [clearUser, router]);
+  }, [clearUser]);
   
   // Update URL when path changes
   useEffect(() => {

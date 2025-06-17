@@ -9,6 +9,7 @@ import ThumbnailGrid from '@/components/ThumbnailGrid';
 import PhotoThumbnail from '@/components/PhotoThumbnail';
 import MediaModalSwiper from '@/components/MediaModalSwiper';
 import { useUser } from '@/contexts/user-context';
+import { clearAuthCookieClient } from '@/lib/jwt-utils';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 
@@ -76,13 +77,14 @@ export default function SearchClient() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user and redirect to login
+          // JWT token is invalid/expired - clear user, cookie, and redirect to login
           logger.warn('Authentication failed during search, redirecting to login', 'SearchClient', {
             status: response.status,
             statusText: response.statusText
           });
           clearUser();
-          router.push('/');
+          clearAuthCookieClient();
+          window.location.href = '/';
           return;
         }
         throw new Error('Search failed');
@@ -112,7 +114,7 @@ export default function SearchClient() {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [clearUser, router]);
+  }, [clearUser]);
 
   // Handle search input changes with debouncing
   const handleSearchInputChange = useCallback((value: string) => {

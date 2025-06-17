@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useUser } from "@/contexts/user-context";
+import { clearAuthCookieClient } from "@/lib/jwt-utils";
 import { MediaObject } from "@/types/media";
 
 interface MediaDetailClientProps {
@@ -87,9 +88,10 @@ export default function MediaDetailClient({
       );
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user and redirect to login
+          // JWT token is invalid/expired - clear user, cookie, and redirect to login
           clearUser();
-          router.push('/');
+          clearAuthCookieClient();
+          window.location.href = '/';
           return null;
         }
         throw new Error("Failed to fetch media");
@@ -106,7 +108,7 @@ export default function MediaDetailClient({
       toast.error("Failed to load media");
       return null;
     }
-  }, [clearUser, router]);
+  }, [clearUser]);
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -141,9 +143,10 @@ export default function MediaDetailClient({
           `/api/library/${encodeURIComponent(mediaObject.object_key)}/adjacent`,
         );
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user and redirect to login
+          // JWT token is invalid/expired - clear user, cookie, and redirect to login
           clearUser();
-          router.push('/');
+          clearAuthCookieClient();
+          window.location.href = '/';
           return;
         }
         if (response.ok) {
@@ -187,7 +190,7 @@ export default function MediaDetailClient({
     };
 
     fetchAdjacentMedia();
-  }, [mediaObject.object_key, mediaCache, clearUser, router]);
+  }, [mediaObject.object_key, mediaCache, clearUser]);
 
   // Navigation functions
   const navigateToMedia = useCallback(
@@ -288,9 +291,10 @@ export default function MediaDetailClient({
 
       if (!response.ok) {
         if (response.status === 401) {
-          // JWT token is invalid/expired - clear user and redirect to login
+          // JWT token is invalid/expired - clear user, cookie, and redirect to login
           clearUser();
-          router.push('/');
+          clearAuthCookieClient();
+          window.location.href = '/';
           return;
         }
         const errorData = await response.json();
