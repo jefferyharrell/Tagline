@@ -11,14 +11,9 @@ export function clearAuthCookieClient() {
 }
 
 /**
- * Handle authentication failure by clearing state and redirecting to login
+ * Handle authentication failure by calling logout endpoint which clears cookies server-side
  */
 export function handleAuthFailure() {
-  // Clear the cookie
-  clearAuthCookieClient();
-  
-  // Add a small delay to ensure cookie is cleared before redirect
-  setTimeout(() => {
-    window.location.href = '/';
-  }, 100);
+  // Redirect to logout endpoint which will clear the cookie and redirect to login
+  window.location.href = '/api/auth/logout';
 }
