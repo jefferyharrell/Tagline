@@ -9,7 +9,7 @@ import ThumbnailGrid from '@/components/ThumbnailGrid';
 import PhotoThumbnail from '@/components/PhotoThumbnail';
 import MediaModalSwiper from '@/components/MediaModalSwiper';
 import { useUser } from '@/contexts/user-context';
-import { clearAuthCookieClient } from '@/lib/jwt-utils';
+import { clearAuthCookieClient } from '@/lib/auth-client';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 

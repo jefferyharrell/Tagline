@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useUser } from "@/contexts/user-context";
-import { clearAuthCookieClient } from "@/lib/jwt-utils";
+import { clearAuthCookieClient } from "@/lib/auth-client";
 import { MediaObject } from "@/types/media";
 
 interface MediaDetailClientProps {
