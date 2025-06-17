@@ -437,9 +437,10 @@ export default function MediaDetailClient({
             <img
               src={`/api/library/${encodeURIComponent(mediaObject.object_key)}/proxy`}
               alt={mediaObject.metadata?.description || "Media preview"}
-              className={`${isModal ? "max-w-full max-h-full w-auto h-auto object-contain" : "absolute inset-0 w-full h-full object-contain"} transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+              className={`${isModal ? "max-w-full max-h-full w-auto h-auto object-contain" : "absolute inset-0 w-full h-full object-contain"} transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"} select-none`}
               style={isModal ? { maxHeight: "calc(100vh - 8rem)" } : {}}
               onLoad={() => setImageLoaded(true)}
+              onContextMenu={(e) => e.preventDefault()}
             />
 
             {/* Loading overlay */}

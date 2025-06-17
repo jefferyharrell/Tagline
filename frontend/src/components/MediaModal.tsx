@@ -300,8 +300,9 @@ export default function MediaModal({
                         <img
                           src={`/api/library/${encodeURIComponent(photo.object_key)}/proxy`}
                           alt={photo.metadata?.description || "Photo"}
-                          className="max-w-full w-auto h-auto"
+                          className="max-w-full w-auto h-auto select-none"
                           style={{ maxHeight: "calc(100vh - 8rem)" }}
+                          onContextMenu={(e) => e.preventDefault()}
                         />
 
                         {/* Description Section - Only show for current photo */}
