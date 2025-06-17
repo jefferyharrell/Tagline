@@ -8,11 +8,21 @@ from pydantic import ValidationError
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.config import StorageProviderType, get_settings
+from app.structlog_config import configure_structlog
+
+# Configure structlog early, before importing routes that use logging
+settings = get_settings()
+configure_structlog(
+    service_name="tagline-backend",
+    log_level=settings.LOG_LEVEL,
+    log_format=settings.LOG_FORMAT,
+)
+
+# Now import routes after structlog is configured
 from app.api.v1.routes import private_router, public_router
 from app.api.v1.routes.auth import limiter
 from app.auth_utils import get_current_user
-from app.config import StorageProviderType, get_settings
-from app.structlog_config import configure_structlog
 
 # Define required environment variables for each storage provider
 PROVIDER_REQUIRED_VARS = {
@@ -51,20 +61,13 @@ async def lifespan(app):
     logging.info("Starting application...")
 
     logging.info("Loading settings...")
-    try:
-        settings = get_settings()
-    except ValidationError as e:
-        logging.critical(f"Configuration error:\n{e}")
-        raise RuntimeError(f"Configuration error: {e}")
+    # Settings already loaded at module level
     logging.info("Loading settings complete.")
 
-    # Configure structlog for the main application
-    configure_structlog(
-        service_name="tagline-backend",
-        log_level=settings.LOG_LEVEL,
-        log_format=settings.LOG_FORMAT,
-    )
-    logging.info(f"Log level set to {logging.getLevelName(settings.LOG_LEVEL)}")
+    # structlog is already configured at module level
+    from app.structlog_config import get_logger
+    app_logger = get_logger(__name__)
+    app_logger.info("Structlog configured", log_level=logging.getLevelName(settings.LOG_LEVEL), log_format=settings.LOG_FORMAT)
 
     logging.info("Validating configuration...")
     validate_config_on_startup(settings)

@@ -7,13 +7,6 @@ from typing import Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)-8s] %(message)s",
-    datefmt="%H:%M:%S",
-    stream=sys.stdout,
-)
-
 
 class StorageProviderType(str, Enum):
     FILESYSTEM = "filesystem"
