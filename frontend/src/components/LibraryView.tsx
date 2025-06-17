@@ -11,6 +11,7 @@ import ThumbnailGrid from './ThumbnailGrid';
 import PhotoThumbnail from './PhotoThumbnail';
 import MediaModalSwiper from './MediaModalSwiper';
 import { useSSE, type IngestEvent } from '@/contexts/sse-context';
+import { useUser } from '@/contexts/user-context';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 
@@ -35,6 +36,7 @@ interface BrowseResponse {
 
 export default function LibraryView({ initialPath, className = '' }: LibraryViewProps) {
   const router = useRouter();
+  const { clearUser } = useUser();
   
   // Parse initial path into array
   const parsedInitialPath = initialPath ? initialPath.split('/').filter(Boolean) : [];
@@ -86,6 +88,16 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
       const response = await fetch(url.toString());
       
       if (!response.ok) {
+        if (response.status === 401) {
+          // JWT token is invalid/expired - clear user and redirect to login
+          logger.warn('Authentication failed, redirecting to login', 'LibraryView', {
+            status: response.status,
+            statusText: response.statusText
+          });
+          clearUser();
+          router.push('/');
+          return;
+        }
         throw new Error(`Failed to load library: ${response.statusText}`);
       }
       
@@ -137,7 +149,7 @@ export default function LibraryView({ initialPath, className = '' }: LibraryView
         setShowLoadingSpinner(false);
       }
     }
-  }, []);
+  }, [clearUser, router]);
   
   // Update URL when path changes
   useEffect(() => {

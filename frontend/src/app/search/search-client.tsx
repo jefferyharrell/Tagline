@@ -8,6 +8,7 @@ import MobilePageHeader from '@/components/MobilePageHeader';
 import ThumbnailGrid from '@/components/ThumbnailGrid';
 import PhotoThumbnail from '@/components/PhotoThumbnail';
 import MediaModalSwiper from '@/components/MediaModalSwiper';
+import { useUser } from '@/contexts/user-context';
 import type { MediaObject } from '@/types/media';
 import logger from '@/lib/logger';
 
@@ -22,6 +23,7 @@ interface SearchResponse {
 export default function SearchClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { clearUser } = useUser();
   
   // State management
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '');
@@ -73,6 +75,16 @@ export default function SearchClient() {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // JWT token is invalid/expired - clear user and redirect to login
+          logger.warn('Authentication failed during search, redirecting to login', 'SearchClient', {
+            status: response.status,
+            statusText: response.statusText
+          });
+          clearUser();
+          router.push('/');
+          return;
+        }
         throw new Error('Search failed');
       }
 
@@ -100,7 +112,7 @@ export default function SearchClient() {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, []);
+  }, [clearUser, router]);
 
   // Handle search input changes with debouncing
   const handleSearchInputChange = useCallback((value: string) => {

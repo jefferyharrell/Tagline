@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useUser } from "@/contexts/user-context";
 import { MediaObject } from "@/types/media";
 
 interface MediaDetailClientProps {
@@ -33,6 +34,7 @@ export default function MediaDetailClient({
   onClose,
 }: MediaDetailClientProps) {
   const router = useRouter();
+  const { clearUser } = useUser();
   const [mediaObject, setMediaObject] =
     useState<MediaObject>(initialMediaObject);
   const [description, setDescription] = useState(
@@ -84,6 +86,12 @@ export default function MediaDetailClient({
         `/api/library/${encodeURIComponent(objectKey)}`,
       );
       if (!response.ok) {
+        if (response.status === 401) {
+          // JWT token is invalid/expired - clear user and redirect to login
+          clearUser();
+          router.push('/');
+          return null;
+        }
         throw new Error("Failed to fetch media");
       }
       const data = await response.json();
@@ -98,7 +106,7 @@ export default function MediaDetailClient({
       toast.error("Failed to load media");
       return null;
     }
-  }, []);
+  }, [clearUser, router]);
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -132,6 +140,12 @@ export default function MediaDetailClient({
         const response = await fetch(
           `/api/library/${encodeURIComponent(mediaObject.object_key)}/adjacent`,
         );
+        if (response.status === 401) {
+          // JWT token is invalid/expired - clear user and redirect to login
+          clearUser();
+          router.push('/');
+          return;
+        }
         if (response.ok) {
           const data = await response.json();
           setAdjacentMedia(data);
@@ -173,7 +187,7 @@ export default function MediaDetailClient({
     };
 
     fetchAdjacentMedia();
-  }, [mediaObject.object_key, mediaCache]);
+  }, [mediaObject.object_key, mediaCache, clearUser, router]);
 
   // Navigation functions
   const navigateToMedia = useCallback(
@@ -273,6 +287,12 @@ export default function MediaDetailClient({
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // JWT token is invalid/expired - clear user and redirect to login
+          clearUser();
+          router.push('/');
+          return;
+        }
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update media object");
       }
